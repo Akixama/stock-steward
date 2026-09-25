@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import { LegalLayout, LegalSection } from "@/components/legal-layout";
+
+export const metadata: Metadata = { title: "Privacy · Stock Steward" };
+
+export default function PrivacyPage() {
+  return <LegalLayout eyebrow="PRIVACY" title="What we keep. Why we keep it." updated="25 September 2026">
+    <p className="legal-lead">Stock Steward is an independent application for reviewing stock purchase limits and decision receipts. This draft describes the current brokerage edition. Its public publication wording remains under review.</p>
+    <LegalSection title="Your identity and account connection"><p>When you sign in, our hosting platform gives Stock Steward a site-specific user identifier and your sign-in email. We use the identifier to keep your workspace records separate from other users’ records. If you choose to connect Alpaca, Alpaca handles its own sign-in and consent screen. Stock Steward receives an OAuth access token and an account identifier for the permission you grant; it does not receive your Alpaca password.</p></LegalSection>
+    <LegalSection title="Broker information we use"><p>After you connect, a check may read balances and buying power, positions, asset eligibility, market quotes, open orders, and recent fills. We use those figures to evaluate a proposed buy against your saved limits. A decision receipt stores the observed figures, rule results, mandate version, reason, and any later order-status events. It may therefore contain sensitive financial information.</p></LegalSection>
+    <LegalSection title="How data is protected and shared"><p>The broker access token is encrypted before it is saved in the site database. Broker requests are made by the server. The connected broker and the site’s hosting and sign-in services necessarily process information to provide their parts of the service. Stock Steward does not expose your token in the browser or sell your account data. Access to workspace records is checked against your signed-in user identifier on the server.</p></LegalSection>
+    <LegalSection title="Disconnecting and retention"><p>Disconnecting Alpaca removes Stock Steward’s locally stored broker token. It does not erase saved mandates, decision receipts, or order events, and it does not itself revoke access in Alpaca’s account settings. Those records remain so you can inspect what Stock Steward observed and did. A self-service account-data deletion flow has not been added yet; before public launch, we will provide a contact route and a documented deletion process.</p></LegalSection>
+    <LegalSection title="Your choices"><p>You can use the public information pages without connecting a broker. You choose whether to grant Alpaca account-data permission and, separately, trading permission when available. A connection does not enable automatic trading in this version. Each order still requires your exact approval and the deployment’s order switch.</p></LegalSection>
+    <LegalSection title="Contact and changes"><p>Contact: <a href="mailto:stocksteward.support@gmail.com">stocksteward.support@gmail.com</a>. We will review the public operator description before opening this site to customers or submitting an Alpaca Connect application. The revision date above will change when the policy changes.</p></LegalSection>
+  </LegalLayout>;
+}
