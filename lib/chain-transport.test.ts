@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {chainTransport,chainHealth} from './chain-transport.ts';
 import {CHAIN} from './robinhood-chain.ts';
 test('private RPC configuration affects RPC only; registry receives no credential',async()=>{
- const calls:string[]=[];const f=chainTransport('private-test-key',(async(url,init)=>{calls.push(String(url));assert.equal(init?.redirect,'error');return Response.json({});}) as typeof fetch);
+ const calls:string[]=[];const f=chainTransport('private-test-key',(async(url,init)=>{calls.push(String(url));assert.equal(init?.redirect,'manual');return Response.json({});}) as typeof fetch);
  await f(CHAIN.rpc);await f('https://api.robinhood.com/rhj/assets');
  assert.deepEqual(calls,['https://robinhood-mainnet.g.alchemy.com/v2/private-test-key','https://api.robinhood.com/rhj/assets']);
 });

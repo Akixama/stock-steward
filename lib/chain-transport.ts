@@ -8,11 +8,13 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
     const rpc=url===CHAIN.rpc;
     const target=rpc&&apiKey?`https://robinhood-mainnet.g.alchemy.com/v2/${apiKey}`:input;
     try {
-      const response=await upstream(target,{...init,redirect:'error'});
+      const response=await upstream(target,{...init,redirect:'manual'});
       if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',status:response.status});
       return response;
-    }catch{
-      console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public'});
+    }catch(error){
+      const message=error instanceof Error?error.message:'Unknown transport exception';
+      const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
+      console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
       throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
     }
   }) as typeof fetch;
