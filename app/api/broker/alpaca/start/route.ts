@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { oauthRedirect } from "@/lib/oauth-redirect";
 import { alpacaConfigured, alpacaEnvironment, alpacaOrderSubmissionEnabled,
   getAlpacaConnection } from "@/lib/alpaca-connection";
 
@@ -35,7 +36,5 @@ export async function POST(request: Request) {
   authorize.search = new URLSearchParams({ response_type: "code", client_id: env.ALPACA_CLIENT_ID!,
     redirect_uri: redirectUri, state, scope: trading ? "data trading" : "data",
     env: alpacaEnvironment() }).toString();
-  const response = Response.redirect(authorize, 303);
-  response.headers.append("Set-Cookie", `steward_alpaca_state=${state}; HttpOnly; SameSite=Lax; Path=/api/broker/alpaca/callback; Max-Age=600${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`);
-  return response;
+  return oauthRedirect(authorize, `steward_alpaca_state=${state}; HttpOnly; SameSite=Lax; Path=/api/broker/alpaca/callback; Max-Age=600${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`);
 }

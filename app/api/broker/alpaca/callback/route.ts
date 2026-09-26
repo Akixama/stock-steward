@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { oauthRedirect } from "@/lib/oauth-redirect";
 import { alpacaConfigured, alpacaEnvironment, alpacaOrderSubmissionEnabled,
   getAlpacaConnection, saveAlpacaConnection } from "@/lib/alpaca-connection";
 import { alpacaBase } from "@/lib/alpaca-http";
@@ -12,9 +13,7 @@ export async function GET(request: Request) {
   const destination = new URL("/workspace", request.url);
   const response = (status: string) => {
     destination.searchParams.set("broker", status);
-    const redirect = Response.redirect(destination, 303);
-    redirect.headers.append("Set-Cookie", clearState);
-    return redirect;
+    return oauthRedirect(destination, clearState);
   };
   const user = await getChatGPTUser();
   if (!user || !alpacaConfigured()) return response("unavailable");
