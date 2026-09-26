@@ -1,0 +1,15 @@
+import {recoverMessageAddress,hashMessage,encodeFunctionData,decodeFunctionResult,parseAbi,type Hex,type Address} from 'viem';
+import {CHAIN} from './robinhood-chain.ts';
+export type OwnershipChallenge={address:string;challengeId:string;message:string;issuedAt:string;expiresAt:string;verifiedAt:string|null;method:string|null};
+export function ownershipChallenge(address:string,origin:string,now=new Date()):OwnershipChallenge{
+ if(!/^0x[0-9a-f]{40}$/i.test(address)||new URL(origin).origin!==origin)throw new Error('Invalid ownership request');const id=crypto.randomUUID(),expiresAt=new Date(now.getTime()+5*60000).toISOString();
+ const message=`${new URL(origin).host} wants you to verify control of this wallet for Stock Steward:\n${address.toLowerCase()}\n\nOwnership verification only. No transaction, delegation, token approval or spending permission.\n\nURI: ${origin}/workspace\nVersion: 1\nChain ID: ${CHAIN.id}\nNonce: ${id.replaceAll('-','')}\nIssued At: ${now.toISOString()}\nExpiration Time: ${expiresAt}`;
+ return {address:address.toLowerCase(),challengeId:id,message,issuedAt:now.toISOString(),expiresAt,verifiedAt:null,method:null};
+}
+export async function verifyOwnership(challenge:OwnershipChallenge,signature:string,fetcher:typeof fetch=fetch,now=Date.now()){
+ if(challenge.verifiedAt||!Number.isFinite(Date.parse(challenge.expiresAt))||Date.parse(challenge.expiresAt)<=now||Date.parse(challenge.issuedAt)>now||!/^0x(?:[0-9a-f]{2}){1,4096}$/i.test(signature))throw new Error('Challenge expired, already used or signature invalid');
+ let serial=0;async function rpc(method:string,params:unknown[]){const id=++serial;const r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error('Ownership RPC unavailable');const b=await r.json() as {result?:string;error?:unknown};if(b.error||typeof b.result!=='string'||!/^0x[0-9a-f]*$/i.test(b.result))throw new Error('Ownership evidence unavailable');return b.result;}
+ if(BigInt(await rpc('eth_chainId',[]))!==BigInt(CHAIN.id))throw new Error('Wrong verification network');const block=await rpc('eth_blockNumber',[]);const code=await rpc('eth_getCode',[challenge.address,block]);
+ if(code==='0x'){const recovered=await recoverMessageAddress({message:challenge.message,signature:signature as Hex});if(recovered.toLowerCase()!==challenge.address)throw new Error('Signature does not match wallet');return 'personal_sign_eoa';}
+ const abi=parseAbi(['function isValidSignature(bytes32 hash,bytes signature) view returns (bytes4)']);const data=encodeFunctionData({abi,functionName:'isValidSignature',args:[hashMessage(challenge.message),signature as Hex]});const raw=await rpc('eth_call',[{to:challenge.address as Address,data},block]);const result=decodeFunctionResult({abi,functionName:'isValidSignature',data:raw as Hex});if(result!=='0x1626ba7e')throw new Error('Contract wallet signature invalid or unsupported');return 'erc1271';
+}

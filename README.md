@@ -88,3 +88,11 @@ The authenticated GitHub workflow wakes every 15 minutes and handles at most two
 Setup requires a dedicated server secret and encrypted GitHub Actions secret named STEWARD_WORKER_KEY. Never commit it. Set server STEWARD_RUNNER_ENABLED=true only after runner verification; start/resume stays disabled until then. The key permits read-only wakes, not signing or spending. Workflow logs contain summary counts only.
 
 External transaction watches label RPC finality separately. Outer success does not prove a swap or user-operation outcome. Unknown/reorged evidence never releases reservations or triggers resubmission.
+
+### Route inspection and wallet control
+
+Autonomy can inspect four direct USDG/official-stock Uniswap v4 pool keys at one block. It verifies network identity, deployed contracts, the quoter/state-view pool-manager reference and the canonical block hash before saving evidence. Quoter output is raw stock-token units, not shares; USDG input is a token amount, not a guaranteed USD price. Missing quotes are scoped to this search and do not prove all venues are unavailable. Quote expiry is bounded by both block and observation time. A quoter gas estimate excludes full router/account execution and setup.
+
+Optional wallet verification uses a domain-bound five-minute personal-sign message. EOA recovery and deployed ERC1271 verification are supported. Nonces are owner-scoped, single-use and replaced atomically. Counterfactual undeployed wallets are not supported. Proof is historical and grants no token approval, delegation or spending authority. No private key or stored signature is involved.
+
+The execution preflight core checks pause, account, mandate version, route freshness, onchain permission coverage, eligibility, accounting, full account simulation, complete fees and exact approval. It is an internal tested foundation; no signer or submission adapter is wired, even if its checks pass. Alchemy's documented contract/function permission alone does not establish recipient and output-token restrictions inside router commands. No broad/root permission is requested.

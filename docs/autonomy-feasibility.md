@@ -51,3 +51,11 @@ Important permission blocker: Alchemy documents ERC20 spending, gas and contract
 
 Stock-token eligibility remains separate from wallet/RPC access. Official Robinhood documentation excludes U.S. persons and lists other jurisdiction restrictions. Nigeria eligibility has not been established by this work. No regional bypass is proposed.
 Durable read-only monitoring now has leases, retry IDs, pause fencing and a three-failure circuit breaker. Runner activation requires separate credential configuration and verification. Transaction reconciliation never authorizes spending, releases reservations or resubmits a transaction.
+
+## Verified direct-route evidence and remaining permission blocker
+
+Read-only mainnet probe on 26 September 2026 at block 0x45dff27 returned an AAPL/USDG zero-hook Uniswap v4 quote: input 1 USDG (1000000 units), output 2924378508115670 raw AAPL units, fee 3000, tick spacing 60, active liquidity 2703137059450940245, quoter gas 43256. The 1% pool also quoted; the 0.05% key had no active liquidity and the 0.01% key was uninitialized. This is a historical read-only probe using a public burn address, not a user's funded execution. Search coverage is four fixed direct pool keys only. Output and gas values are not current trading offers or complete fee estimates.
+
+References: https://docs.robinhood.com/chain/contracts/ and https://developers.uniswap.org/docs/protocols/v4/deployments . Router source-version inspection through the explorer API was blocked by its challenge page; no bypass was attempted. Full transaction calldata/simulation remains unverified. A safe narrow enforcement module or audited adapter that inspects router arguments is still needed before any automatic session grant. The internal application guard cannot substitute for that onchain enforcement.
+
+Implemented ownership challenge/replay checks, direct quoter inspection, and internal execution preflight tests. Live wallet ownership has not been tested by the owner yet. Eligibility, complete setup fees, deployed permission/revocation tests, signing and funded execution remain pending. The read-only GitHub runner was verified and enabled separately; it submits no trades.

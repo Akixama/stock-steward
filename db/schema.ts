@@ -86,3 +86,7 @@ export const chainTransactionWatches = sqliteTable('chain_transaction_watches', 
   id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),address:text('address').notNull(),transactionHash:text('transaction_hash').notNull(),
   recordJson:text('record_json').notNull(),createdAt:text('created_at').notNull(),checkedAt:text('checked_at').notNull(),
 }, table=>[index('chain_transaction_watches_owner_checked_idx').on(table.ownerRef,table.checkedAt)]);
+export const walletOwnership = sqliteTable('wallet_ownership', {
+ ownerRef:text('owner_ref').primaryKey(),address:text('address').notNull(),challengeId:text('challenge_id').notNull(),message:text('message').notNull(),
+ issuedAt:text('issued_at').notNull(),expiresAt:text('expires_at').notNull(),verifiedAt:text('verified_at'),method:text('method'),
+});

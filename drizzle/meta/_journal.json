@@ -64,6 +64,13 @@
       "when": 1790442291931,
       "tag": "0008_violet_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790444570194,
+      "tag": "0009_mighty_shriek",
+      "breakpoints": true
     }
   ]
 }
