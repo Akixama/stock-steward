@@ -56,3 +56,8 @@ export const observations = sqliteTable("observations", {
   accountRef: text("account_ref").notNull(), recordJson: text("record_json").notNull(),
   createdAt: text("created_at").notNull(),
 }, (table) => [index("observations_owner_created_idx").on(table.ownerRef, table.createdAt)]);
+
+export const chainObservations = sqliteTable("chain_observations", {
+ id: text("id").primaryKey(), ownerRef: text("owner_ref").notNull(), address: text("address").notNull(), recordJson: text("record_json").notNull(), createdAt: text("created_at").notNull(),
+}, (table) => [index("chain_observations_owner_address_created_idx").on(table.ownerRef, table.address, table.createdAt)]);
+export const chainReadGates = sqliteTable("chain_read_gates", { ownerRef: text("owner_ref").primaryKey(), nextAvailableAt: text("next_available_at").notNull() });

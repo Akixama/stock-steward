@@ -13,3 +13,5 @@ The signed-in `/account` page records a deletion request in `data_deletion_reque
 No automated operator notification or deletion worker exists yet. Until one is added, the queue and support inbox require manual review. The privacy notice must remain honest about this process.
 
 Manual erasure must also remove owner-bound rows from `observations`, including embedded account snapshots, along with mandates, receipts and connections.
+
+Erase `chain_observations` and `chain_read_gates` by the verified site owner_ref as part of manual workspace deletion. Watch-only addresses do not establish wallet ownership. Chain records include public addresses, balances, quotes and multipliers and must not be included in public support logs.

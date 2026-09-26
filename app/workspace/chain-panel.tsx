@@ -1,13 +1,139 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CHAIN, type ChainObservation } from "@/lib/robinhood-chain";
-type Provider={request:(args:{method:string;params?:unknown[]})=>Promise<unknown>;on?:(event:string,callback:()=>void)=>void;removeListener?:(event:string,callback:()=>void)=>void};
-export default function ChainPanel(){const [address,setAddress]=useState("");const [snapshot,setSnapshot]=useState<ChainObservation|null>(null);const [previous,setPrevious]=useState<ChainObservation|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState<string|null>(null);const [connected,setConnected]=useState(false);const generation=useRef(0);
-const provider=()=> (window as unknown as {ethereum?:Provider}).ethereum;
-useEffect(()=>{const p=provider();const clear=()=>{generation.current++;setSnapshot(null);setPrevious(null);setConnected(false);setAddress("");setBusy(false);setError("Wallet account or network changed. Reconnect to read the new address.");};p?.on?.("accountsChanged",clear);p?.on?.("chainChanged",clear);return()=>{p?.removeListener?.("accountsChanged",clear);p?.removeListener?.("chainChanged",clear);};},[]);
-async function connect(){setError(null);try{const p=provider();if(!p)throw new Error("Open this site in a browser with an EVM wallet extension, or paste a public address below. Mobile wallet linking is not available yet.");const accounts=await p.request({method:"eth_requestAccounts"}) as string[];if(!/^0x[0-9a-f]{40}$/i.test(accounts?.[0]??""))throw new Error("No wallet address returned.");generation.current++;setAddress(accounts[0]);setSnapshot(null);setPrevious(null);setConnected(true);}catch(e){setError(e instanceof Error?e.message:"Wallet connection declined.");}}
-async function read(){const ticket=++generation.current;setBusy(true);setError(null);try{const r=await fetch("/api/workspace/chain",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address}),cache:"no-store"});const data=await r.json() as {observation?:ChainObservation;error?:string};if(!r.ok||!data.observation)throw new Error(data.error??"Observation unavailable.");if(ticket!==generation.current)return;setPrevious(snapshot?.address===data.observation.address?snapshot:null);setSnapshot(data.observation);}catch(e){if(ticket===generation.current)setError(e instanceof Error?e.message:"Observation unavailable.");}finally{if(ticket===generation.current)setBusy(false);}}
-function disconnect(){generation.current++;setConnected(false);setSnapshot(null);setPrevious(null);setAddress("");setBusy(false);setError(null);}
-const changed=snapshot&&previous?snapshot.holdings.filter(h=>previous.holdings.find(p=>p.contract===h.contract)?.raw!==h.raw).length+previous.holdings.filter(h=>!snapshot.holdings.some(p=>p.contract===h.contract)).length:null;
-return <section className="ws-check-panel ws-chain-panel"><div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET OBSERVATIONS</span><h2>Your wallet. In focus.</h2><p>Read real mainnet holdings without signing a message or spending gas. Connecting shares an address only; it grants no trading permission.</p></div><button className="ws-recheck" onClick={connected?disconnect:connect} disabled={busy}>{connected?"Disconnect from Steward":"Connect browser wallet"}</button></div><div className="ws-check-fields"><label>Public wallet address · watch-only<input value={address} disabled={busy} onChange={e=>{generation.current++;setAddress(e.target.value.trim());setSnapshot(null);setPrevious(null);setConnected(false);}} placeholder="0x…" spellCheck={false} /></label><button onClick={read} disabled={busy||!/^0x[0-9a-f]{40}$/i.test(address)}>{busy?"Reading chain…":"Observe holdings"}</button></div><p className="ws-chain-note">Always reads Robinhood Chain mainnet (4663), regardless of your wallet’s selected network. A pasted address is watch-only; ownership is not verified.</p>{error&&<p className="ws-error" role="alert">{error}{snapshot&&" Previous evidence remains below; refresh failed."}</p>}{snapshot&&<div className="ws-account-evidence"><div className="ws-account-numbers"><div><span>ETH balance · gas asset</span><strong>{snapshot.eth}</strong></div><div><span>Supported stock tokens held</span><strong>{snapshot.holdings.length}</strong></div><div><span>USD valuation</span><strong>Pending</strong></div></div><p>{snapshot.failures?"Incomplete coverage: "+snapshot.failures+" token reads failed. Missing rows do not prove zero balance.":"Scanned "+snapshot.scanned+" official mainnet stock-token contracts."} Other crypto assets, DeFi deposits and assets on other chains are excluded. No concentration or purchase approval can be inferred without complete valuation.</p>{changed!==null&&<p className="ws-chain-brief">{snapshot.failures||previous?.failures?"Comparison unavailable because a scan is incomplete.":changed===0?"No supported token balance changes since the previous observation in this view.":changed+" supported token balances changed since the previous observation. This does not identify the cause or imply profit."}</p>}<div className="ws-chain-holdings">{snapshot.holdings.length?snapshot.holdings.map(h=><details key={h.contract}><summary><strong>{h.symbol}</strong><span>{h.quantity??"Amount unavailable"}</span></summary><p>Official registry status: {h.status}. This does not establish trading eligibility.</p><p>Contract <a href={CHAIN.explorer+"/address/"+h.contract} target="_blank" rel="noreferrer">{h.contract}</a></p><p>Raw balance: {h.raw} · Token decimals: {h.decimals??"unknown"}</p></details>):<p>{snapshot.failures?"No positive balances were confirmed in the successful reads.":"No supported stock-token balances found at this block."}</p>}</div><details className="ws-chain-evidence"><summary>Inspect the evidence</summary><p>Source: {snapshot.source}</p><p>Address: {snapshot.address}</p><p>Chain ID: {snapshot.chainId} · Block <a href={CHAIN.explorer+"/block/"+Number(BigInt(snapshot.block))} target="_blank" rel="noreferrer">{Number(BigInt(snapshot.block))}</a></p><p>Retrieved: {new Date(snapshot.observedAt).toLocaleString()}. Balance calls use the same block; this is not a finalized-block guarantee.</p><a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official asset source ↗</a></details><p>Temporary observations. Leaving Overview or reloading clears this view. No background monitor, saved wallet ownership, prices or trading is enabled yet.</p></div>}</section>;
+import { CHAIN } from "@/lib/robinhood-chain";
+import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
+import type { Mandate } from "@/lib/decision";
+
+type Provider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: (event: string, callback: () => void) => void; removeListener?: (event: string, callback: () => void) => void };
+const valid = (s: string) => /^0x[0-9a-f]{40}$/i.test(s);
+const shorten = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
+const when = (s: string) => new Date(s).toLocaleString();
+function usdMicro(value: string) {
+  const n = BigInt(value), cents = n / 10000n;
+  return `$${(cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+export default function ChainPanel({ mandate }: { mandate: Mandate }) {
+  const [address, setAddress] = useState("");
+  const [snapshot, setSnapshot] = useState<PricedObservation | null>(null);
+  const [history, setHistory] = useState<PricedObservation[]>([]);
+  const [previous, setPrevious] = useState<PricedObservation | null>(null);
+  const [clock, setClock] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [contract, setContract] = useState("");
+  const [amount, setAmount] = useState("1.00");
+  const generation = useRef(0);
+  const provider = () => (window as unknown as { ethereum?: Provider }).ethereum;
+  function clear() {
+    generation.current++; setSnapshot(null); setPrevious(null); setConnected(false);
+    setAddress(""); setBusy(false); setError(null); setNotice(null); setContract("");
+  }
+  useEffect(() => {
+    const p = provider();
+    const changed = () => { clear(); setError("Wallet account or network changed. Reconnect to observe the new address."); };
+    p?.on?.("accountsChanged", changed); p?.on?.("chainChanged", changed);
+    return () => { generation.current++; p?.removeListener?.("accountsChanged", changed); p?.removeListener?.("chainChanged", changed); };
+  }, []);
+  useEffect(() => { if (!snapshot) return; const timer = setInterval(() => setClock(Date.now()), 15000); return () => clearInterval(timer); }, [snapshot]);
+  const historical = snapshot ? clock - Date.parse(snapshot.observedAt) > 120000 : false;
+  async function connect() {
+    setError(null);
+    try {
+      const p = provider();
+      if (!p) throw new Error("Use an EVM browser-wallet extension, or inspect a public address below. Mobile wallet linking is not available yet.");
+      const accounts = await p.request({ method: "eth_requestAccounts" }) as string[];
+      if (!valid(accounts?.[0] ?? "")) throw new Error("No wallet address returned.");
+      clear(); setAddress(accounts[0]); setConnected(true);
+    } catch (e) { setError(e instanceof Error ? e.message : "Connection declined."); }
+  }
+  async function loadHistory(ticket: number, target?: string) {
+    const response = await fetch(`/api/workspace/chain${target ? `?address=${encodeURIComponent(target)}` : ""}`, { cache: "no-store" });
+    const data = await response.json() as { records?: PricedObservation[]; error?: string };
+    if (!response.ok || !data.records) throw new Error(data.error ?? "History unavailable.");
+    if (ticket === generation.current) setHistory(data.records);
+  }
+  async function historyClick() {
+    const ticket = ++generation.current; setBusy(true); setError(null);
+    try { await loadHistory(ticket, valid(address) ? address : undefined); }
+    catch (e) { if (ticket === generation.current) setError(e instanceof Error ? e.message : "History unavailable."); }
+    finally { if (ticket === generation.current) setBusy(false); }
+  }
+  async function read() {
+    const ticket = ++generation.current; setBusy(true); setError(null); setNotice(null);
+    try {
+      const response = await fetch("/api/workspace/chain", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }), cache: "no-store" });
+      const data = await response.json() as { observation?: PricedObservation; saved?: boolean; error?: string; warning?: string };
+      if (!response.ok || !data.observation) throw new Error(data.error ?? "Observation unavailable.");
+      if (ticket !== generation.current) return;
+      const record = data.observation;
+      setPrevious(snapshot?.address === record.address ? snapshot : history.find(h => h.address === record.address) ?? null);
+      setSnapshot(record); setContract(record.holdings[0]?.contract ?? "");
+      setNotice(data.saved ? "Observation saved in your signed-in workspace. Wallet ownership is not verified." : data.warning ?? "Evidence was not saved.");
+      if (data.saved) {
+        try { await loadHistory(ticket, record.address); }
+        catch { if (ticket === generation.current) setNotice("Observation saved, but history could not be refreshed."); }
+      }
+    } catch (e) { if (ticket === generation.current) setError(e instanceof Error ? e.message : "Observation unavailable."); }
+    finally { if (ticket === generation.current) setBusy(false); }
+  }
+  let preview: Preview | null = null;
+  const amountCents = parseUsdCents(amount) ?? NaN;
+  if (snapshot && contract && mandate.version && Number.isSafeInteger(amountCents) && amountCents > 0) {
+    try { preview = purchasePreview(snapshot, contract, amountCents, mandate); } catch { /* Invalid input shows no checks. */ }
+  }
+  return <section className="ws-check-panel ws-chain-panel">
+    <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
+      <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
+      <button className="ws-recheck" onClick={connected ? clear : connect} disabled={busy}>{connected ? "Disconnect from Steward" : "Connect browser wallet"}</button></div>
+    <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
+      generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setConnected(false); setNotice(null);
+    }} placeholder="0x…" spellCheck={false} /></label>
+      <button onClick={read} disabled={busy || !valid(address)}>{busy ? "Reading evidence…" : "Observe & save"}</button></div>
+    <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>Load saved observations</button>
+      <span>Robinhood mainnet 4663 · reads limited to once per 15 seconds</span></div>
+    <p className="ws-chain-note">Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p>
+    {error && <p className="ws-error" role="alert">{error}{snapshot && " Previous evidence below was not refreshed."}</p>}
+    {notice && <p className="ws-chain-brief" role="status">{notice}</p>}
+    {snapshot && <div className="ws-account-evidence">
+      <span className="ws-label">{shorten(snapshot.address)} · OBSERVED {when(snapshot.observedAt)}</span>
+      <div className="ws-account-numbers"><div><span>ETH balance · gas asset</span><strong>{snapshot.eth}</strong></div>
+        <div><span>Stock tokens held / priced</span><strong>{snapshot.holdings.length} / {snapshot.pricedCount}</strong></div>
+        <div><span>{historical ? "Historical stock subtotal" : "Indicative stock subtotal"} · excludes other assets</span><strong>{usdMicro(snapshot.subtotalMicroUsd)}</strong></div></div>
+      <div className="ws-chain-brief"><strong>What needs attention</strong>{snapshot.alerts.map((alert, i) => <p key={i}>{alert}</p>)}</div>
+      {previous && <div className="ws-chain-brief"><strong>What changed since {when(previous.observedAt)}</strong>{compareObservations(snapshot, previous).map((line, i) => <p key={i}>{line}</p>)}</div>}
+      <div className="ws-chain-holdings">{snapshot.holdings.length ? snapshot.holdings.map(holding => {
+        const price = snapshot.prices[holding.contract];
+        return <details key={holding.contract}><summary><strong>{holding.symbol}</strong><span>{holding.quantity ?? "Amount unknown"} tokens · {price?.valueMicroUsd !== null && price?.valueMicroUsd !== undefined ? usdMicro(price.valueMicroUsd) : "Unpriced"}</span></summary>
+          <p>Registry status: {holding.status}. This is not a trading-eligibility check.</p>
+          <p>Contract <a href={`${CHAIN.explorer}/address/${holding.contract}`} target="_blank" rel="noreferrer">{holding.contract}</a></p>
+          <p>Raw balance {holding.raw} · Decimals {holding.decimals ?? "unknown"} · Shares-per-token multiplier {holding.multiplier ?? "unknown"}</p>
+          <p>State when observed: {price?.state ?? "unavailable"} · Generated {price?.generatedAt ? when(price.generatedAt) : "unknown"}</p>
+          <p>Underlying bid / ask: {price?.bid ?? "—"} / {price?.ask ?? "—"} USD.</p><p>{price?.reason}</p>
+        </details>;
+      }) : <p>{snapshot.failures ? "No positive holdings confirmed in the successful reads; coverage is incomplete." : "No supported stock tokens held at the observed block."}</p>}</div>
+      {snapshot.holdings.length > 0 && <div className="ws-chain-preview"><span className="ws-label">WHAT IF / HYPOTHETICAL PURCHASE</span><h3>Check before you act.</h3>
+        <p>Uses saved mandate v{mandate.version || "—"}; unsaved drafts do not apply. This is a partial preview, not permission to trade.</p>
+        <div className="ws-check-fields"><label>Observed stock token<select value={contract} onChange={e => setContract(e.target.value)}>{snapshot.holdings.map(h => <option key={h.contract} value={h.contract}>{h.symbol} · {shorten(h.contract)}</option>)}</select></label>
+          <label>Hypothetical buy · USD<input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" /></label></div>
+        {!mandate.version && <p>Save your mandate to preview purchase checks.</p>}
+        {mandate.version > 0 && !preview && <p>Enter a positive amount with at most two decimal places.</p>}
+        {preview?.checks.map(check => <div className={`ws-receipt-check ws-partial-${check.state}`} key={check.label}><b>{check.state.toUpperCase()}</b><span><strong>{check.label}</strong><small>{check.detail}</small></span></div>)}
+        <p>No order is prepared, signed or sent. Automatic spending is unavailable.</p></div>}
+      <details className="ws-chain-evidence"><summary>Inspect observation evidence</summary><p>ID: {snapshot.id}</p><p>Source: {snapshot.source} plus official Robinhood quote API</p>
+        <p>Address: {snapshot.address} · Chain {snapshot.chainId}</p><p>Block <a href={`${CHAIN.explorer}/block/${BigInt(snapshot.block).toString()}`} target="_blank" rel="noreferrer">{BigInt(snapshot.block).toString()}</a>. Same-block balances; finality is not guaranteed.</p>
+        <p>{snapshot.scanned} supported contracts scanned · {snapshot.failures} failed balance reads. Failures do not prove zero holdings.</p>
+        <p>Quotes are excluded if more than two minutes old, halted, mismatched or missing a valid multiplier. Prices are indicative midpoints, not swap quotes. At most 20 held tokens are priced per scan.</p>
+        <a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official data documentation ↗</a></details>
+      <p>No background monitor, verified wallet ownership, mobile wallet transport or trading is enabled.</p>
+    </div>}
+    {history.length > 0 && <div className="ws-chain-history"><span className="ws-label">YOUR SAVED OBSERVATIONS / LATEST 20</span>{history.map((record, i) => <div key={record.id}>
+      <span>{shorten(record.address)} · {when(record.observedAt)} · {record.holdings.length} holdings</span><button className="ws-recheck" disabled={busy} onClick={() => {
+        generation.current++; setAddress(record.address); setSnapshot(record); setPrevious(history.slice(i + 1).find(h => h.address === record.address) ?? null);
+        setConnected(false); setContract(record.holdings[0]?.contract ?? ""); setNotice("Inspecting saved evidence. Refresh before relying on its prices.");
+      }}>Inspect</button></div>)}</div>}
+  </section>;
 }
