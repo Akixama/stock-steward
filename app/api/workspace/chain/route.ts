@@ -1,3 +1,4 @@
+import {chainTransport} from '@/lib/chain-transport';
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { readChain } from "@/lib/robinhood-chain";
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   try {
     if (!await claimChainRead(env.DB, user.userId)) return Response.json({ error: "Wait 15 seconds between wallet reads." }, { status: 429, headers: { ...headers, "Retry-After": "15" } });
     const mandate = await new D1DecisionLedger(env.DB).getMandate(user.userId);
-    const observation = await enrichObservation(await readChain(body.address), mandate);
+    const observation = await enrichObservation(await readChain(body.address, chainTransport(env.ALCHEMY_API_KEY)), mandate);
     try { await saveChainObservation(env.DB, user.userId, observation); }
     catch { return Response.json({ observation, saved: false, warning: "Live evidence was read, but could not be saved. Retry later." }, { headers }); }
     return Response.json({ observation, saved: true }, { headers });

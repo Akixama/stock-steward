@@ -1,3 +1,4 @@
+import {chainTransport} from '@/lib/chain-transport';
 import {env} from 'cloudflare:workers';import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {listWatches,saveWatch} from '@/db/transaction-watches';import {reconcileTransaction} from '@/lib/chain-reconciliation';import {claimChainRead} from '@/db/chain-observations';
 const headers={'Cache-Control':'no-store'};
@@ -16,7 +17,7 @@ export async function POST(request:Request){
   try{
     if(!await claimChainRead(env.DB,user.userId))return Response.json({error:'Wait 15 seconds between reads.'},{status:429,headers});
     const previous=(await listWatches(env.DB,user.userId)).find(w=>w.address===String(body.address).toLowerCase()&&w.hash===String(body.hash).toLowerCase())??null;
-    const watch=await reconcileTransaction(body.address,body.hash,previous);
+    const watch=await reconcileTransaction(body.address,body.hash,previous,chainTransport(env.ALCHEMY_API_KEY));
     const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([user.userId,watch.address,watch.hash])));
     const id=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('').slice(0,32);
     watch.id=previous?.id??`${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}`;

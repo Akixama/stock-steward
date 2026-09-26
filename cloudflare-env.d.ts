@@ -10,6 +10,7 @@ declare namespace Cloudflare {
     ALPACA_TOKEN_ENCRYPTION_KEY?: string;
     ALPACA_ENV?: string;
     ALPACA_ORDER_SUBMISSION_MODE?: string;
+    ALCHEMY_API_KEY?: string;
     STEWARD_WORKER_KEY?: string;
     STEWARD_RUNNER_ENABLED?: string;
   }

@@ -1,3 +1,4 @@
+import {chainTransport} from '@/lib/chain-transport';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { D1DecisionLedger } from '@/db/ledger';
@@ -27,7 +28,7 @@ export async function POST(request:Request) {
     if (!await claimChainRead(env.DB,user.userId)) return Response.json({error:'Wait 15 seconds between wallet and autonomy checks.'},{status:429,headers:{...headers,'Retry-After':'15'}});
     const mandate=await new D1DecisionLedger(env.DB).getMandate(user.userId);
     let infrastructure=null;
-    try { infrastructure=await readInfrastructure(); } catch { /* Save an honest blocked receipt even during provider outages. */ }
+    try { infrastructure=await readInfrastructure(chainTransport(env.ALCHEMY_API_KEY)); } catch { /* Save an honest blocked receipt even during provider outages. */ }
     const receipt=autonomyReadiness(address,mandate,infrastructure);
     const ownership=await getOwnership(env.DB,user.userId);
     if(ownership?.address===address.toLowerCase()&&ownership.verifiedAt){receipt.checks.unshift({name:'Historical wallet control',state:'pass',reason:`Control signature verified ${ownership.verifiedAt}. This grants no spending authority and does not guarantee current or future control.`});}
