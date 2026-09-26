@@ -1,4 +1,5 @@
 'use client';
+import WalletOnboarding from './wallet-onboarding';
 import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, ArrowRight, CirclePause, RotateCw } from 'lucide-react';
 import type { AutonomyReceipt } from '@/lib/autonomy';
@@ -29,6 +30,7 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
       <span className="ws-autonomy-state"><CirclePause size={16}/> Execution inactive</span></div>
     <div className="ws-autonomy-stages"><span>01 · Boundaries</span><span>02 · Permission</span><span>03 · Route & fees</span><span>04 · Act & reconcile</span></div>
     <p className="ws-chain-note">Saved mandate v{mandate.version || '—'} · {mandate.executionPreference==='automatic' ? 'Automatic preference selected':'Approval preference selected'}. Preferences do not grant wallet access.</p>
+    <WalletOnboarding disabled={busy} onAddress={next=>{ticket.current++;setAddress(next);setActive(null);setBusy(false);setError('');}}/>
     <div className="ws-check-fields"><label>Public wallet address<input value={address} disabled={busy} placeholder="0x…" spellCheck={false} onChange={e=>{setAddress(e.target.value.trim());setActive(null);}}/></label>
       <button onClick={()=>check(true)} disabled={busy || !/^0x[0-9a-f]{40}$/i.test(address)}>{busy ? 'Checking…':'Check autonomy readiness'} <ArrowRight size={16}/></button></div>
     <div className="ws-chain-tools"><button className="ws-recheck" disabled={busy} onClick={()=>check()}><RotateCw size={14}/> Load readiness history</button><span>No signature, wallet grant or transaction. Shared 15-second read cooldown.</span></div>
