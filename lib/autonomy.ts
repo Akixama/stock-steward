@@ -1,3 +1,4 @@
+import type {RoutePrerequisites} from './route-prerequisites.ts';
 import { CHAIN } from './robinhood-chain.ts';
 import type { Mandate } from './decision.ts';
 import type { RouteEvidence } from './chain-route.ts';
@@ -11,7 +12,7 @@ export type Infrastructure = { chainId: number; block: string; gasPriceWei: stri
 export type AutonomyReceipt = { id: string; address: string; createdAt: string; policyVersion: number | null;
   status: 'blocked'; executionEnabled: false; infrastructure: Infrastructure | null;
   checks: { name: string; state: 'pass' | 'pending' | 'fail'; reason: string }[];
-  why: string; nextSteps: string[];trigger?:'scheduled';workerRunId?:string;observationId?:string;route?:RouteEvidence };
+  why: string; nextSteps: string[];trigger?:'scheduled';workerRunId?:string;observationId?:string;route?:RouteEvidence;prerequisites?:RoutePrerequisites|null };
 
 export async function readInfrastructure(fetcher: typeof fetch = fetch): Promise<Infrastructure> {
   async function rpc(method: string, params: unknown[]) {
