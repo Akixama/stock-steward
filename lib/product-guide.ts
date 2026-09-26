@@ -15,6 +15,7 @@ export const guideChapters = [
 
 export const capabilityStatus = [
   { name: "Save a versioned mandate", state: "Available locally", detail: "Saved under the signed-in workspace owner in the local D1 database." },
+  { name: "Request workspace-data deletion", state: "Available locally", detail: "A signed-in owner can record a deletion request from Account. Review, broker-order checks, and erasure are handled manually; submitting a request does not delete data immediately." },
   { name: "Choose an action preference", state: "Available locally", detail: "Approval is the default. Automatic is saved as an inactive future preference; it does not grant trading authority." },
   { name: "Evaluate a proposed buy", state: "Ready for a broker", detail: "The workspace can check a proposed buy using authenticated Alpaca data after OAuth is configured and an eligible account connects." },
   { name: "Connect a brokerage account", state: "Code ready · not configured", detail: "Alpaca OAuth and encrypted token storage support an initial read-only grant and a separately gated trading grant. This checkout has no Connect app credentials or connected account." },

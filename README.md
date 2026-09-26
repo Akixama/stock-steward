@@ -30,7 +30,7 @@ The landing-page walkthrough is illustrative. Its numbers are not a live account
 - `/workspace` is the signed-in mandate and decision-trail workspace. Its top navigation opens Overview, Mandate, and Decision Trail; the mandate shows a live draft summary and can reset unsaved edits. It displays receipts only if the owner-bound server ledger contains them.
 - `/connect` is a signed-in permission review before Alpaca OAuth. Initial consent requests account data only. A separate trading review displays Alpaca's required transaction-access disclosure; continuing requires a same-origin POST. The OAuth app is not configured in this checkout, so both actions stay disabled.
 - `/account` shows the signed-in user's site identity and broker permission status. Sites handles the sign-in and sign-out flow; the broker connection remains a separate Alpaca OAuth grant.
-- `/privacy` and `/terms` are draft policy pages describing the current data and order behavior. Their public operator wording and deletion process need review before the site is opened to customers or submitted to Alpaca.
+- `/privacy` and `/terms` explain current data and order behavior. `/account` lets a signed-in owner record a deletion request; handling and erasure are manual and described in `docs/data-requests.md`. Public operator wording needs a jurisdiction-specific review before a broad customer launch.
 - `/guide` is the technical product guide, with chapters on the current implementation, mandate, evidence contract, decision checks, receipt model, and the work needed before real-money use.
 
 When the mandate form, `lib/decision.ts`, broker adapter, receipt persistence, or execution behavior changes, update `lib/product-guide.ts` and the corresponding `/guide` chapter in the same change. Keep the capability table and disconnected-state wording aligned with actual behavior.
@@ -51,13 +51,14 @@ Register an OAuth app with Alpaca, then set `ALPACA_CLIENT_ID`, `ALPACA_CLIENT_S
 
 ## Run locally
 
-Use Node.js 22.13 or later. Install with `npm ci`, then run `npm run build` once to generate `dist/server/wrangler.json`. For a fresh checkout, apply all four SQL files in order to local D1:
+Use Node.js 22.13 or later. Install with `npm ci`, then run `npm run build` once to generate `dist/server/wrangler.json`. For a fresh checkout, apply all five SQL files in order to local D1:
 
 ```sh
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_gigantic_frank_castle.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_orange_queen_noir.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_panoramic_victor_mancha.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_bumpy_mephisto.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_round_fallen_one.sql
 ```
 
 Then run `npm run dev`. The local URL is printed by the server. The local preview provides a development sign-in identity. Run all six relevant suites with `node --test lib/decision.test.ts lib/broker-boundary.test.ts lib/alpaca-reader.test.ts lib/approval-plan.test.ts lib/alpaca-order.test.ts lib/order-flow.test.ts` on Node.js 24 or later. Order tests use fake broker responses and never contact Alpaca. The migrations are generated from `db/schema.ts` and have Drizzle snapshots. On this Windows host, generation needed a temporary `os.userInfo()` preload for Drizzle's CLI dependency.

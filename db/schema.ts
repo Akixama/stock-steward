@@ -43,3 +43,10 @@ export const brokerConnections = sqliteTable("broker_connections", {
   tokenCiphertext: text("token_ciphertext").notNull(),
   connectedAt: text("connected_at").notNull(),
 });
+
+export const dataDeletionRequests = sqliteTable("data_deletion_requests", {
+  ownerRef: text("owner_ref").primaryKey(),
+  email: text("email").notNull(),
+  requestedAt: text("requested_at").notNull(),
+  state: text("state", { enum: ["requested", "reviewing", "completed"] }).notNull().default("requested"),
+});
