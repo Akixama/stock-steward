@@ -10,7 +10,7 @@ export type Infrastructure = { chainId: number; block: string; gasPriceWei: stri
 export type AutonomyReceipt = { id: string; address: string; createdAt: string; policyVersion: number | null;
   status: 'blocked'; executionEnabled: false; infrastructure: Infrastructure | null;
   checks: { name: string; state: 'pass' | 'pending' | 'fail'; reason: string }[];
-  why: string; nextSteps: string[] };
+  why: string; nextSteps: string[];trigger?:'scheduled';workerRunId?:string;observationId?:string };
 
 export async function readInfrastructure(fetcher: typeof fetch = fetch): Promise<Infrastructure> {
   async function rpc(method: string, params: unknown[]) {
@@ -47,7 +47,7 @@ export function autonomyReadiness(address: string, mandate: Mandate | null, infr
     {name:'Executable stock-token route',state:'pending',reason:'A particular settlement asset, stock-token pool, current liquidity and simulated route have not been verified.'},
     {name:'Funds, daily accounting and concentration',state:'pending',reason:'Fresh settlement funds, portfolio denominator, pending spends and confirmed fills are required before each execution.'},
     {name:'Setup budget',state:'pending',reason:'Gas price alone is not a fee quote. Delegation, permission installation, revocation, data fees and provider fees need estimates within your cap.'},
-    {name:'Background execution service',state:'pending',reason:'No scheduler, stored session signer or live executor is enabled. This check runs only when requested.'},
+    {name:'Background execution service',state:'pending',reason:'Read-only monitoring can be scheduled separately. No session signer or live spending executor is enabled.'},
   ];
   return {id:crypto.randomUUID(),address:address.toLowerCase(),createdAt:now.toISOString(),policyVersion:mandate?.version ?? null,
     status:'blocked',executionEnabled:false,infrastructure,checks,

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, ArrowRight, CirclePause, RotateCw } from 'lucide-react';
 import type { AutonomyReceipt } from '@/lib/autonomy';
 import type { Mandate } from '@/lib/decision';
+import MonitorPanel from './monitor-panel';
 export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
   const [address,setAddress]=useState(''); const [runs,setRuns]=useState<AutonomyReceipt[]>([]);
   const [active,setActive]=useState<AutonomyReceipt|null>(null); const [busy,setBusy]=useState(false);
@@ -33,6 +34,7 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
     {active && <div className="ws-autonomy-result" key={active.id}><div className="ws-chain-brief"><strong>Blocked · no spending occurred</strong><p>{active.why}</p><small>Checked {new Date(active.createdAt).toLocaleString()} · mandate v{active.policyVersion ?? '—'}. This is a historical readiness record, not a trading decision.</small></div>
       {active.checks.map(item=><div className={`ws-receipt-check ws-partial-${item.state}`} key={item.name}><b>{item.state.toUpperCase()}</b><span><strong>{item.name}</strong><small>{item.reason}</small></span></div>)}
       <details><summary>Inspect infrastructure evidence</summary><p>Receipt {active.id}</p><p>Address {active.address} · ownership unverified</p>{active.infrastructure ? <><p>Chain {active.infrastructure.chainId} · block {BigInt(active.infrastructure.block).toString()}</p><p>Gas price {active.infrastructure.gasPriceWei} wei · not a total fee estimate</p>{Object.entries(active.infrastructure.contracts).map(([name,bytes])=><p key={name}>{name}: {bytes} bytes of code at the observed block</p>)}</> : <p>RPC evidence unavailable. No zero balances or liquidity conclusions were inferred.</p>}</details></div>}
-    {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
+    {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · {run.trigger==='scheduled'?'scheduled · ':''}blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
+    <MonitorPanel address={address}/>
   </section>;
 }

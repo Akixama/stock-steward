@@ -128,7 +128,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
         <p>{snapshot.scanned} supported contracts scanned · {snapshot.failures} failed balance reads. Failures do not prove zero holdings.</p>
         <p>Quotes are excluded if more than two minutes old, halted, mismatched or missing a valid multiplier. Prices are indicative midpoints, not swap quotes. At most 20 held tokens are priced per scan.</p>
         <a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official data documentation ↗</a></details>
-      <p>No background monitor, verified wallet ownership, mobile wallet transport or trading is enabled.</p>
+      <p>Optional read-only monitoring controls are in Autonomy. Verified ownership, mobile transport and trading remain unavailable.</p>
     </div>}
     {history.length > 0 && <div className="ws-chain-history"><span className="ws-label">YOUR SAVED OBSERVATIONS / LATEST 20</span>{history.map((record, i) => <div key={record.id}>
       <span>{shorten(record.address)} · {when(record.observedAt)} · {record.holdings.length} holdings</span><button className="ws-recheck" disabled={busy} onClick={() => {

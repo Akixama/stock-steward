@@ -77,6 +77,14 @@ Coverage excludes other crypto and DeFi positions. Failed reads never imply zero
 
 ### Autonomous engine foundation
 
-Stock Steward aims to act automatically within user-defined authority, with inspectable receipts. The current workspace includes manually requested autonomy readiness checks and stored blocked receipts. The mainnet infrastructure reader checks chain identity and documented Uniswap/Alchemy contracts at one block. Atomic spending reservations retain uncertain outcomes across day boundaries; fee guards require complete fresh setup estimates and a capped budget. These accounting/fee modules are tested foundations, not a running executor. No scheduler, session signer, swap route, live permission or automatic spending is enabled.
+Stock Steward aims to act automatically within user-defined authority, with inspectable receipts. The current workspace includes manually requested autonomy readiness checks and stored blocked receipts. The mainnet infrastructure reader checks chain identity and documented Uniswap/Alchemy contracts at one block. Atomic spending reservations retain uncertain outcomes across day boundaries; fee guards require complete fresh setup estimates and a capped budget. These accounting/fee modules are tested foundations, not a running executor. Read-only scheduling and external transaction watches are implemented, with runner activation separately gated. No session signer, swap route, live permission or automatic spending is enabled.
 
 Run core checks: `node --experimental-strip-types --test lib/autonomy.test.ts db/autonomy.test.ts`. See `docs/autonomy-feasibility.md` for concrete prerequisites and verified versus pending evidence.
+
+### Read-only monitoring runner
+
+The authenticated GitHub workflow wakes every 15 minutes and handles at most two due wallet schedules and three transaction watches. Database leases, stable retry IDs and revision fencing prevent overlap and discard paused results. Three consecutive observation failures pause a schedule. GitHub wake-ups may be delayed or disabled after repository inactivity; actual run timestamps are visible.
+
+Setup requires a dedicated server secret and encrypted GitHub Actions secret named STEWARD_WORKER_KEY. Never commit it. Set server STEWARD_RUNNER_ENABLED=true only after runner verification; start/resume stays disabled until then. The key permits read-only wakes, not signing or spending. Workflow logs contain summary counts only.
+
+External transaction watches label RPC finality separately. Outer success does not prove a swap or user-operation outcome. Unknown/reorged evidence never releases reservations or triggers resubmission.

@@ -57,6 +57,13 @@
       "when": 1790440991681,
       "tag": "0007_ambitious_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790442291931,
+      "tag": "0008_violet_blade",
+      "breakpoints": true
     }
   ]
 }
