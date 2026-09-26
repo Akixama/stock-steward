@@ -5,6 +5,8 @@ import { alpacaConfigured, alpacaOrderSubmissionEnabled,
   getAlpacaConnection } from "@/lib/alpaca-connection";
 import type { DecisionReceipt, Mandate } from "@/lib/decision";
 import WorkspaceClient from "./workspace-client";
+import { listObservations } from "@/db/observations";
+import type { Observation } from "@/lib/anytime";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +14,7 @@ export default async function WorkspacePage() {
   const user = await requireChatGPTUser("/workspace");
   let mandate: Mandate | null = null;
   let receipts: DecisionReceipt[] = [];
+  let observations: Observation[] = [];
   let storageError: string | null = null;
   let connection: { accountRef: string; environment: "live" | "paper";
     tradingScope: boolean } | null = null;
@@ -25,13 +28,14 @@ export default async function WorkspacePage() {
     ]);
     mandate = savedMandate;
     receipts = savedReceipts;
+    observations = await listObservations(env.DB, user.userId);
     if (linkedBroker) connection = { accountRef: linkedBroker.accountRef,
       environment: linkedBroker.environment, tradingScope: linkedBroker.tradingScope };
   } catch (error) {
     console.error("Workspace storage unavailable", error);
     storageError = "Your saved workspace is temporarily unavailable. Please try again shortly.";
   }
-  return <WorkspaceClient initialMandate={mandate} initialReceipts={receipts}
+  return <WorkspaceClient initialMandate={mandate} initialReceipts={receipts} initialObservations={observations}
     connection={connection} alpacaReady={alpacaConfigured()}
     orderSubmissionReady={connection ? alpacaOrderSubmissionEnabled(connection.environment) : false}
     storageError={storageError} />;

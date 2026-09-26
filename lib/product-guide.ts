@@ -1,5 +1,5 @@
 // Keep this guide in sync with the mandate UI and lib/decision.ts when either changes.
-export const guideRevision = "25 September 2026";
+export const guideRevision = "26 September 2026";
 
 export const guideChapters = [
   { id: "overview", number: "01", title: "The model" },
@@ -14,11 +14,12 @@ export const guideChapters = [
 ] as const;
 
 export const capabilityStatus = [
+  { name: "Anytime account and partial checks", state: "Available with a connection", detail: "Manually read balances, positions, open orders and market status outside regular hours. Save partial checks with price-dependent items pending. These cannot authorize orders and are not automatically retried." },
   { name: "Save a versioned mandate", state: "Available locally", detail: "Saved under the signed-in workspace owner in the local D1 database." },
   { name: "Request workspace-data deletion", state: "Available locally", detail: "A signed-in owner can record a deletion request from Account. Review, broker-order checks, and erasure are handled manually; submitting a request does not delete data immediately." },
   { name: "Choose an action preference", state: "Available locally", detail: "Approval is the default. Automatic is saved as an inactive future preference; it does not grant trading authority." },
   { name: "Evaluate a proposed buy", state: "Ready for a broker", detail: "The workspace can check a proposed buy using authenticated Alpaca data after OAuth is configured and an eligible account connects." },
-  { name: "Connect a brokerage account", state: "Code ready · not configured", detail: "Alpaca OAuth and encrypted token storage support an initial read-only grant and a separately gated trading grant. This checkout has no Connect app credentials or connected account." },
+  { name: "Connect a brokerage account", state: "Configured on hosted site", detail: "Alpaca OAuth and encrypted token storage support an initial read-only grant and a separately gated trading grant. The hosted site supports authorization; each user connects their own eligible account. Credentials stay server-side." },
   { name: "Create real decision receipts", state: "Ready for a broker", detail: "A successful read-only check saves a receipt under the signed-in owner. No live account has completed that path yet." },
   { name: "Decline a proposal", state: "Available for receipts", detail: "The account owner can decline a checks-passed proposal once. The choice is stored in the trail and sends no order." },
   { name: "Recheck a proposal", state: "Ready for a broker", detail: "A connected owner can read fresh broker data for the same proposed buy. The new receipt is saved alongside the old one." },

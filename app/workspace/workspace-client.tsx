@@ -9,6 +9,8 @@ import { BrandMark, BrandName } from "@/components/brand";
 import { RouteLink } from "@/components/route-transition";
 import type { DecisionReceipt, Mandate, OrderEvent } from "@/lib/decision";
 import type { ApprovalPlan } from "@/lib/approval-plan";
+import type { Observation } from "@/lib/anytime";
+import AccountPanel from "./account-panel";
 import "./workspace.css";
 
 type View = "overview" | "mandate" | "trail";
@@ -39,10 +41,11 @@ function receiptState(receipt: DecisionReceipt) {
     : { label: "CHECKS PASSED", tone: "neutral" };
 }
 
-export default function WorkspaceClient({ initialMandate, initialReceipts, connection, alpacaReady,
+export default function WorkspaceClient({ initialMandate, initialReceipts, initialObservations, connection, alpacaReady,
   orderSubmissionReady, storageError }: {
   initialMandate: Mandate | null;
   initialReceipts: DecisionReceipt[];
+  initialObservations: Observation[];
   connection: { accountRef: string; environment: "live" | "paper"; tradingScope: boolean } | null;
   alpacaReady: boolean;
   orderSubmissionReady: boolean;
@@ -61,6 +64,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
   const [saveError, setSaveError] = useState<string | null>(null);
   const [legacyDraft, setLegacyDraft] = useState(false);
   const [receipts, setReceipts] = useState(initialReceipts);
+  const [observations, setObservations] = useState(initialObservations);
   const [brokerConnection, setBrokerConnection] = useState(connection);
   const [brokerMessage, setBrokerMessage] = useState<string | null>(null);
   const [proposalSymbol, setProposalSymbol] = useState("");
@@ -195,7 +199,11 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
     try {
       const response = await fetch("/api/workspace/check", { method: "POST",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol, amountCents }) });
-      const result = await response.json() as { receipt?: DecisionReceipt; approvalPlan?: ApprovalPlan | null; error?: string };
+      const result = await response.json() as { receipt?: DecisionReceipt; observation?: Observation; approvalPlan?: ApprovalPlan | null; error?: string };
+      if (response.ok && result.observation) {
+        setObservations(current => [result.observation!, ...current].slice(0, 50));
+        setApprovalPlan(null); setApprovalAcknowledged(null); setView("trail"); window.scrollTo(0, 0); return;
+      }
       if (!response.ok || !result.receipt) throw new Error(result.error ?? "No decision was made.");
       setReceipts((current) => [result.receipt!, ...current].slice(0, 50));
       setHighlightedReceiptId(result.receipt.id);
@@ -251,7 +259,11 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(receipt.proposal),
       });
-      const result = await response.json() as { receipt?: DecisionReceipt; approvalPlan?: ApprovalPlan | null; error?: string };
+      const result = await response.json() as { receipt?: DecisionReceipt; observation?: Observation; approvalPlan?: ApprovalPlan | null; error?: string };
+      if (response.ok && result.observation) {
+        setObservations(current => [result.observation!, ...current].slice(0, 50));
+        setApprovalPlan(null); setApprovalAcknowledged(null); return;
+      }
       if (!response.ok || !result.receipt) throw new Error(result.error ?? "Could not recheck this proposal.");
       setReceipts((current) => [result.receipt!, ...current].slice(0, 50));
       setHighlightedReceiptId(result.receipt.id);
@@ -376,7 +388,8 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
               <button type="button" className="ws-text-action" onClick={() => navigate("mandate")}>{mandate.version ? "Review your mandate" : "Set your boundaries"}<ArrowUpRight size={17} /></button>
             </section>
           </div>
-          {brokerConnection && <section className="ws-check-panel"><div><span className="ws-label">READ-ONLY BROKER CHECK</span><h2>Consider a buy.</h2><p>Steward will read fresh Alpaca account evidence, check every saved limit, and add the reason to your trail. It will not send an order.</p></div><div className="ws-check-fields"><label>Stock symbol<input value={proposalSymbol} onChange={(event) => setProposalSymbol(event.target.value.toUpperCase())} placeholder="AAPL" maxLength={8} /></label><label>Proposed amount · USD<input value={proposalAmount} onChange={(event) => setProposalAmount(event.target.value)} type="number" min="0.01" step="0.01" placeholder="25.00" /></label><button type="button" onClick={checkProposal} disabled={!mandate.version || checking || !/^[A-Z.]{1,8}$/.test(proposalSymbol.trim()) || !Number.isFinite(Number(proposalAmount)) || Number(proposalAmount) <= 0}>{checking ? "Checking…" : "Check limits"}<ArrowRight size={16} /></button></div>{!mandate.version && <small>Save your mandate before checking a proposal.</small>}{checkError && <p className="ws-error" role="alert">{checkError}</p>}</section>}
+          {brokerConnection && <AccountPanel />}
+          {brokerConnection && <section className="ws-check-panel"><div><span className="ws-label">READ-ONLY BROKER CHECK</span><h2>Consider a buy.</h2><p>Steward reads fresh account evidence and checks your limits. Outside regular hours, it saves a partial check with price-dependent items pending. No order is sent.</p></div><div className="ws-check-fields"><label>Stock symbol<input value={proposalSymbol} onChange={(event) => setProposalSymbol(event.target.value.toUpperCase())} placeholder="AAPL" maxLength={8} /></label><label>Proposed amount · USD<input value={proposalAmount} onChange={(event) => setProposalAmount(event.target.value)} type="number" min="0.01" step="0.01" placeholder="25.00" /></label><button type="button" onClick={checkProposal} disabled={!mandate.version || checking || !/^[A-Z.]{1,8}$/.test(proposalSymbol.trim()) || !Number.isFinite(Number(proposalAmount)) || Number(proposalAmount) <= 0}>{checking ? "Checking…" : "Check limits"}<ArrowRight size={16} /></button></div>{!mandate.version && <small>Save your mandate before checking a proposal.</small>}{checkError && <p className="ws-error" role="alert">{checkError}</p>}</section>}
           <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19} /></div><div><span className="ws-label">DECISION TRAIL</span><strong>{receipts.length ? `${receipts.length} recorded decisions` : "A place for every reason."}</strong><p>{receipts.length ? "Inspect the evidence, checks, and outcome." : "No investment decisions have been recorded."}</p></div><span className="ws-overview-trail-end">{receipts.length} receipts <ChevronRight size={18} /></span></button>
         </div>}
 
@@ -405,6 +418,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
           <div className="ws-page-head"><div><span className="ws-eyebrow">03 / DECISION TRAIL</span><h1>See the reason.<br /><em>See the result.</em></h1><p>Every hold or proposal belongs with its evidence, limits, and any later broker-confirmed outcome.</p></div><span className="ws-page-index">{receipts.length} RECEIPTS</span></div>
           {actionError && <p className="ws-error" role="alert">{actionError}</p>}
           {refreshMessage && <p className="ws-refresh-note" role="status">{refreshMessage}</p>}
+          {observations.length > 0 && <section className="ws-trail ws-observations"><div className="ws-trail-top"><span className="ws-label">PARTIAL CHECKS / NO TRADING APPROVAL</span><span>{observations.length} OBSERVATIONS</span></div><div className="ws-receipts">{observations.map((record, index) => <details className="ws-receipt" key={record.id} open={index === 0}><summary><span className="ws-receipt-status">PARTIAL</span><strong>{record.proposal.symbol} · {usd(record.proposal.amountCents)}</strong><time dateTime={record.createdAt}>{when(record.createdAt)}</time><ChevronRight size={17} /></summary><div className="ws-receipt-detail"><p>{record.why}</p><p>Mandate v{record.policyVersion} · {record.account.environment.toUpperCase()} Alpaca response retrieved {when(record.account.observedAt)}.</p><p>Cash {usd(record.account.cashCents)} · Funds without margin {usd(record.account.availableCashCents)}. Broker valuations may reflect the last session; no execution quote was used.</p>{record.checks.map(check => <div className={"ws-receipt-check ws-partial-" + check.state} key={check.rule}><b>{check.state.toUpperCase()}</b><span><strong>{check.rule}</strong><small>{check.detail}</small></span></div>)}<p>Next regular session: {when(record.retryAt)} (device time). Recheck then; no automatic retry is scheduled.</p><button type="button" className="ws-recheck" onClick={() => { setProposalSymbol(record.proposal.symbol); setProposalAmount((record.proposal.amountCents / 100).toFixed(2)); navigate("overview"); }}>Review this proposal <ArrowUpRight size={15} /></button></div></details>)}</div></section>}
           <section className="ws-trail"><div className="ws-trail-top"><span className="ws-label">OWNER-BOUND LEDGER</span><div className="ws-trail-actions"><span>{receipts.length} ENTRIES</span>{pendingOrders > 0 && <button type="button" onClick={refreshPendingOrders} disabled={refreshingOrders || Boolean(actingOn)}><RotateCcw size={14} />{refreshingOrders ? "Checking Alpaca…" : `Refresh ${pendingOrders} pending`}</button>}</div></div>
             {receipts.length ? <div className="ws-receipts">{receipts.map((receipt) => {
               const state = receiptState(receipt);
@@ -416,7 +430,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, conne
                 {approvalPlan?.receiptId === receipt.id && receipt.orderEvents.length === 0 && <div className="ws-order-plan"><span>{brokerConnection?.tradingScope && orderSubmissionReady ? brokerConnection.environment === "paper" ? "PAPER ORDER REVIEW" : "LIVE ORDER REVIEW" : "ORDER SHAPE / READ ONLY"}</span><strong>{approvalPlan.order.type.toUpperCase()} BUY · ${approvalPlan.order.notional} · {approvalPlan.order.symbol}</strong><p>Day order for Alpaca account ···{approvalPlan.accountRef.slice(-6)}. Quoted ask {usd(approvalPlan.quotedAskCents)}. Review expires {when(approvalPlan.expiresAt)}. Market execution price can differ from this quote.</p>{brokerConnection?.tradingScope && orderSubmissionReady ? <div className="ws-order-confirm"><label><input type="checkbox" checked={approvalAcknowledged === receipt.id} onChange={(event) => setApprovalAcknowledged(event.target.checked ? receipt.id : null)} />I approve this exact {approvalPlan.order.notional} USD buy of {approvalPlan.order.symbol} for account ···{approvalPlan.accountRef.slice(-6)}.</label><button type="button" onClick={() => approveReceipt(approvalPlan)} disabled={Boolean(actingOn) || dirty || approvalAcknowledged !== receipt.id}>{actingOn === receipt.id ? "Submitting…" : brokerConnection.environment === "paper" ? "Approve PAPER order" : "Approve LIVE order"}</button>{dirty && <small>Save or reset your mandate draft, then run a new check before approving.</small>}</div> : <p>Inspection only. Trading permission and submission must be enabled separately; no order can be sent here.</p>}</div>}
                 {brokerConnection?.accountRef === receipt.evidence.accountRef && receipt.orderEvents.some((event) => event.type === "submission_started") && <button type="button" className="ws-recheck ws-reconcile" onClick={() => reconcileReceipt(receipt.id)} disabled={Boolean(actingOn)}><RotateCcw size={15} />{actingOn === receipt.id ? "Checking Alpaca…" : "Refresh broker order status"}</button>}
               </details>;
-            })}</div> : <div className="ws-trail-empty"><div className="ws-empty-visual" aria-hidden="true"><span className="ws-empty-sheet"><FileText size={23} /><i /><i /><i /></span><span className="ws-empty-orbit" /></div><div className="ws-trail-empty-copy"><span className="ws-preview-version">AWAITING FIRST BROKER OBSERVATION</span><h2>The trail begins<br />with real evidence.</h2><p>Your ledger is ready. No account data has been observed, so there are no decisions to record. Once a supported account is connected, each decision will show what was checked and why.</p><RouteLink href="/guide">Explore receipt anatomy <ArrowUpRight size={16} /></RouteLink></div></div>}
+            })}</div> : <div className="ws-trail-empty"><div className="ws-empty-visual" aria-hidden="true"><span className="ws-empty-sheet"><FileText size={23} /><i /><i /><i /></span><span className="ws-empty-orbit" /></div><div className="ws-trail-empty-copy"><span className="ws-preview-version">AWAITING FIRST BROKER OBSERVATION</span><h2>The trail begins<br />with real evidence.</h2><p>No complete market decision has been recorded. Partial checks appear separately above when available. A full check needs fresh broker evidence and a current quote during the regular session.</p><RouteLink href="/guide">Explore receipt anatomy <ArrowUpRight size={16} /></RouteLink></div></div>}
             <div className="ws-trail-foot"><span>01 / Evidence</span><span>02 / Rule checks</span><span>03 / Approval</span><span>04 / Outcome</span></div>
           </section>
         </div>}

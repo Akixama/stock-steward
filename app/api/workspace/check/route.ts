@@ -6,6 +6,8 @@ import { AlpacaBrokerReader } from "@/lib/alpaca-reader";
 import { checkWithBroker } from "@/lib/broker-boundary";
 import { prepareAlpacaApproval } from "@/lib/approval-plan";
 import { z } from "zod";
+import { readAccountView, observeClosedBuy } from "@/lib/anytime";
+import { saveObservation } from "@/db/observations";
 
 const proposalSchema = z.object({ symbol: z.string().regex(/^[A-Z.]{1,8}$/),
   amountCents: z.number().int().positive().safe() }).strict();
@@ -27,6 +29,14 @@ export async function POST(request: Request) {
     const connection = await getAlpacaConnection(env.DB, user.userId);
     if (!connection) return Response.json({ error: "Connect an Alpaca account first." }, { status: 409 });
     const ledger = new D1DecisionLedger(env.DB);
+    const account = await readAccountView(connection);
+    if (!account.marketOpen) {
+      const mandate = await ledger.getMandate(user.userId);
+      if (!mandate) throw new Error("Save your mandate first.");
+      const observation = observeClosedBuy(mandate, account, parsed.data);
+      await saveObservation(env.DB, user.userId, connection.accountRef, observation);
+      return Response.json({ observation, account, approvalPlan: null }, { headers: { "Cache-Control": "no-store" } });
+    }
     const receipt = await checkWithBroker(new AlpacaBrokerReader(connection),
       ledger, { ownerRef: user.userId, accountRef: connection.accountRef,
         proposal: parsed.data });

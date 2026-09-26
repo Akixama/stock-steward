@@ -11,3 +11,5 @@ The signed-in `/account` page records a deletion request in `data_deletion_reque
 5. Revoke or remove the locally stored Alpaca token, erase eligible owner-bound mandates, receipts, order events, and order gates, then verify no eligible rows remain for that owner. Handle the request record itself according to the documented retention decision. Confirm the outcome to the requester through the sign-in email.
 
 No automated operator notification or deletion worker exists yet. Until one is added, the queue and support inbox require manual review. The privacy notice must remain honest about this process.
+
+Manual erasure must also remove owner-bound rows from `observations`, including embedded account snapshots, along with mandates, receipts and connections.

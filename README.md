@@ -64,3 +64,8 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1
 Then run `npm run dev`. The local URL is printed by the server. The local preview provides a development sign-in identity. Run all six relevant suites with `node --test lib/decision.test.ts lib/broker-boundary.test.ts lib/alpaca-reader.test.ts lib/approval-plan.test.ts lib/alpaca-order.test.ts lib/order-flow.test.ts` on Node.js 24 or later. Order tests use fake broker responses and never contact Alpaca. The migrations are generated from `db/schema.ts` and have Drizzle snapshots. On this Windows host, generation needed a temporary `os.userInfo()` preload for Drizzle's CLI dependency.
 
 The Sites deployment configuration in `.openai/hosting.json` identifies this project's preview. It contains no broker credentials.
+
+### Anytime observations
+Connected users can manually read broker balances, positions, open orders and market status outside regular hours. Valuations may reflect the last session; retrieval time does not certify fresh prices.
+
+Closed-session proposals save owner-bound partial observations separately from decisions. Symbol, single-purchase and available-funds checks are recorded; full daily exposure, concentration, trading eligibility and quotes remain pending. Partial records cannot authorize orders. The trail shows the broker-reported next opening; rechecks are manual. Hosted order submission remains disabled and no live trades have been verified.

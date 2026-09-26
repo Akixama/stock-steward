@@ -50,3 +50,9 @@ export const dataDeletionRequests = sqliteTable("data_deletion_requests", {
   requestedAt: text("requested_at").notNull(),
   state: text("state", { enum: ["requested", "reviewing", "completed"] }).notNull().default("requested"),
 });
+
+export const observations = sqliteTable("observations", {
+  id: text("id").primaryKey(), ownerRef: text("owner_ref").notNull(),
+  accountRef: text("account_ref").notNull(), recordJson: text("record_json").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("observations_owner_created_idx").on(table.ownerRef, table.createdAt)]);
