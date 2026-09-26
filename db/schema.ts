@@ -61,3 +61,9 @@ export const chainObservations = sqliteTable("chain_observations", {
  id: text("id").primaryKey(), ownerRef: text("owner_ref").notNull(), address: text("address").notNull(), recordJson: text("record_json").notNull(), createdAt: text("created_at").notNull(),
 }, (table) => [index("chain_observations_owner_address_created_idx").on(table.ownerRef, table.address, table.createdAt)]);
 export const chainReadGates = sqliteTable("chain_read_gates", { ownerRef: text("owner_ref").primaryKey(), nextAvailableAt: text("next_available_at").notNull() });
+export const autonomyRuns = sqliteTable('autonomy_runs', {
+  id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),address:text('address').notNull(),receiptJson:text('receipt_json').notNull(),createdAt:text('created_at').notNull(),
+}, table=>[index('autonomy_runs_owner_created_idx').on(table.ownerRef,table.createdAt)]);
+export const autonomySpends = sqliteTable('autonomy_spends', {
+  ownerRef:text('owner_ref').notNull(),address:text('address').notNull(),executionDay:text('execution_day').notNull(),intentId:text('intent_id').notNull(),amountCents:integer('amount_cents').notNull(),state:text('state').notNull(),
+}, table=>[primaryKey({columns:[table.ownerRef,table.address,table.intentId]}),index('autonomy_spends_daily_idx').on(table.ownerRef,table.address,table.executionDay)]);

@@ -4,7 +4,7 @@ Reviewed 26 September 2026. Automatic spending is **not implemented or enabled**
 
 ## Most promising route: Alchemy Wallet APIs
 
-Alchemy explicitly lists Robinhood mainnet and testnet for bundler, wallet APIs and gas sponsorship. Its session-key APIs support scoped permissions. The free platform tier advertises 30M compute units/month; gas sponsorship is not proof that gas is free for the operator. An API account/key is required. The operator does not yet have an account configured.
+Alchemy explicitly lists Robinhood mainnet and testnet for bundler, wallet APIs and gas sponsorship. Its session-key APIs support scoped permissions. The free platform tier advertises 30M compute units/month; gas sponsorship is not proof that gas is free for the operator. An API account/key is required. The operator has created a Stock Steward Alchemy app and enabled Robinhood mainnet and testnet. The API key is configured outside the source checkout. Authenticated read-only RPC access has been verified on both networks.
 
 - Network support: https://www.alchemy.com/docs/wallets/supported-chains
 - Permissions: https://www.alchemy.com/docs/wallets/reference/wallet-apis-session-keys
@@ -32,3 +32,21 @@ ZeroDev lists Robinhood 4663 and testnet 46630, and supports call policies/sessi
 - https://docs.zerodev.app/smart-accounts/permissions/policies/call
 
 Read-only mainnet probe confirmed bytecode at the documented Alchemy SMA-7702 v1.1.0 delegate `0x77021100bD87b7008E5E1989d0eB38555d0d0000` (24,358 bytes). The public RPC returned gas price `0x1ab2f60` during the probe. This is not a user-operation fee estimate: gas usage, data charges, permission installation and provider fees still need measurement. Bytecode presence alone does not verify the entire policy path.
+
+
+## Private RPC connection check
+
+Save the existing app API key in `private-config/alchemy-credentials.json`, outside this source checkout, as `{"apiKey":"your-key"}`. Never paste it into chat or public source. Run `node scripts/check-alchemy.mjs` from the checkout. Alternatively supply `ALCHEMY_API_KEY` through the local environment. The script checks chain IDs, current blocks and gas prices for both networks and sanitizes connection failures. It sends no transactions, grants no permissions and does not establish a total setup fee. Syntax validation and the missing-key guard have been checked. Authenticated RPC checks passed on 26 September 2026: mainnet chain ID 4663, block 73226233, gas price 28232000 wei; testnet chain ID 46630, block 124706850, gas price 10000000 wei. These gas prices are observations, not total transaction fees. No transaction was submitted.
+
+
+## Execution investigation and implemented foundation
+
+Official Uniswap deployments list Robinhood Universal Router 2.1.2 at 0x204FAca1764B154221e35c0d20aBb3c525710498 and Permit2 at 0x000000000022D473030F116dDEE9F6B43aC78BA3. Read-only mainnet probe on 26 September 2026 returned 24,380 bytes of router code, 9,152 bytes of Permit2 code and 24,358 bytes of delegate code at block 0x45d7f8c. Code presence does not prove token-pair liquidity or runtime correctness.
+
+Reference: https://developers.uniswap.org/docs/protocols/v4/deployments
+
+The workspace readiness API now persists blocked receipts per signed-in owner. The reservation core atomically rejects duplicate intents and excessive daily spend, retaining unresolved reservations across midnight. It is tested on SQLite, but is not wired to a live executor. The fee guard requires all three measured setup stages plus explicit data/provider fees and fresh ETH/USD evidence, adds 50% headroom, and rejects a budget over $20. No actual complete quote has been obtained.
+
+Important permission blocker: Alchemy documents ERC20 spending, gas and contract/function permissions, but broad Universal Router access does not itself establish recipient/output-token restrictions or safe command handling. Do not combine an ERC20 cap with router access and claim the cap applies to arbitrary router calls without testing the permission semantics. Root grants are forbidden. A constrained existing permission policy or audited execution adapter may be needed; that choice and its deployment cost remain pending.
+
+Stock-token eligibility remains separate from wallet/RPC access. Official Robinhood documentation excludes U.S. persons and lists other jurisdiction restrictions. Nigeria eligibility has not been established by this work. No regional bypass is proposed.

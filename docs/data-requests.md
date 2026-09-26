@@ -15,3 +15,4 @@ No automated operator notification or deletion worker exists yet. Until one is a
 Manual erasure must also remove owner-bound rows from `observations`, including embedded account snapshots, along with mandates, receipts and connections.
 
 Erase `chain_observations` and `chain_read_gates` by the verified site owner_ref as part of manual workspace deletion. Watch-only addresses do not establish wallet ownership. Chain records include public addresses, balances, quotes and multipliers and must not be included in public support logs.
+Autonomy readiness records in autonomy_runs and accounting rows in autonomy_spends are also owner-bound data. Before erasing future spending records, reconcile reserved, submitted or unknown intents and revoke any future wallet session. Current execution is inactive; readiness checks store public address, mandate version, infrastructure observations and pending prerequisites.

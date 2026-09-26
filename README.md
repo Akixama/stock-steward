@@ -74,3 +74,9 @@ Closed-session proposals save owner-bound partial observations separately from d
 Overview supports browser EVM-wallet connection or watch-only address entry. Reads verify mainnet 4663, use official asset contracts, and pin balances to one block. No signing or gas is needed. ETH is separate from stock tokens.
 
 Coverage excludes other crypto and DeFi positions. Failed reads never imply zero balance. Indicative stock-token valuation uses matched official quotes and shares-per-token multipliers. Observe & save stores private records under the signed-in site user; history is limited to the latest 20 per query. Comparisons distinguish quantity, multiplier and price changes without inferring profit or transaction causes. Purchase previews apply saved symbol and size limits while daily accounting, full-wallet concentration, funds and execution eligibility remain pending. Mobile wallet linking, verified ownership, background monitoring and trading remain unavailable. Alpaca remains a separate integration.
+
+### Autonomous engine foundation
+
+Stock Steward aims to act automatically within user-defined authority, with inspectable receipts. The current workspace includes manually requested autonomy readiness checks and stored blocked receipts. The mainnet infrastructure reader checks chain identity and documented Uniswap/Alchemy contracts at one block. Atomic spending reservations retain uncertain outcomes across day boundaries; fee guards require complete fresh setup estimates and a capped budget. These accounting/fee modules are tested foundations, not a running executor. No scheduler, session signer, swap route, live permission or automatic spending is enabled.
+
+Run core checks: `node --experimental-strip-types --test lib/autonomy.test.ts db/autonomy.test.ts`. See `docs/autonomy-feasibility.md` for concrete prerequisites and verified versus pending evidence.
