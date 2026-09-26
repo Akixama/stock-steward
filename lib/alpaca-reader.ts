@@ -12,6 +12,7 @@ type Order = { id?: string; symbol?: string; side?: string; notional?: string | 
 type Fill = { id?: string; activity_type?: string; side?: string; price?: string; qty?: string;
   transaction_time?: string };
 type Quote = { ap?: number; t?: string };
+type MarketClock = { is_open?: boolean; timestamp?: string; next_open?: string };
 
 function cents(value: string | number | undefined | null): number {
   if (typeof value !== "string" && typeof value !== "number") throw new Error("Broker amount is missing.");
@@ -42,6 +43,20 @@ export class AlpacaBrokerReader implements BrokerReader {
       throw new Error("Broker account or stock mismatch. No decision was made.");
     }
     const { environment, token } = this.connection;
+    const clock = await alpacaGet<MarketClock>(environment, token, "/v2/clock", this.fetcher);
+    const clockAt = Date.parse(clock.timestamp ?? "");
+    if (typeof clock.is_open !== "boolean" || !Number.isFinite(clockAt) ||
+      Math.abs(Date.now() - clockAt) > 30_000) {
+      throw new Error("Alpaca market status is unavailable or stale. No decision was made.");
+    }
+    if (!clock.is_open) {
+      const nextOpen = Date.parse(clock.next_open ?? "");
+      const next = Number.isFinite(nextOpen) && nextOpen > clockAt
+        ? ` Next regular session: ${new Intl.DateTimeFormat("en-GB", {
+          timeZone: "UTC", dateStyle: "medium", timeStyle: "short",
+        }).format(nextOpen)} (UTC).` : "";
+      throw new Error(`The US stock market is closed.${next} Check again during the regular session. No decision was made and no order was sent.`);
+    }
     const [account, rawPositions, asset, rawOrders, rawQuote] = await Promise.all([
       alpacaGet<Account>(environment, token, "/v2/account", this.fetcher),
       alpacaGet<Position[]>(environment, token, "/v2/positions", this.fetcher),
@@ -56,6 +71,9 @@ export class AlpacaBrokerReader implements BrokerReader {
     const positions = requiredArray<Position>(rawPositions);
     const orders = requiredArray<Order>(rawOrders);
     if (orders.length >= 500) throw new Error("Open order list may be incomplete. No decision was made.");
+    if (typeof rawQuote.ap !== "number" || !Number.isFinite(rawQuote.ap) || rawQuote.ap <= 0) {
+      throw new Error("Alpaca returned no usable IEX ask quote. No decision was made.");
+    }
     const quoteCents = cents(rawQuote.ap);
     const quoteAt = Date.parse(rawQuote.t ?? "");
     if (!Number.isFinite(quoteAt) || quoteCents === 0 ||

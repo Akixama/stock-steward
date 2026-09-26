@@ -8,12 +8,17 @@ const connection: AlpacaConnection = {
   token: "test-token", tradingScope: false,
 };
 
-function fakeFetch(changes: { quoteTime?: string; orders?: unknown[]; fills?: unknown[] } = {}): typeof fetch {
+function fakeFetch(changes: { quoteTime?: string; orders?: unknown[]; fills?: unknown[];
+  marketOpen?: boolean; clockTime?: string } = {}): typeof fetch {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer test-token");
     const url = new URL(String(input));
     let data: unknown;
-    if (url.pathname === "/v2/account") data = {
+    if (url.pathname === "/v2/clock") data = {
+      is_open: changes.marketOpen ?? true, timestamp: changes.clockTime ?? new Date().toISOString(),
+      next_open: new Date(Date.now() + 86_400_000).toISOString(),
+    };
+    else if (url.pathname === "/v2/account") data = {
       id: "account-1", status: "ACTIVE", trading_blocked: false,
       equity: "1000", cash: "500", buying_power: "750",
     };
@@ -65,4 +70,23 @@ test("rejects stale quotes and open buy exposure that cannot be valued", async (
 
 test("rejects account mismatch before making a broker request", async () => {
   await assert.rejects(new AlpacaBrokerReader(connection, fakeFetch()).readSnapshot("other", "AAPL"), /mismatch/);
+});
+
+test("closed sessions explain the next opening without requesting a quote", async () => {
+  const fetcher = fakeFetch({ marketOpen: false });
+  let requests = 0;
+  const clockOnly = (async (input, init) => {
+    requests++;
+    assert.equal(new URL(String(input)).pathname, "/v2/clock");
+    return fetcher(input, init);
+  }) as typeof fetch;
+  await assert.rejects(new AlpacaBrokerReader(connection, clockOnly)
+    .readSnapshot("account-1", "AAPL"), /market is closed.*Next regular session.*UTC.*No decision/);
+  assert.equal(requests, 1);
+});
+
+test("stale market status cannot pass the session check", async () => {
+  await assert.rejects(new AlpacaBrokerReader(connection, fakeFetch({
+    clockTime: new Date(Date.now() - 120_000).toISOString(),
+  })).readSnapshot("account-1", "AAPL"), /market status is unavailable or stale/);
 });
