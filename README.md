@@ -69,3 +69,8 @@ The Sites deployment configuration in `.openai/hosting.json` identifies this pro
 Connected users can manually read broker balances, positions, open orders and market status outside regular hours. Valuations may reflect the last session; retrieval time does not certify fresh prices.
 
 Closed-session proposals save owner-bound partial observations separately from decisions. Symbol, single-purchase and available-funds checks are recorded; full daily exposure, concentration, trading eligibility and quotes remain pending. Partial records cannot authorize orders. The trail shows the broker-reported next opening; rechecks are manual. Hosted order submission remains disabled and no live trades have been verified.
+
+## Robinhood Chain web steward
+Overview supports browser EVM-wallet connection or watch-only address entry. Reads verify mainnet 4663, use official asset contracts, and pin balances to one block. No signing or gas is needed. ETH is separate from stock tokens.
+
+Coverage excludes other crypto and DeFi positions. Failed reads never imply zero balance. Dollar valuation, mobile wallet linking, verified ownership, persistent chain receipts, background monitoring and trading remain unavailable. A second read compares quantities in the current Overview view; no cause or profit is inferred. Alpaca remains a separate integration.

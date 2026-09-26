@@ -11,6 +11,7 @@ import type { DecisionReceipt, Mandate, OrderEvent } from "@/lib/decision";
 import type { ApprovalPlan } from "@/lib/approval-plan";
 import type { Observation } from "@/lib/anytime";
 import AccountPanel from "./account-panel";
+import ChainPanel from "./chain-panel";
 import "./workspace.css";
 
 type View = "overview" | "mandate" | "trail";
@@ -375,6 +376,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
         {brokerMessage && <p className="ws-import-note" role="status">{brokerMessage}</p>}
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
           <div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><span className="ws-page-index">STOCK STEWARD / 01</span></div>
+          <ChainPanel />
           <div className="ws-overview-grid">
             <section className="ws-connection">
               <div className="ws-panel-top"><span className="ws-label">BROKER CONNECTION</span><span className="ws-panel-index">01 / 03</span></div>

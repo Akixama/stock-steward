@@ -14,6 +14,7 @@ export const guideChapters = [
 ] as const;
 
 export const capabilityStatus = [
+  { name: "Robinhood Chain wallet observations", state: "Available · read only", detail: "Connect a browser wallet or inspect a public address on mainnet 4663. Balances use official contracts and one block. No signing, prices, verified ownership, saved chain receipts, mobile transport or background monitor. Alpaca remains separate." },
   { name: "Anytime account and partial checks", state: "Available with a connection", detail: "Manually read balances, positions, open orders and market status outside regular hours. Save partial checks with price-dependent items pending. These cannot authorize orders and are not automatically retried." },
   { name: "Save a versioned mandate", state: "Available locally", detail: "Saved under the signed-in workspace owner in the local D1 database." },
   { name: "Request workspace-data deletion", state: "Available locally", detail: "A signed-in owner can record a deletion request from Account. Review, broker-order checks, and erasure are handled manually; submitting a request does not delete data immediately." },
