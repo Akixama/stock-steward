@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   ArrowRight, ArrowUpRight, Check, ChevronRight, CircleDot, Clock3,
   ExternalLink, FileText, LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal,
 } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
+import {flushSync} from 'react-dom';
 import { RouteLink } from "@/components/route-transition";
 import type { DecisionReceipt, Mandate, OrderEvent } from "@/lib/decision";
 import type { ApprovalPlan } from "@/lib/approval-plan";
@@ -53,7 +54,11 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
   orderSubmissionReady: boolean;
   storageError: string | null;
 }) {
+  const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
+  const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
+  useEffect(()=>{const nav=navRef.current;if(!nav)return;const measure=()=>{const selected=nav.querySelector<HTMLButtonElement>('button.selected');if(selected)setIndicator({left:selected.offsetLeft,width:selected.offsetWidth});};measure();const observer=new ResizeObserver(measure);observer.observe(nav);return()=>observer.disconnect();},[view]);
+  useEffect(()=>()=>{navigation.current++;motion.current?.cancel();},[]);
   const [animateView, setAnimateView] = useState(true);
   const [mandate, setMandate] = useState<Mandate>(initialMandate ?? initial);
   const [symbols, setSymbols] = useState(initialMandate?.allowedSymbols.join(", ") ?? "");
@@ -142,10 +147,14 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
     orderCents !== mandate.maxOrderCents || dailyCents !== mandate.maxDailyBuyCents ||
     positionBps !== mandate.maxPositionBps || executionPreference !== (mandate.executionPreference ?? "approval");
 
-  function navigate(next: View, event?: MouseEvent<HTMLButtonElement>) {
-    setAnimateView(event ? event.detail !== 0 : true);
-    setView(next);
-    window.scrollTo(0, 0);
+  async function navigate(next: View, event?: MouseEvent<HTMLButtonElement>) {
+    const ticket=++navigation.current;motion.current?.cancel();if(next===view)return;
+    const enabled=(!event||event.detail!==0)&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setAnimateView(enabled);const panel=mainRef.current;
+    const direction=['overview','mandate','trail'].indexOf(next)>['overview','mandate','trail'].indexOf(view)?1:-1;
+    if(enabled&&panel){motion.current=panel.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX('+(-direction*8)+'px)'}],{duration:110,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});try{await motion.current.finished;}catch{return;}}
+    if(ticket!==navigation.current)return;motion.current?.cancel();flushSync(()=>setView(next));window.scrollTo(0,0);
+    if(enabled&&panel)motion.current=panel.animate([{opacity:0,transform:'translateX('+(direction*12)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:240,easing:'cubic-bezier(.23,1,.32,1)'});
   }
 
   function resetDraft() {
@@ -364,7 +373,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
     <div className="ws-shell">
       <div className="ws-toolbar">
         <div className="ws-toolbar-title"><span className="ws-toolbar-orb" aria-hidden="true" /><span>Steward / Workspace</span></div>
-        <nav className="ws-nav" aria-label="Workspace views">
+        <nav ref={navRef} className="ws-nav" aria-label="Workspace views"><span className="ws-nav-indicator" aria-hidden="true" style={{opacity:indicator.width?1:0,width:indicator.width,transform:"translateX("+indicator.left+"px)"}}/>
           <button type="button" className={view === "overview" ? "selected" : ""} aria-current={view === "overview" ? "page" : undefined} onClick={(event) => navigate("overview", event)}><CircleDot size={16} />Overview</button>
           <button type="button" className={view === "mandate" ? "selected" : ""} aria-current={view === "mandate" ? "page" : undefined} onClick={(event) => navigate("mandate", event)}><SlidersHorizontal size={16} />Mandate<span>{mandate.version ? `v${mandate.version}` : "draft"}</span></button>
           <button type="button" className={view === "trail" ? "selected" : ""} aria-label="Decision trail" aria-current={view === "trail" ? "page" : undefined} onClick={(event) => navigate("trail", event)}><Clock3 size={16} />Trail<span>{receipts.length}</span></button>
@@ -372,7 +381,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
         <span className="ws-offline"><i /> {brokerConnection ? `Alpaca ${brokerConnection.environment} linked` : "Broker offline"}</span>
       </div>
 
-      <main className="ws-main">
+      <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
         {brokerMessage && <p className="ws-import-note" role="status">{brokerMessage}</p>}
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
