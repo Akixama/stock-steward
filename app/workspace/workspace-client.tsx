@@ -11,6 +11,7 @@ import { RouteLink } from "@/components/route-transition";
 import type { DecisionReceipt, Mandate, OrderEvent } from "@/lib/decision";
 import type { ApprovalPlan } from "@/lib/approval-plan";
 import type { Observation } from "@/lib/anytime";
+import OverviewMotion from './overview-motion';
 import AccountPanel from "./account-panel";
 import ChainPanel from "./chain-panel";
 import AutonomyPanel from "./autonomy-panel";
@@ -385,7 +386,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
         {brokerMessage && <p className="ws-import-note" role="status">{brokerMessage}</p>}
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
-          <div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><span className="ws-page-index">STOCK STEWARD / 01</span></div>
+          <div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
           <ChainPanel mandate={mandate} />
           <AutonomyPanel mandate={mandate} />
           <div className="ws-overview-grid">
