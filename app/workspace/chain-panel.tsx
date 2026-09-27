@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import useBrowserWallets from './use-browser-wallets';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
 import type { Mandate } from "@/lib/decision";
@@ -26,7 +27,9 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   const [contract, setContract] = useState("");
   const [amount, setAmount] = useState("1.00");
   const generation = useRef(0);
-  const provider = () => (window as unknown as { ethereum?: Provider }).ethereum;
+  const wallets=useBrowserWallets();const [walletId,setWalletId]=useState('');
+  const selectedProvider=wallets.find(w=>w.id===walletId)?.provider;
+  const provider = () => selectedProvider;
   function clear() {
     generation.current++; setSnapshot(null); setPrevious(null); setConnected(false);
     setAddress(""); setBusy(false); setError(null); setNotice(null); setContract("");
@@ -36,7 +39,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     const changed = () => { clear(); setError("Wallet account or network changed. Reconnect to observe the new address."); };
     p?.on?.("accountsChanged", changed); p?.on?.("chainChanged", changed);
     return () => { generation.current++; p?.removeListener?.("accountsChanged", changed); p?.removeListener?.("chainChanged", changed); };
-  }, []);
+  }, [selectedProvider]);
   useEffect(() => { if (!snapshot) return; const timer = setInterval(() => setClock(Date.now()), 15000); return () => clearInterval(timer); }, [snapshot]);
   const historical = snapshot ? clock - Date.parse(snapshot.observedAt) > 120000 : false;
   async function connect() {
@@ -44,8 +47,10 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     try {
       const p = provider();
       if (!p) throw new Error("Use an EVM browser-wallet extension, or inspect a public address below. Mobile wallet linking is not available yet.");
+      const ticket=++generation.current;
       const accounts = await p.request({ method: "eth_requestAccounts" }) as string[];
       if (!valid(accounts?.[0] ?? "")) throw new Error("No wallet address returned.");
+      if(ticket!==generation.current)return;
       clear(); setAddress(accounts[0]); setConnected(true);
     } catch (e) { setError(e instanceof Error ? e.message : "Connection declined."); }
   }
@@ -88,7 +93,8 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   return <section className="ws-check-panel ws-chain-panel" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
       <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
-      <button className="ws-recheck" onClick={connected ? clear : connect} disabled={busy}>{connected ? "Disconnect from Steward" : "Connect browser wallet"}</button></div>
+      <button className="ws-recheck" onClick={connected ? clear : connect} disabled={busy||(!connected&&!selectedProvider)}>{connected ? "Disconnect from Steward" : "Connect selected wallet"}</button></div>
+    <label className="ws-wallet-picker">Browser wallet<select value={walletId} disabled={busy} onChange={e=>{clear();setWalletId(e.target.value);}}><option value="">Choose a wallet, or paste a public address below</option>{wallets.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
     <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
       generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setConnected(false); setNotice(null);
     }} placeholder="0x…" spellCheck={false} /></label>

@@ -96,3 +96,9 @@ Autonomy can inspect four direct USDG/official-stock Uniswap v4 pool keys at one
 Optional wallet verification uses a domain-bound five-minute personal-sign message. EOA recovery and deployed ERC1271 verification are supported. Nonces are owner-scoped, single-use and replaced atomically. Counterfactual undeployed wallets are not supported. Proof is historical and grants no token approval, delegation or spending authority. No private key or stored signature is involved.
 
 The execution preflight core checks pause, account, mandate version, route freshness, onchain permission coverage, eligibility, accounting, full account simulation, complete fees and exact approval. It is an internal tested foundation; no signer or submission adapter is wired, even if its checks pass. Alchemy's documented contract/function permission alone does not establish recipient and output-token restrictions inside router commands. No broad/root permission is requested.
+
+### Browser-wallet onboarding
+
+Choose a detected EVM wallet explicitly (EIP-6963, with a browser-default fallback), connect its public account, and request a separate short-lived ownership message. The selected provider is used consistently for verification; exposed account and network are rechecked before and after signing. A deliberate Robinhood Chain switch/add button is available. No private key input, account-access request during discovery, token approval, transaction or session grant is made. Watch-only inspection remains available. Mobile WalletConnect and built-in wallet creation are not implemented.
+
+Wallet labels are extension-supplied, not verified identities. Network configuration follows [Robinhood documentation](https://docs.robinhood.com/chain/connecting/); multi-wallet discovery follows [EIP-6963](https://eips.ethereum.org/EIPS/eip-6963).

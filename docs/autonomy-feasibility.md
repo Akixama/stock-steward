@@ -59,3 +59,9 @@ Read-only mainnet probe on 26 September 2026 at block 0x45dff27 returned an AAPL
 References: https://docs.robinhood.com/chain/contracts/ and https://developers.uniswap.org/docs/protocols/v4/deployments . Router source-version inspection through the explorer API was blocked by its challenge page; no bypass was attempted. Full transaction calldata/simulation remains unverified. A safe narrow enforcement module or audited adapter that inspects router arguments is still needed before any automatic session grant. The internal application guard cannot substitute for that onchain enforcement.
 
 Implemented ownership challenge/replay checks, direct quoter inspection, and internal execution preflight tests. Live wallet ownership has not been tested by the owner yet. Eligibility, complete setup fees, deployed permission/revocation tests, signing and funded execution remain pending. The read-only GitHub runner was verified and enabled separately; it submits no trades.
+
+## Onboarding progress — 27 September 2026
+
+Implemented explicit EIP-6963 browser-wallet selection and legacy fallback, consistent provider use for ownership proof, account/network pre- and post-sign checks, message expiry countdown, and deliberate switch/add-network requests. No funded account is needed for the message signature. Real extension prompts still require an owner-controlled wallet for end-to-end validation.
+
+The execution blockers remain unchanged: verified narrow permission enforcement and revocation, exact deployed router interface plus full account simulation, eligibility, full portfolio denominator and USD accounting, complete setup costs and a guarded spending executor. These are requirements, not approvals inferred from connection or ownership proof.
