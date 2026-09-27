@@ -1,0 +1,12 @@
+{
+  "name": "stock-steward-permission-lab",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --experimental-strip-types test.mjs" },
+  "devDependencies": {
+    "@safe-global/safe-contracts": "1.4.1-2",
+    "ganache": "7.9.2",
+    "hardhat": "2.26.3",
+    "solc": "0.8.30"
+  }
+}

@@ -1,9 +1,13 @@
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {keccak256} from 'viem';
 import {chainTransport} from '../lib/chain-transport.ts';
 import {CHAIN} from '../lib/robinhood-chain.ts';
+import {ROLES_CONTRACTS} from '../lib/roles-permission.ts';
+import {EXECUTION_CONTRACTS} from '../lib/autonomy.ts';
+import {VENUE} from '../lib/chain-route.ts';
+import {SAFE_CONTRACTS,SAFE_RUNTIME_HASHES} from '../lib/safe-setup.ts';
 // Official Zodiac 2.1.1 registry. Presence/fingerprint never proves audited implementation.
-const contracts={roles:'0xF2964CE6161ce0e75964Fe7927cE114cb0B283D5',integrity:'0x6a6Af4b16458Bc39817e4019fB02BD3b26d41049',packer:'0x869718c939652084bc491fbc5ce0d3c1d5b309f0',factory:'0x000000000000aDdB49795b0f9bA5BC298cDda236'};
+const contracts=ROLES_CONTRACTS;
 async function main(){
  let key=process.env.ALCHEMY_API_KEY?.trim();
  if(!key)key=JSON.parse(await readFile(new URL('../../../private-config/alchemy-credentials.json',import.meta.url),'utf8')).apiKey?.trim();
@@ -13,9 +17,13 @@ async function main(){
  if(BigInt(await rpc('eth_chainId',[]))!==4663n)throw Error();
  const block=await rpc('eth_blockNumber',[]),header=await rpc('eth_getBlockByNumber',[block,false]);
  if(header?.number!==block||!/^0x[0-9a-f]{64}$/i.test(header.hash))throw Error();
- const evidence={};
- for(const [name,address] of Object.entries(contracts)){const code=await rpc('eth_getCode',[address,block]);if(!/^0x(?:[0-9a-f]{2})*$/i.test(code))throw Error();evidence[name]={address,bytes:(code.length-2)/2,codeHash:keccak256(code)};}
+ const evidence={},runtimes={};
+ for(const [name,address] of Object.entries(contracts)){const code=await rpc('eth_getCode',[address,block]);if(!/^0x(?:[0-9a-f]{2})+$/i.test(code))throw Error();evidence[name]={address,bytes:(code.length-2)/2,codeHash:keccak256(code)};runtimes[name]={address,code,codeHash:keccak256(code)};}
+ const swapContracts={},safeContracts={};
+ if(process.argv.includes('--snapshot'))for(const [name,address] of Object.entries({router:EXECUTION_CONTRACTS.router,permit2:EXECUTION_CONTRACTS.permit2,manager:VENUE.manager})){const code=await rpc('eth_getCode',[address,block]);if(!/^0x(?:[0-9a-f]{2})+$/i.test(code))throw Error();swapContracts[name]={address,code,codeHash:keccak256(code)};}
+ for(const [name,address] of Object.entries(SAFE_CONTRACTS)){const code=await rpc('eth_getCode',[address,block]);if(!/^0x(?:[0-9a-f]{2})+$/i.test(code)||keccak256(code)!==SAFE_RUNTIME_HASHES[name])throw Error();safeContracts[name]={address,code,codeHash:keccak256(code)};}
  if((await rpc('eth_getBlockByNumber',[block,false]))?.hash!==header.hash)throw Error();
- console.log(JSON.stringify({chainId:4663,block,blockHash:header.hash,observedAt:new Date().toISOString(),contracts:evidence,implementationVerified:false,accountCompatible:false,grantInstalled:false,executionEnabled:false,transactionSent:false}));
+ if(process.argv.includes('--snapshot')){const directory=new URL('../outputs/',import.meta.url);await mkdir(directory,{recursive:true});await writeFile(new URL('permission-runtime.json',directory),JSON.stringify({chainId:4663,block,blockHash:header.hash,contracts:runtimes,swapContracts,safeContracts}));}
+ console.log(JSON.stringify({chainId:4663,block,blockHash:header.hash,observedAt:new Date().toISOString(),contracts:evidence,safeRegistryFingerprintsMatched:true,implementationVerified:false,accountCompatible:false,grantInstalled:false,executionEnabled:false,transactionSent:false}));
 }
 main().catch(()=>{console.error('Permission infrastructure evidence unavailable. No transaction sent.');process.exitCode=1;});

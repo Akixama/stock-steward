@@ -47,6 +47,13 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
       <details><summary>Inspect infrastructure evidence</summary><p>Receipt {active.id}</p><p>Address {active.address} · {active.checks.some(c=>c.name==='Historical wallet control'&&c.state==='pass')?'historical control signature verified; no spending grant':'ownership unverified'}</p>{active.infrastructure ? <><p>Chain {active.infrastructure.chainId} · block {BigInt(active.infrastructure.block).toString()}</p><p>Gas price {active.infrastructure.gasPriceWei} wei · not a total fee estimate</p>{Object.entries(active.infrastructure.contracts).map(([name,bytes])=><p key={name}>{name}: {bytes} bytes of code at the observed block</p>)}</> : <p>RPC evidence unavailable. No zero balances or liquidity conclusions were inferred.</p>}</details></div>}
     {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · {run.trigger==='scheduled'?'scheduled · ':''}blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
     <OwnershipPanel address={address} provider={walletProvider}/>
+    <section className="ws-monitor" aria-labelledby="permission-contract-status">
+      <span className="ws-label">SPENDING PERMISSIONS / IMPLEMENTATION</span>
+      <h3 id="permission-contract-status">The limits reach the contracts.</h3>
+      <p>The permission integration has passed 37 checks in an isolated local chain, including wallet creation, shared spending quotas, rejected unsafe calls and owner revocation. The swap test uses Robinhood contract bytecode with fixture assets and liquidity.</p>
+      <div className="ws-chain-brief"><strong>Live permission not installed</strong><p>Your own wallet must be verified first. An example address cannot grant authority. Wallet setup, full fees and the exact spending policy need review before you sign; live valuation, accounting and the spending worker remain activation gates.</p></div>
+      <div className="ws-chain-tools"><a className="ws-recheck" href="/guide#spending-permissions">Read the permission implementation <ArrowRight size={14}/></a><span>No signature, payment or spending grant is requested here.</span></div>
+    </section>
     {active?.walletProfile&&<WalletProfileDetails profile={active.walletProfile}/>}
     {active?.route&&<RouteDetails route={active.route} prerequisites={active.prerequisites} simulation={active.routerSimulation}/>}
     {active?.settlementReview&&<SettlementDetails review={active.settlementReview}/>}

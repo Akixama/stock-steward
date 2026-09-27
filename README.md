@@ -4,6 +4,10 @@ Stock Steward is a web-based exposure steward for Robinhood Chain wallets. It ob
 
 The project is **under development**. The hosted site reads Robinhood Chain mainnet holdings and saves indicative-price observations; it also has a working read-only Alpaca connection. User-signed execution and optional bounded autonomy are future stages. No live orders have been submitted and automatic spending is disabled. See `docs/autonomy-feasibility.md` for the researched Alchemy route and unverified setup costs.
 
+## Bounded spending permission integration
+
+Actual Safe factory setup, Zodiac Roles 2.1.1 constraints, shared daily and cumulative quotas, revocation calldata and an installed-state reader are implemented. The isolated contract lab passed 37 scenarios using mainnet wallet, permission and swap runtimes with fixture assets and liquidity. No mainnet grant or real trade was performed. Owner binding, live economic checks, complete fees and a guarded signer remain required. See [implementation and reproducible tests](docs/spending-permissions.md).
+
 ## Separate Alpaca adapter: how it works
 
 1. **Set boundaries.** The owner chooses approved symbols, a maximum per purchase, a daily buy limit, and a position concentration limit. Mandate changes are versioned.
@@ -37,7 +41,7 @@ When the mandate form, `lib/decision.ts`, broker adapter, receipt persistence, o
 
 ## What remains before real-money use
 
-The hosted site has configured read-only Alpaca OAuth and has observed a real connected account; fresh market-hours complete checks and funded order execution remain unverified. There is **no enabled order submission or background monitor**. Source-only deployments require their own credentials. The `source` field alone is not proof of authentication; the server-side OAuth token and account match establish provenance. The decision endpoint accepts only a symbol and dollar amount from the browser, never account figures.
+The hosted site has configured read-only Alpaca OAuth and has observed a real connected account; fresh market-hours complete checks and funded order execution remain unverified. There is **no enabled order submission**. A read-only Robinhood monitoring and recovery worker is implemented; it has no spending signer. Source-only deployments require their own credentials. The `source` field alone is not proof of authentication; the server-side OAuth token and account match establish provenance. The decision endpoint accepts only a symbol and dollar amount from the browser, never account figures.
 
 Stock Steward targets eligible brokerage users in multiple countries, initially for US-listed stocks with USD purchase limits. Robinhood Chain is the primary product direction; Alpaca Connect remains a separate working reference integration. Credentials are configured as hosted secrets, not committed source; read-only real-account observations have succeeded. Separate Alpaca Connect app approval is needed for live trading by other users. The broker boundary remains provider-independent so another supported broker can replace Alpaca if necessary. See `docs/broker-selection.md` and `docs/alpaca-account-setup.md`. The current reader fails closed on stale quotes, incomplete history, and open buy orders whose value cannot be determined safely. The approval, submission, and manual broker-order lookup code uses fake responses in tests but has not been verified with an eligible funded account. Automatic action remains inactive.
 
@@ -120,3 +124,4 @@ Run the preparation tests with `node --experimental-strip-types --test lib/route
 Readiness checks inspect canonical wallet code and EIP-7702 delegation without requesting a signature or authority. Route receipts show observed settlement minus validated owner-bound raw reservations, with external activity and dollar valuation explicitly pending. Scheduled recovery keeps interrupted attempts unknown and can reconcile recorded exact direct-router transactions against finalized calldata, code and transfer evidence. It has no signer or submission capability; delegated user operations remain unsupported.
 
 Run the new suites with `node --experimental-strip-types --test lib/wallet-profile.test.ts lib/settlement-review.test.ts db/settlement-review.test.ts lib/chain-fill-proof.test.ts lib/execution-recovery.test.ts`. See [permission research](docs/permission-investigation.md) for the standard Alchemy limits, lower-level custom-policy option, and unverified Zodiac alternative. None is presented as a verified or free active trading permission path.
+

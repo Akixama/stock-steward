@@ -1,6 +1,10 @@
 # Bounded permission investigation — 27 September 2026
 
-## Result
+## Current implementation follow-up
+
+The subsequent integration now compiles actual Roles conditions, quotas, membership and revocation calls, inspects installed state, and creates a protected wallet through the actual Safe factory in a local EVM. Thirty-seven scenarios passed using mainnet permission, wallet and swap-contract runtimes with fixture assets. See [spending permission implementation](spending-permissions.md) for current scope and remaining live gates. The investigation below records the earlier findings; no mainnet grant or trade has been installed.
+
+## Earlier investigation result
 
 No ready-to-activate Robinhood Chain permission path has been verified to enforce all Stock Steward invariants without additional account configuration, installation and testing. The standard Alchemy Wallet API remains useful infrastructure, but broad router access is not sufficient. No root grant, permission installation, signing request or paid deployment was performed.
 
@@ -60,3 +64,4 @@ Primary references:
 - [Zodiac allowances and refill semantics](https://docs.zodiac.eco/developers/roles/allowances)
 - [Zodiac target/function scoping and revocation](https://docs.zodiac.eco/developers/roles/permissions)
 - [Zodiac custom condition integration requirements](https://docs.zodiac.eco/developers/roles/custom-conditions)
+

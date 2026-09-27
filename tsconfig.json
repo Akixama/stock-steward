@@ -43,6 +43,8 @@
   ],
   "exclude": [
     "node_modules",
-    "examples"
+    "examples",
+    "outputs",
+    "permission-lab/node_modules"
   ]
 }
