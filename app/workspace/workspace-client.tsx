@@ -14,10 +14,11 @@ import type { Observation } from "@/lib/anytime";
 import OverviewMotion from './overview-motion';
 import AccountPanel from "./account-panel";
 import ChainPanel from "./chain-panel";
+import StrategyPanel from './strategy-panel';
 import AutonomyPanel from "./autonomy-panel";
 import "./workspace.css";
 
-type View = "overview" | "mandate" | "trail";
+type View = "overview" | "mandate" | "trail" | "strategy";
 const initial: Mandate = {
   version: 0, allowedSymbols: [], maxOrderCents: 10_000,
   maxDailyBuyCents: 25_000, maxPositionBps: 1_500, requireApproval: true,
@@ -378,6 +379,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
           <button type="button" className={view === "overview" ? "selected" : ""} aria-current={view === "overview" ? "page" : undefined} onClick={(event) => navigate("overview", event)}><CircleDot size={16} />Overview</button>
           <button type="button" className={view === "mandate" ? "selected" : ""} aria-current={view === "mandate" ? "page" : undefined} onClick={(event) => navigate("mandate", event)}><SlidersHorizontal size={16} />Mandate<span>{mandate.version ? `v${mandate.version}` : "draft"}</span></button>
           <button type="button" className={view === "trail" ? "selected" : ""} aria-label="Decision trail" aria-current={view === "trail" ? "page" : undefined} onClick={(event) => navigate("trail", event)}><Clock3 size={16} />Trail<span>{receipts.length}</span></button>
+          <button type="button" className={view === "strategy" ? "selected" : ""} aria-current={view === "strategy" ? "page" : undefined} onClick={event=>navigate('strategy',event)}><ShieldCheck size={16}/>Strategy</button>
         </nav>
         <span className="ws-offline"><i /> {brokerConnection ? `Alpaca ${brokerConnection.environment} linked` : "Broker offline"}</span>
       </div>
@@ -385,6 +387,7 @@ export default function WorkspaceClient({ initialMandate, initialReceipts, initi
       <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
         {brokerMessage && <p className="ws-import-note" role="status">{brokerMessage}</p>}
+        <div hidden={view!=='strategy'} className="ws-view" data-animate={view==='strategy'&&animateView}><StrategyPanel mandate={mandate}/></div>
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
           <div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
           <ChainPanel mandate={mandate} />

@@ -125,3 +125,7 @@ Readiness checks inspect canonical wallet code and EIP-7702 delegation without r
 
 Run the new suites with `node --experimental-strip-types --test lib/wallet-profile.test.ts lib/settlement-review.test.ts db/settlement-review.test.ts lib/chain-fill-proof.test.ts lib/execution-recovery.test.ts`. See [permission research](docs/permission-investigation.md) for the standard Alchemy limits, lower-level custom-policy option, and unverified Zodiac alternative. None is presented as a verified or free active trading permission path.
 
+
+## Strategy and practice workspace
+
+The Strategy tab supports scheduled, price-threshold, target-allocation and cautious-accumulation buys, with review before confirmation. Practice provides fake cash, fixture prices, approval/automatic choices, pause/revoke and simulated receipts. It is a browser-local balance simulation, not a blockchain test transaction. Free-text direction is a note; AI interpretation and live execution are not connected. See [scope and testing](docs/strategies-and-practice.md).

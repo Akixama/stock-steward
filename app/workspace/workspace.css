@@ -83,3 +83,15 @@
 .ws-next-steps{padding:20px;border:1px solid #3b4a40;border-radius:16px;margin:20px 0;background:#111a14}.ws-next-steps summary{cursor:pointer;font-weight:600;color:#d3e4d5}.ws-next-steps ol{padding-left:22px}.ws-next-steps li{padding:10px 0}.ws-next-steps li p{color:#a4b8aa;font-size:13px;line-height:1.65}.ws-next-steps>p{font-size:13px;color:#a4b8aa}
 .ws-account-numbers small{display:block;margin-top:10px;color:var(--ws-muted,#a1afa7);font-size:13px;line-height:1.5}
 .ws-wallet-picker select{color-scheme:dark}
+.ws-view[hidden]{display:none!important}
+.ws-strategy-modes,.ws-strategy-types{display:flex;gap:10px;flex-wrap:wrap}
+.ws-strategy-modes button,.ws-strategy-types button{background:#121715;color:#a9b5ae;border:1px solid #303a34;border-radius:14px;padding:14px 20px;transition:background .18s ease-out,border-color .18s ease-out}
+.ws-strategy-modes button[aria-pressed=true],.ws-strategy-types button[aria-pressed=true]{background:#26302a;border-color:#718a77;color:#edf3ed}
+.ws-strategy-types{margin:28px 0}.ws-strategy-types button{flex:1;min-width:180px;text-align:left}.ws-strategy-types small{display:block;margin-top:8px;line-height:1.5}
+.ws-strategy-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin:24px 0}
+.ws-strategy-fields label,.ws-strategy-direction{display:flex;flex-direction:column;gap:10px;color:#cad5cd;font-weight:600}
+.ws-strategy-fields input,.ws-strategy-fields select,.ws-strategy-direction textarea{width:100%;background:#0d1310;color:#edf3ed;border:1px solid #3a4b40;border-radius:16px;padding:18px;font:inherit;color-scheme:dark}
+.ws-strategy-direction textarea{min-height:110px;resize:vertical}.ws-strategy-direction small{font-weight:400;color:#a9b5ae;line-height:1.6}
+.ws-strategy-session,.ws-strategy-trail{margin-top:32px;padding-top:28px;border-top:1px solid #303a34}.ws-strategy-trail details{border:1px solid #303a34;border-radius:16px;margin:12px 0;padding:20px}.ws-strategy-trail summary{cursor:pointer}.ws-strategy-trail summary small{display:block;margin-top:8px;color:#a9b5ae}.ws-strategy p{line-height:1.7}.ws-strategy button:active{transform:scale(.98)}
+@media(prefers-reduced-motion:reduce){.ws-strategy button{transition:none}.ws-strategy button:active{transform:none}}
+.ws-nav{max-width:100%;overflow-x:auto;scrollbar-width:thin}

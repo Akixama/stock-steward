@@ -2,6 +2,7 @@
 export const guideRevision = "27 September 2026";
 
 export const guideChapters = [
+  { id: "strategies", number: "02G", title: "Strategies and practice" },
   { id: "overview", number: "01", title: "The model" },
   { id: "status", number: "02", title: "What is live today" },
   { id: "wallet", number: "02A", title: "Wallet evidence & previews" },
@@ -10,6 +11,7 @@ export const guideChapters = [
   { id: "testing", number: "02D", title: "Test the current release" },
   { id: "preparation", number: "02E", title: "Execution preparation" },
   { id: "execution-evidence", number: "02F", title: "Wallet evidence & recovery" },
+  { id: "strategies", number: "02G", title: "Strategies and practice" },
   { id: "mandate", number: "03", title: "Your mandate" },
   { id: "evidence", number: "04", title: "Broker evidence" },
   { id: "checks", number: "05", title: "Decision checks" },
@@ -20,6 +22,7 @@ export const guideChapters = [
 ] as const;
 
 export const capabilityStatus = [
+  {name:'Reviewed strategies and practice',state:'Available · browser simulation',detail:'Four buy-only strategy templates, structured review, approval or automatic practice, separate permission, pause/revoke, fixture prices, simulated clock and downloadable receipts. Direction text is a note; AI interpretation is not connected. Practice balances and receipts are page-session state. Live execution remains inactive.'},
   { name: 'Wallet code and settlement ledger', state: 'Available · read only', detail: 'Inspect canonical wallet code and any delegation indicator. Route receipts combine observed USDG balance with owner-bound pending reservations. External spending, complete USD prices and full portfolio valuation remain unverified. Scheduled recovery can inspect historical direct-router attempts but never sends transactions.' },
   { name: 'Direct-router simulation', state: 'Available · read only', detail: 'Route inspection attempts an exact one-pool router call at the recorded block, records its fingerprints and any revert, and checks canonicality. It does not verify delegated wallet authority or submit transactions. Integer accounting and durable attempt recovery are internal tested foundations; live accounting and execution adapters remain unwired.' },
   { name: 'Autonomy readiness and budget guards', state: 'Available · execution inactive', detail: 'Manually check documented mainnet infrastructure and save a blocked readiness receipt. Atomic reservation accounting and complete-fee budget checks are implemented and tested but not connected to a live executor. Read-only scheduling requires a verified runner. Live direct-pool quoter evidence and optional ownership messages are available. No session key or automatic spending is enabled.' },
@@ -36,3 +39,5 @@ export const capabilityStatus = [
   { name: "Review and approve an order", state: "Code ready · disabled", detail: "The exact dollar buy expires no later than 30 seconds after the quote. A separate trading OAuth grant and deployment switch are needed before the owner can approve and submit." },
   { name: "Submit and reconcile orders", state: "Code ready · unverified", detail: "One broker POST is guarded by owner approval, a unique receipt event, and an account-level gate. Another order needs a new broker observation after the first reaches a terminal outcome. Every limit is rechecked against fresh broker data immediately before an attempt, and that evidence is recorded. A manual refresh checks pending orders in the 50 visible receipts by client order ID without another POST, and closes older approvals that never reached an attempt. No live account has tested this path; background monitoring is absent." },
 ] as const;
+
+
