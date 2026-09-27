@@ -10,7 +10,7 @@ Stock Steward's core goal is bounded autonomous action. The current release obse
 - An internal combined review binds accounting to the route account and block and compares candidate fingerprints. It always reports submission unavailable, even when test fixtures pass.
 - Durable attempt storage atomically reserves daily budget, claims an attempt once, records uncertain/submitted outcomes, and retains reservations across midnight. Interrupted attempts become unknown, not retried. Only an unattempted reservation can be canceled without final chain evidence. A successful outer transaction is not a verified stock-token fill.
 
-The database attempt APIs are internal and not invoked by a live signer or HTTP submission route. Terminal proof fields must come from a trusted chain reconciliation adapter, never a browser. That adapter is still required. Test fixtures establish code behavior, not successful wallet execution.
+The database attempt APIs are internal and not invoked by a live signer or HTTP submission route. Terminal proof fields must come from a trusted chain reconciliation adapter, never a browser. A direct-router adapter is now implemented and wired to scheduled historical recovery; a delegated user-operation adapter is still required. Test fixtures establish code behavior, not successful wallet execution.
 
 ## Test together without spending
 
@@ -45,5 +45,13 @@ The second command makes real read-only RPC calls, using private environment con
 | Funded test | With explicit owner approval, test one small real operation, pause, rejection and revocation. |
 
 Several gates require implementation or external verification even before funding. Money alone does not unblock autonomy. No paid deployment, funded operation or permission installation was performed in this release.
+
+## Wallet-code, settlement and recovery update
+
+Readiness checks now inspect canonical wallet code and any EIP-7702 delegation indicator. A documented target match remains insufficient to establish account implementation, ownership, installed session scope or revocation. Route receipts also combine observed settlement balance with the authenticated owner's private reservation ledger; missing raw reservation plans remain unknown. External activity and full USD valuation stay pending.
+
+The scheduled worker recovers interrupted attempts without resubmission. Recorded direct-router transactions can be settled only after exact calldata, source/account, router code, canonical finalized inclusion and matching bounded token transfers are verified. Unsupported bundled operations, missing logs and changed evidence remain unresolved. It never sends a transaction. No user has performed a funded end-to-end test of this adapter.
+
+See [permission investigation](permission-investigation.md) for verified facts and why activation remains blocked. Owner testing and funding are not substitutes for the remaining implementation and enforcement verification.
 
 Primary implementation references: [Universal Router 2.1.2](https://github.com/Uniswap/universal-router/releases/tag/2.1.2), [pinned v4 router interface](https://github.com/Uniswap/v4-periphery/blob/545a5d2a87228167edde48f3b9eda122d1e3c4d6/src/interfaces/IV4Router.sol), [pinned action handling](https://github.com/Uniswap/v4-periphery/blob/545a5d2a87228167edde48f3b9eda122d1e3c4d6/src/V4Router.sol), [Alchemy session-key documentation](https://www.alchemy.com/docs/wallets/reference/wallet-apis-session-keys).

@@ -1,0 +1,8 @@
+'use client';
+import {formatUnits} from 'viem';
+import type {SettlementReview} from '@/lib/settlement-review';
+export default function SettlementDetails({review}:{review:SettlementReview}){
+ const units=(raw:string|null)=>{try{return raw===null?'Unverified':formatUnits(BigInt(raw),review.decimals);}catch{return 'Unverified';}};
+ const usd=(cents:string|null)=>cents===null?'Unverified':'$'+formatUnits(BigInt(cents),2);
+ return <div className="ws-monitor"><span className="ws-label">SETTLEMENT / RECORDED BUDGET</span><h3>What is available—and what is still unknown.</h3><p>This combines the saved block balance with your private Steward ledger. It is read-only evidence and grants no spending permission.</p><div className="ws-autonomy-stages"><span>Balance · {units(review.balanceRaw)} USDG</span><span>Reserved · {units(review.reservedRaw)} USDG</span><span>Unreserved · {units(review.unreservedRaw)} USDG</span></div><p>Recorded Steward fills today: {usd(review.knownDailyFilledCents)} · unresolved spend: {usd(review.knownPendingCents)} · {review.pendingCount} reservations. These dollar records are historical recorded limits, not current token valuations.</p>{review.checks.map(c=><div className={`ws-receipt-check ws-partial-${c.state}`} key={c.name}><b>{c.state.toUpperCase()}</b><span><strong>{c.name}</strong><small>{c.reason}</small></span></div>)}<details><summary>Recorded accounting evidence</summary><p>Observed {new Date(review.observedAt).toLocaleString()}</p><p>Block fingerprint {review.blockHash}</p><p>USD prices, external activity and complete portfolio valuation remain unverified. Re-inspect for fresh evidence before any future action.</p></details></div>;
+}

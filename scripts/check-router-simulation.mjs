@@ -3,6 +3,7 @@ import {inspectRoute} from '../lib/chain-route.ts';
 import {routePrerequisites} from '../lib/route-prerequisites.ts';
 import {simulateRouter} from '../lib/router-simulation.ts';
 import {chainTransport} from '../lib/chain-transport.ts';
+import {walletProfile} from '../lib/wallet-profile.ts';
 // Read-only mainnet probe. No signing, state overrides, permissions or transaction submission.
 async function main(){
  let key=process.env.ALCHEMY_API_KEY?.trim();
@@ -12,7 +13,8 @@ async function main(){
  const route=await inspectRoute('0x000000000000000000000000000000000000dead','AAPL','1',50,transport);
  const prerequisites=await routePrerequisites(route,null,transport);
  const simulation=await simulateRouter(route,null,prerequisites?.routerCodeHash??null,transport);
- console.log(JSON.stringify({chain:4663,block:route.block,observedAt:simulation.observedAt,quoted:!!route.best,simulation:simulation.state,revertSelector:simulation.revertSelector,estimatedExecutionGas:simulation.estimatedExecutionGas,delegatedAccountVerified:false,executionEnabled:false,transactionSent:false}));
+ const profile=await walletProfile(route.address,transport,route.block);
+ console.log(JSON.stringify({chain:4663,block:route.block,observedAt:simulation.observedAt,quoted:!!route.best,simulation:simulation.state,revertSelector:simulation.revertSelector,estimatedExecutionGas:simulation.estimatedExecutionGas,walletKind:profile.kind,permissionVerified:profile.permissionVerified,delegatedAccountVerified:false,executionEnabled:false,transactionSent:false}));
  if(simulation.state==='unavailable'||simulation.state==='expired')process.exitCode=1;
 }
 main().catch(()=>{console.error('Read-only route simulation unavailable. No transaction sent.');process.exitCode=1;});

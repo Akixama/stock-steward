@@ -6,6 +6,7 @@ import { claimChainRead } from '@/db/chain-observations';
 import { listAutonomyRuns, saveAutonomyRun } from '@/db/autonomy';
 import { autonomyReadiness, readInfrastructure, attachHistoricalControl } from '@/lib/autonomy';
 import {getOwnership} from '@/db/wallet-ownership';
+import {walletProfile} from '@/lib/wallet-profile';
 const headers={'Cache-Control':'no-store'};
 export async function GET() {
   const user=await getChatGPTUser();
@@ -30,6 +31,7 @@ export async function POST(request:Request) {
     let infrastructure=null;
     try { infrastructure=await readInfrastructure(chainTransport(env.ALCHEMY_API_KEY)); } catch { /* Save an honest blocked receipt even during provider outages. */ }
     const receipt=autonomyReadiness(address,mandate,infrastructure);
+    receipt.walletProfile=await walletProfile(address,chainTransport(env.ALCHEMY_API_KEY),infrastructure?.block);
     const ownership=await getOwnership(env.DB,user.userId);
     attachHistoricalControl(receipt,ownership);
     await saveAutonomyRun(env.DB,user.userId,receipt);
