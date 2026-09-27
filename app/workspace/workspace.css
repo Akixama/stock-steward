@@ -81,3 +81,5 @@
 .ws-wallet-picker{display:grid;gap:10px;max-width:440px;font-size:13px;color:#bbcabe}.ws-wallet-picker select{padding:14px 16px;border:1px solid #46564a;border-radius:14px;background:#101714;color:#edf3ec;font:inherit}.ws-wallet-picker select:focus-visible{outline:2px solid #bfd8c4;outline-offset:3px}.ws-wallet-choice>small{display:block;margin-top:14px;color:#9baea1;line-height:1.6}.ws-wallet-choice>.ws-recheck{margin-left:12px}@media(max-width:600px){.ws-wallet-choice>.ws-recheck{margin:12px 0 0}}
 
 .ws-next-steps{padding:20px;border:1px solid #3b4a40;border-radius:16px;margin:20px 0;background:#111a14}.ws-next-steps summary{cursor:pointer;font-weight:600;color:#d3e4d5}.ws-next-steps ol{padding-left:22px}.ws-next-steps li{padding:10px 0}.ws-next-steps li p{color:#a4b8aa;font-size:13px;line-height:1.65}.ws-next-steps>p{font-size:13px;color:#a4b8aa}
+.ws-account-numbers small{display:block;margin-top:10px;color:var(--ws-muted,#a1afa7);font-size:13px;line-height:1.5}
+.ws-wallet-picker select{color-scheme:dark}
