@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import useBrowserWallets from './use-browser-wallets';
+import WalletConnect from './wallet-connect';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
 import type { Mandate } from "@/lib/decision";
@@ -27,8 +27,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   const [contract, setContract] = useState("");
   const [amount, setAmount] = useState("1.00");
   const generation = useRef(0);
-  const wallets=useBrowserWallets();const [walletId,setWalletId]=useState('');
-  const selectedProvider=wallets.find(w=>w.id===walletId)?.provider;
+  const [selectedProvider,setSelectedProvider]=useState<Provider|undefined>();
   const provider = () => selectedProvider;
   function clear() {
     generation.current++; setSnapshot(null); setPrevious(null); setConnected(false);
@@ -42,18 +41,6 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   }, [selectedProvider]);
   useEffect(() => { if (!snapshot) return; const timer = setInterval(() => setClock(Date.now()), 15000); return () => clearInterval(timer); }, [snapshot]);
   const historical = snapshot ? clock - Date.parse(snapshot.observedAt) > 120000 : false;
-  async function connect() {
-    setError(null);
-    try {
-      const p = provider();
-      if (!p) throw new Error("Use an EVM browser-wallet extension, or inspect a public address below. Mobile wallet linking is not available yet.");
-      const ticket=++generation.current;
-      const accounts = await p.request({ method: "eth_requestAccounts" }) as string[];
-      if (!valid(accounts?.[0] ?? "")) throw new Error("No wallet address returned.");
-      if(ticket!==generation.current)return;
-      clear(); setAddress(accounts[0]); setConnected(true);
-    } catch (e) { setError(e instanceof Error ? e.message : "Connection declined."); }
-  }
   async function loadHistory(ticket: number, target?: string) {
     const response = await fetch(`/api/workspace/chain${target ? `?address=${encodeURIComponent(target)}` : ""}`, { cache: "no-store" });
     const data = await response.json() as { records?: PricedObservation[]; error?: string };
@@ -93,8 +80,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   return <section className="ws-check-panel ws-chain-panel" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
       <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
-      <button className="ws-recheck" onClick={connected ? clear : connect} disabled={busy||(!connected&&!selectedProvider)}>{connected ? "Disconnect from Steward" : "Connect selected wallet"}</button></div>
-    {wallets.length>0 ? <label className="ws-wallet-picker">Browser wallet<select value={walletId} disabled={busy} onChange={e=>{clear();setWalletId(e.target.value);}}><option value="">Choose a detected wallet</option>{wallets.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label> : <div className="ws-chain-brief"><strong>No browser wallet detected</strong><p>You can still paste a public address below. To connect your own wallet, open this page in a browser with an EVM wallet extension or in your wallet’s browser.</p></div>}
+      {connected?<button className="ws-recheck" onClick={()=>{clear();setSelectedProvider(undefined);}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setSelectedProvider(p);setAddress(address);setConnected(true);}}/>}</div>
     <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
       generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setConnected(false); setNotice(null);
     }} placeholder="0x…" spellCheck={false} /></label>
@@ -143,3 +129,4 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
       }}>Inspect</button></div>)}</div>}
   </section>;
 }
+
