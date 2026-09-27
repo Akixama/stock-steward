@@ -94,3 +94,5 @@ export const walletOwnership = sqliteTable('wallet_ownership', {
 export const executionAttempts = sqliteTable('execution_attempts', {
  id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),address:text('address').notNull(),intentDigest:text('intent_digest').notNull(),mandateVersion:integer('mandate_version').notNull(),executionDay:text('execution_day').notNull(),amountCents:integer('amount_cents').notNull(),state:text('state').notNull(),planJson:text('plan_json').notNull(),transactionHash:text('transaction_hash'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
 },table=>[index('execution_attempts_owner_created_idx').on(table.ownerRef,table.createdAt)]);
+
+export const strategyAIUsage=sqliteTable('strategy_ai_usage',{scope:text('scope').notNull(),day:text('day').notNull(),requests:integer('requests').notNull(),nextAt:integer('next_at').notNull()},t=>[primaryKey({columns:[t.scope,t.day]})]);

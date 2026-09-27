@@ -1,6 +1,9 @@
 declare namespace Cloudflare {
   interface Env {
     DB?: D1Database;
+    CLOUDFLARE_AI_ACCOUNT_ID?: string;
+    CLOUDFLARE_AI_API_TOKEN?: string;
+    STEWARD_AI_ENABLED?: string;
     BUCKET?: R2Bucket;
     OC_API_KEY?: string;
     OC_SECRET_KEY?: string;
