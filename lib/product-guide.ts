@@ -8,6 +8,7 @@ export const guideChapters = [
   { id: "autonomy", number: "02B", title: "Autonomy & spending authority" },
   { id: "route", number: "02C", title: "Route and wallet control" },
   { id: "testing", number: "02D", title: "Test the current release" },
+  { id: "preparation", number: "02E", title: "Execution preparation" },
   { id: "mandate", number: "03", title: "Your mandate" },
   { id: "evidence", number: "04", title: "Broker evidence" },
   { id: "checks", number: "05", title: "Decision checks" },
@@ -18,6 +19,7 @@ export const guideChapters = [
 ] as const;
 
 export const capabilityStatus = [
+  { name: 'Direct-router simulation', state: 'Available · read only', detail: 'Route inspection attempts an exact one-pool router call at the recorded block, records its fingerprints and any revert, and checks canonicality. It does not verify delegated wallet authority or submit transactions. Integer accounting and durable attempt recovery are internal tested foundations; live accounting and execution adapters remain unwired.' },
   { name: 'Autonomy readiness and budget guards', state: 'Available · execution inactive', detail: 'Manually check documented mainnet infrastructure and save a blocked readiness receipt. Atomic reservation accounting and complete-fee budget checks are implemented and tested but not connected to a live executor. Read-only scheduling requires a verified runner. Live direct-pool quoter evidence and optional ownership messages are available. No session key or automatic spending is enabled.' },
   { name: "Robinhood Chain wallet observations", state: "Available · read only", detail: "Connect a browser wallet or inspect a public address on mainnet 4663. Balances use official contracts and one block. Indicative prices apply official multipliers. Saved observations and comparisons are available, with partial purchase previews using saved mandates. Optional historical ownership verification and read-only monitoring are available. No mobile wallet transport or spending. Alpaca remains separate." },
   { name: "Anytime account and partial checks", state: "Available with a connection", detail: "Manually read balances, positions, open orders and market status outside regular hours. Save partial checks with price-dependent items pending. These cannot authorize orders and are not automatically retried." },

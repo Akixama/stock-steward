@@ -106,3 +106,11 @@ Wallet labels are extension-supplied, not verified identities. Network configura
 ### Test the current release
 
 Open `/guide#testing` for the combined owner walkthrough. It needs no trading funds: saved mandate, public holdings, explicit wallet choice, network switch, optional ownership signature, route evidence, receipt export, and opt-in read-only monitoring. Execution remains disabled. Internal preflight binds simulation and exact approval to the complete trade intent and rejects changed or malformed amounts.
+
+### Execution preparation — 27 September 2026
+
+Route inspection now attempts an exact direct-router RPC simulation and records its state, code/calldata/intent fingerprints, any revert and optional execution-gas estimate. It uses real recorded state without overrides. It is not a delegated-account simulation or full setup fee quote. No transaction is signed or sent.
+
+The integer accounting core requires verified USD price bounds, complete portfolio inventory and external-activity reconciliation. Durable attempt storage retains uncertain budget across midnight and never retries an interrupted attempt. The combined internal review always reports submission unavailable. These modules are tested foundations, not live accounting or execution adapters. See [execution preparation and outstanding release gates](docs/execution-preparation.md).
+
+Run the preparation tests with `node --experimental-strip-types --test lib/router-candidate.test.ts lib/router-simulation.test.ts lib/execution-accounting.test.ts lib/execution-review.test.ts db/execution-attempts.test.ts`. Tests use clearly identified fixtures and actual SQLite; they do not trade. `node --experimental-strip-types scripts/check-router-simulation.mjs` makes a sanitized read-only mainnet probe with private RPC configuration.

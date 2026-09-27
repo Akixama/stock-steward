@@ -73,3 +73,9 @@ Simulation evidence and owner approval now bind to the same complete intent dige
 The official [Universal Router 2.1.2 release](https://github.com/Uniswap/universal-router/releases/tag/2.1.2) identifies Robinhood's documented router and provides the correct tag without a v prefix. [Pinned source](https://raw.githubusercontent.com/Uniswap/universal-router/2.1.2/contracts/UniversalRouter.sol) exposes deadline-bound execute. This resolves source-tag discovery, not a bytecode match, audit of session policy, or full account simulation. Current main-branch interfaces must not be substituted for the pinned dependency.
 
 An owner walkthrough is published at /guide#testing. It covers saved boundaries, observations, wallet choice, cancellation, network/account changes, expiring ownership proof, route inspection, receipt export and opt-in read-only monitor pause. No session grant or spending step is part of this release test.
+
+## Direct-router simulation and recovery — 27 September
+
+At block `0x468d944`, a real read-only mainnet probe quoted AAPL for 1 USDG, then the exact router candidate reverted with selector `0xd81b2f2e` for the public burn address. No transaction was sent, balances were not overridden, and no execution-gas estimate was obtained. The selector alone does not establish the underlying cause. This is historical infrastructure evidence, not a funded test or account validation.
+
+The route API now stores direct-router simulation evidence. Integer accounting, an account/block-bound internal review and durable attempt recovery are implemented and tested, but live accounting, delegation, signer and fill-proof adapters are not connected. See [execution preparation](execution-preparation.md) for exact test steps and remaining gates.
