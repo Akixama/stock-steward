@@ -4,7 +4,7 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { D1DecisionLedger } from '@/db/ledger';
 import { claimChainRead } from '@/db/chain-observations';
 import { listAutonomyRuns, saveAutonomyRun } from '@/db/autonomy';
-import { autonomyReadiness, readInfrastructure } from '@/lib/autonomy';
+import { autonomyReadiness, readInfrastructure, attachHistoricalControl } from '@/lib/autonomy';
 import {getOwnership} from '@/db/wallet-ownership';
 const headers={'Cache-Control':'no-store'};
 export async function GET() {
@@ -31,7 +31,7 @@ export async function POST(request:Request) {
     try { infrastructure=await readInfrastructure(chainTransport(env.ALCHEMY_API_KEY)); } catch { /* Save an honest blocked receipt even during provider outages. */ }
     const receipt=autonomyReadiness(address,mandate,infrastructure);
     const ownership=await getOwnership(env.DB,user.userId);
-    if(ownership?.address===address.toLowerCase()&&ownership.verifiedAt){const delegation=receipt.checks.find(c=>c.name==='Wallet ownership and delegation');if(delegation)delegation.reason='Historical wallet control was verified. A separate bounded spending delegation has not been verified.';receipt.checks.unshift({name:'Historical wallet control',state:'pass',reason:`Control signature verified ${ownership.verifiedAt}. This grants no spending authority and does not guarantee current or future control.`});}
+    attachHistoricalControl(receipt,ownership);
     await saveAutonomyRun(env.DB,user.userId,receipt);
     return Response.json({receipt},{headers});
   } catch { return Response.json({error:'Could not persist the autonomy check. No execution occurred.'},{status:503,headers}); }

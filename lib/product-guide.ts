@@ -1,5 +1,5 @@
 // Keep this guide in sync with the mandate UI and lib/decision.ts when either changes.
-export const guideRevision = "26 September 2026";
+export const guideRevision = "27 September 2026";
 
 export const guideChapters = [
   { id: "overview", number: "01", title: "The model" },
@@ -7,6 +7,7 @@ export const guideChapters = [
   { id: "wallet", number: "02A", title: "Wallet evidence & previews" },
   { id: "autonomy", number: "02B", title: "Autonomy & spending authority" },
   { id: "route", number: "02C", title: "Route and wallet control" },
+  { id: "testing", number: "02D", title: "Test the current release" },
   { id: "mandate", number: "03", title: "Your mandate" },
   { id: "evidence", number: "04", title: "Broker evidence" },
   { id: "checks", number: "05", title: "Decision checks" },

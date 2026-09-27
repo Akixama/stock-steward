@@ -1,6 +1,6 @@
 # Robinhood Chain automatic-spending feasibility
 
-Reviewed 26 September 2026. Automatic spending is **not implemented or enabled**.
+Reviewed 27 September 2026. Automatic spending is **not implemented or enabled**.
 
 ## Most promising route: Alchemy Wallet APIs
 
@@ -21,7 +21,7 @@ Use existing audited account implementations rather than deploying a bespoke spe
 5. Obtain exact estimates for delegation/account setup, permission installation and revocation. Convert the estimate using an identified ETH/USD source, include provider fees and a buffer, and refuse setup if it exceeds the user's selected $10–$20 cap. Do not infer cost from generic L2 averages.
 6. Run the same policy tests on the actual deployed account before enabling a funded trial. No deployment or trade occurs merely because a provider supports the network.
 
-Current conclusion: supported candidate found, but end-to-end feasibility and the $20 mainnet setup budget remain **unverified**. No funded wallet, configured provider, exact route or live user-operation estimate has been supplied. Continue the read-only/user-approved web-steward work while this is resolved.
+Current conclusion: supported candidate found, but end-to-end feasibility and the $20 mainnet setup budget remain **unverified**. The configured provider and historical direct-pool quote are verified below. No owner-controlled funded trial or complete live user-operation estimate has been verified. Continue the read-only/user-approved web-steward work while this is resolved.
 
 ## Alternative checked: ZeroDev
 
@@ -65,3 +65,11 @@ Implemented ownership challenge/replay checks, direct quoter inspection, and int
 Implemented explicit EIP-6963 browser-wallet selection and legacy fallback, consistent provider use for ownership proof, account/network pre- and post-sign checks, message expiry countdown, and deliberate switch/add-network requests. No funded account is needed for the message signature. Real extension prompts still require an owner-controlled wallet for end-to-end validation.
 
 The execution blockers remain unchanged: verified narrow permission enforcement and revocation, exact deployed router interface plus full account simulation, eligibility, full portfolio denominator and USD accounting, complete setup costs and a guarded spending executor. These are requirements, not approvals inferred from connection or ownership proof.
+
+## Exact-intent preflight and pinned router research — 27 September
+
+Simulation evidence and owner approval now bind to the same complete intent digest as the route prerequisite receipt. Changed raw input, minimum output, output token, pool, deadline or mandate cannot reuse earlier evidence. Malformed or zero raw amounts fail closed. These internal checks do not implement onchain enforcement or activate execution.
+
+The official [Universal Router 2.1.2 release](https://github.com/Uniswap/universal-router/releases/tag/2.1.2) identifies Robinhood's documented router and provides the correct tag without a v prefix. [Pinned source](https://raw.githubusercontent.com/Uniswap/universal-router/2.1.2/contracts/UniversalRouter.sol) exposes deadline-bound execute. This resolves source-tag discovery, not a bytecode match, audit of session policy, or full account simulation. Current main-branch interfaces must not be substituted for the pinned dependency.
+
+An owner walkthrough is published at /guide#testing. It covers saved boundaries, observations, wallet choice, cancellation, network/account changes, expiring ownership proof, route inspection, receipt export and opt-in read-only monitor pause. No session grant or spending step is part of this release test.

@@ -1,4 +1,5 @@
-import {parseAbi,encodeFunctionData,decodeFunctionResult,keccak256,toHex,type Hex} from 'viem';
+import {tradeIntent} from './trade-intent.ts';
+import {parseAbi,encodeFunctionData,decodeFunctionResult,keccak256,type Hex} from 'viem';
 import {CHAIN} from './robinhood-chain.ts';
 import {EXECUTION_CONTRACTS} from './autonomy.ts';
 import {VENUE,type RouteEvidence} from './chain-route.ts';
@@ -10,8 +11,7 @@ export type RoutePrerequisites={intent:{digest:string;mandateVersion:number|null
 
 export async function routePrerequisites(route:RouteEvidence,mandate:Mandate|null,fetcher:typeof fetch=fetch):Promise<RoutePrerequisites|null>{
  if(!route.best||!route.minimumOutputRaw||BigInt(route.minimumOutputRaw)<=0n)return null;
- const intentBase={mandateVersion:mandate?.version??null,owner:route.address,recipient:route.address,router:EXECUTION_CONTRACTS.router.toLowerCase(),inputToken:route.settlement,inputRaw:route.inputRaw,outputToken:route.token,minimumOutputRaw:route.minimumOutputRaw,poolId:route.best.poolId,deadline:route.expiresAt,blockHash:route.blockHash};
- const intent={digest:keccak256(toHex(JSON.stringify({schema:'stock-steward-intent-v1',chainId:CHAIN.id,routeId:route.id,...intentBase}))),...intentBase};
+ const intent=tradeIntent(route,mandate?.version??null);
  const result:RoutePrerequisites={intent,routerCodeHash:null,routerManager:null,tokenAllowanceRaw:null,permitAllowanceRaw:null,permitExpiresAt:null,checks:[],executionEnabled:false,calldataPrepared:false};
  let serial=0;
  async function rpc(method:string,params:unknown[]){const id=++serial;const r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(10000),cache:'no-store'});if(!r.ok)throw Error('Prerequisite RPC unavailable');const b=await r.json() as {id:number;result?:Hex;error?:unknown};if(b.id!==id||b.error||typeof b.result!=='string'||!/^0x(?:[0-9a-f]{2})*$/i.test(b.result))throw Error('Prerequisite evidence unavailable');return b.result;}

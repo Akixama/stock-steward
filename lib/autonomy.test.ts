@@ -1,3 +1,4 @@
+import {attachHistoricalControl} from './autonomy.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {autonomyReadiness, readInfrastructure,transitionSpend,executionDay} from './autonomy.ts';
@@ -34,3 +35,5 @@ test('setup cap includes all three steps, data and provider fees, headroom and f
   assert.throws(()=>quoteSetup({...evidence,steps:evidence.steps.slice(0,2)},2000,now));
   assert.throws(()=>quoteSetup(evidence,2000,now+61000));
 });
+
+test('matching historical control is displayed without granting delegation or execution',()=>{const address='0x'+'a'.repeat(40),receipt=autonomyReadiness(address,null,null);attachHistoricalControl(receipt,{address,verifiedAt:'2026-09-27T12:00:00Z'});attachHistoricalControl(receipt,{address,verifiedAt:'2026-09-27T12:00:00Z'});assert.equal(receipt.checks.filter(c=>c.name==='Historical wallet control').length,1);assert.equal(receipt.checks.find(c=>c.name==='Wallet ownership and delegation')?.state,'pending');assert.equal(receipt.executionEnabled,false);for(const ownership of [null,{address:'0x'+'b'.repeat(40),verifiedAt:'2026-09-27T12:00:00Z'},{address,verifiedAt:null}]){const other=autonomyReadiness(address,null,null);attachHistoricalControl(other,ownership);assert.equal(other.checks.some(c=>c.name==='Historical wallet control'),false);}});

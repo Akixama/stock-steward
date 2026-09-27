@@ -66,3 +66,11 @@ export function transitionSpend(from: SpendState, to: SpendState) {
   return to;
 }
 export function executionDay(now: Date) { if (!Number.isFinite(now.getTime())) throw new Error('Invalid date'); return now.toISOString().slice(0,10); }
+
+// Only pass ownership read from the authenticated owner's storage. Historical proof is not delegation.
+export function attachHistoricalControl(receipt:AutonomyReceipt,ownership:{address:string;verifiedAt:string|null}|null){
+ if(!ownership?.verifiedAt||ownership.address.toLowerCase()!==receipt.address.toLowerCase()||!Number.isFinite(Date.parse(ownership.verifiedAt)))return receipt;
+ const delegation=receipt.checks.find(c=>c.name==='Wallet ownership and delegation');if(delegation)delegation.reason='Historical wallet control was verified. A separate bounded spending delegation has not been verified.';
+ if(!receipt.checks.some(c=>c.name==='Historical wallet control'))receipt.checks.unshift({name:'Historical wallet control',state:'pass',reason:'Control signature verified '+ownership.verifiedAt+'. This grants no spending authority and does not guarantee current or future control.'});
+ receipt.nextSteps=receipt.checks.filter(c=>c.state!=='pass').map(c=>c.name);return receipt;
+}

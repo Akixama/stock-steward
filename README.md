@@ -102,3 +102,7 @@ The execution preflight core checks pause, account, mandate version, route fresh
 Choose a detected EVM wallet explicitly (EIP-6963, with a browser-default fallback), connect its public account, and request a separate short-lived ownership message. The selected provider is used consistently for verification; exposed account and network are rechecked before and after signing. A deliberate Robinhood Chain switch/add button is available. No private key input, account-access request during discovery, token approval, transaction or session grant is made. Watch-only inspection remains available. Mobile WalletConnect and built-in wallet creation are not implemented.
 
 Wallet labels are extension-supplied, not verified identities. Network configuration follows [Robinhood documentation](https://docs.robinhood.com/chain/connecting/); multi-wallet discovery follows [EIP-6963](https://eips.ethereum.org/EIPS/eip-6963).
+
+### Test the current release
+
+Open `/guide#testing` for the combined owner walkthrough. It needs no trading funds: saved mandate, public holdings, explicit wallet choice, network switch, optional ownership signature, route evidence, receipt export, and opt-in read-only monitoring. Execution remains disabled. Internal preflight binds simulation and exact approval to the complete trade intent and rejects changed or malformed amounts.
