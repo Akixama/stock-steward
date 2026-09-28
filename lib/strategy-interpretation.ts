@@ -15,7 +15,15 @@ Return every schema key. JSON only.`;
 export type Interpretation=ReturnType<typeof interpretationSchema.parse>;
 export function reviewInterpretation(raw:unknown,direction:string,base:Strategy){
  if(!direction.trim()||direction.length>1500)throw Error('Write a direction of up to 1,500 characters.');
- const result=interpretationSchema.parse(raw),questions=[...result.questions],unsupported=[...result.unsupported];
+ const result={...interpretationSchema.parse(raw)},questions=[...result.questions],unsupported=[...result.unsupported];
+ // Suggestions must be grounded in explicit numerals. Missing details never inherit example or draft values.
+ const numbers=(direction.match(/\d+(?:,\d{3})*(?:\.\d+)?/g)??[]).map(n=>Number(n.replace(/,/g,'')));
+ const contains=(value:number)=>numbers.some(n=>Math.abs(n-value)<1e-8);
+ const numericKeys=['amountUsd','reserveUsd','thresholdUsd','targetPercent','maxMovementPercent'] as const;
+ for(const key of numericKeys)if(result[key]!==null&&!contains(result[key]!))result[key]=null;
+ if(result.intervalHours!==null&&!contains(result.intervalHours)&&!(direction.match(/(\d+(?:\.\d+)?)\s*days?\b/gi)??[]).some(v=>Math.abs(Number(v.match(/\d+(?:\.\d+)?/)![0])*24-result.intervalHours!)<1e-8))result.intervalHours=null;
+ if(result.driftPoints!==null&&!contains(result.driftPoints)&&!(result.targetPercent!==null&&numbers.some(n=>Math.abs(result.targetPercent!-n-result.driftPoints!)<1e-8)))result.driftPoints=null;
+ if(result.symbol&&!direction.toUpperCase().split(/[^A-Z0-9.]+/).includes(result.symbol))result.symbol=null;
  if(/\b(sell|short|leverage|news|sentiment|unlimited|guaranteed)\b/i.test(direction))unsupported.push('This request includes an unsupported condition or action. Remove it or use the structured controls.');
  if(!result.kind)questions.push('Which supported strategy should I use?');if(!result.symbol)questions.push('Which single stock should this strategy buy?');
  const relevant:['amountUsd'|'reserveUsd'|'intervalHours'|'thresholdUsd'|'targetPercent'|'driftPoints'|'maxMovementPercent',string][]=[['amountUsd','How much should each purchase be?'],['reserveUsd','How much cash should remain available?']];
