@@ -85,6 +85,13 @@
       "when": 1790541087640,
       "tag": "0011_lyrical_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790586598502,
+      "tag": "0012_perpetual_harrier",
+      "breakpoints": true
     }
   ]
 }

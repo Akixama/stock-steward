@@ -55,3 +55,13 @@ The scheduled worker recovers interrupted attempts without resubmission. Recorde
 See [permission investigation](permission-investigation.md) for verified facts and why activation remains blocked. Owner testing and funding are not substitutes for the remaining implementation and enforcement verification.
 
 Primary implementation references: [Universal Router 2.1.2](https://github.com/Uniswap/universal-router/releases/tag/2.1.2), [pinned v4 router interface](https://github.com/Uniswap/v4-periphery/blob/545a5d2a87228167edde48f3b9eda122d1e3c4d6/src/interfaces/IV4Router.sol), [pinned action handling](https://github.com/Uniswap/v4-periphery/blob/545a5d2a87228167edde48f3b9eda122d1e3c4d6/src/V4Router.sol), [Alchemy session-key documentation](https://www.alchemy.com/docs/wallets/reference/wallet-apis-session-keys).
+
+## Completed without funding
+
+- Saved per-owner practice sessions, atomic revisions, 60-second exact approvals, 24-hour fake permission, test-clock/price changes, five safeguard scenarios and optional background checks.
+- Complete read-only Roles → Safe → router simulation and gas estimate, pinned to a canonical block with no balance or allowance overrides.
+- Exact Roles envelope and historical installed-policy verification added to token-transfer/finality fill proof and scheduled recovery.
+- The isolated lab joins real fixture swap proof to the durable reservation/attempt ledger and tests replay rejection. It also rehearses all six setup/lifecycle fee components; fixture costs are never a live quote.
+- Full automated suite: 143 passing tests; actual-router contract lab: 44 scenarios.
+
+These are code and fixture-verification results. Hosted real spending remains disabled. Actual owner installation, current eligibility, verified full-wallet economic data, complete fresh provider fee evidence, a reviewed signer/submission deployment and a funded end-to-end mainnet run are separate release gates. Paying gas alone does not satisfy them. No implementation percentage substitutes for those checks.

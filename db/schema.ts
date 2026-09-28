@@ -96,3 +96,4 @@ export const executionAttempts = sqliteTable('execution_attempts', {
 },table=>[index('execution_attempts_owner_created_idx').on(table.ownerRef,table.createdAt)]);
 
 export const strategyAIUsage=sqliteTable('strategy_ai_usage',{scope:text('scope').notNull(),day:text('day').notNull(),requests:integer('requests').notNull(),nextAt:integer('next_at').notNull()},t=>[primaryKey({columns:[t.scope,t.day]})]);
+export const practiceSessions=sqliteTable('practice_sessions',{ownerRef:text('owner_ref').primaryKey(),revision:integer('revision').notNull(),sessionJson:text('session_json').notNull(),background:integer('background').notNull(),nextDueAt:integer('next_due_at').notNull()},t=>[index('practice_sessions_due_idx').on(t.background,t.nextDueAt)]);

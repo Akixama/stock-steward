@@ -113,3 +113,13 @@
 .ws-practice-tools{border:1px solid #35433a;border-radius:16px;padding:18px 20px;margin:22px 0;color:#aebbaf}.ws-practice-tools summary{cursor:pointer;font-size:14px}.ws-practice-tools p{font-size:13px;line-height:1.7}.ws-ai{padding:24px;border:1px solid #405044;border-radius:20px;margin:22px 0;background:#142019}.ws-ai-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.ws-ai-heading span{margin-left:auto;font-size:10px;letter-spacing:.12em;color:#96b49e}.ws-ai p,.ws-ai small{font-size:13px;line-height:1.7;color:#acbdae}.ws-ai-progress{display:block;overflow-wrap:anywhere}.ws-strategy-types button{transition:transform .2s ease,background .2s ease,border-color .2s ease}.ws-strategy-types button:hover{transform:translateY(-3px)}.ws-strategy-types button:active{transform:scale(.98)}.ws-strategy-session{animation:steward-state-enter .4s ease both}.ws-strategy-trail details{animation:steward-state-enter .3s ease both}.ws-monitor pre{font-size:12px;line-height:1.6;padding:18px;background:#0b130e;border-radius:12px}.ws-monitor details{margin:18px 0}.ws-monitor h4{font-size:22px;margin:0 0 12px}
 @keyframes steward-state-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes steward-agent-pulse{50%{box-shadow:0 0 0 5px #b2e1b518}}
 @media(prefers-reduced-motion:reduce){.ws-strategy *, .ws-monitor *{animation:none!important;transition:none!important;scroll-behavior:auto!important}.ws-strategy-types button:hover,.ws-action-primary:hover,.ws-action-secondary:hover{transform:none!important}}
+
+/* Saved practice controls use the same restrained motion and focus treatment. */
+.ws-practice-scenarios,.ws-practice-background{padding:24px;border:1px solid var(--ws-border,#344238);border-radius:20px;background:rgba(181,212,186,.025);margin-top:24px}
+.ws-practice-scenarios>strong,.ws-practice-background>strong{display:block;font-size:18px}
+.ws-practice-scenarios p,.ws-practice-background p{max-width:68ch;color:#b7c4ba;margin:10px 0 18px;line-height:1.65}
+.ws-practice-scenarios button,.ws-practice-background button{margin:0 10px 10px 0}
+.ws-practice-background small{display:block;color:#b7c4ba;margin-top:8px}
+.ws-strategy button:focus-visible{outline:2px solid #d7e8d8;outline-offset:4px}
+.ws-strategy[aria-busy=true] .ws-agent-controls{opacity:.75;transition:opacity 180ms ease}
+@media(max-width:640px){.ws-practice-scenarios,.ws-practice-background{padding:18px}.ws-practice-scenarios button,.ws-practice-background button{width:100%;margin-right:0}}

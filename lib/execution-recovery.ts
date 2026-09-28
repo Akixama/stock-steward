@@ -1,4 +1,4 @@
-import {reconcileDirectFill} from './chain-fill-proof.ts';
+import {reconcileDirectFill,reconcileRolesFill} from './chain-fill-proof.ts';
 import {validateRouterCandidate,routerCandidate} from './router-candidate.ts';
 import {recoverInterruptedAttempt,settleAttempt,type Attempt,type AttemptPlan} from '../db/execution-attempts.ts';
 // Scheduled recovery has no signer or submission adapter. Never resend an unknown attempt.
@@ -12,7 +12,7 @@ export async function recoverExecutionAttempts(db:D1Database,fetcher:typeof fetc
  if(!row.transaction_hash)throw Error('No submission identity');
  const plan=JSON.parse(row.plan_json) as AttemptPlan;
  if(plan.owner!==row.owner_ref||plan.address!==row.address||plan.intentDigest!==row.id||plan.mandateVersion!==row.mandate_version||!plan.route||!plan.routerCodeHash||plan.route.address!==row.address||!validateRouterCandidate(plan.route,plan.mandateVersion,plan.candidate)||routerCandidate(plan.route,plan.mandateVersion).intentDigest!==row.id)throw Error('Incomplete bound plan');
- const proof=await reconcileDirectFill(plan.route,plan.mandateVersion,row.transaction_hash,plan.routerCodeHash,fetcher);
+ const proof=plan.permission?await reconcileRolesFill(plan.route,plan.mandateVersion,row.transaction_hash,plan.permission.policy,plan.permission.creationTx,fetcher):await reconcileDirectFill(plan.route,plan.mandateVersion,row.transaction_hash,plan.routerCodeHash,fetcher);
  if(await settleAttempt(db,row.owner_ref,row.id,proof,now))summary.settled++;else summary.unresolved++;
  }catch{summary.unresolved++;}
  finally{

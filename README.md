@@ -6,7 +6,7 @@ The project is **under development**. The hosted site reads Robinhood Chain main
 
 ## Bounded spending permission integration
 
-Actual Safe factory setup, Zodiac Roles 2.1.1 constraints, shared daily and cumulative quotas, revocation calldata and an installed-state reader are implemented. The isolated contract lab passed 37 scenarios using mainnet wallet, permission and swap runtimes with fixture assets and liquidity. No mainnet grant or real trade was performed. Owner binding, live economic checks, complete fees and a guarded signer remain required. See [implementation and reproducible tests](docs/spending-permissions.md).
+Actual Safe factory setup, Zodiac Roles 2.1.1 constraints, shared daily and cumulative quotas, revocation calldata and an installed-state reader are implemented. The isolated contract lab passed 44 scenarios using mainnet wallet, permission and swap runtimes with fixture assets and liquidity. No mainnet grant or real trade was performed. Owner binding, live economic checks, complete fees and a guarded signer remain required. See [implementation and reproducible tests](docs/spending-permissions.md).
 
 ## Separate Alpaca adapter: how it works
 
@@ -121,11 +121,11 @@ Run the preparation tests with `node --experimental-strip-types --test lib/route
 
 ### Wallet evidence and historical recovery
 
-Readiness checks inspect canonical wallet code and EIP-7702 delegation without requesting a signature or authority. Route receipts show observed settlement minus validated owner-bound raw reservations, with external activity and dollar valuation explicitly pending. Scheduled recovery keeps interrupted attempts unknown and can reconcile recorded exact direct-router transactions against finalized calldata, code and transfer evidence. It has no signer or submission capability; delegated user operations remain unsupported.
+Readiness checks inspect canonical wallet code and EIP-7702 delegation without requesting a signature or authority. Route receipts show observed settlement minus validated owner-bound raw reservations, with external activity and dollar valuation explicitly pending. Scheduled recovery keeps interrupted attempts unknown and can reconcile recorded exact direct-router transactions against finalized calldata, code and transfer evidence. It has no signer or submission capability; exact Roles/Safe module executions now have a historical-policy fill proof; other bundled user operations remain unsupported.
 
 Run the new suites with `node --experimental-strip-types --test lib/wallet-profile.test.ts lib/settlement-review.test.ts db/settlement-review.test.ts lib/chain-fill-proof.test.ts lib/execution-recovery.test.ts`. See [permission research](docs/permission-investigation.md) for the standard Alchemy limits, lower-level custom-policy option, and unverified Zodiac alternative. None is presented as a verified or free active trading permission path.
 
 
 ## Strategy and practice workspace
 
-The Strategy tab supports scheduled, price-threshold, target-allocation and cautious-accumulation buys, with review before confirmation. Practice provides fake cash, fixture prices, approval/automatic choices, pause/revoke and simulated receipts. It is a browser-local balance simulation, not a blockchain test transaction. Server-side Cloudflare Workers AI can interpret direction into a validated draft once the site owner configures its credentials. Users do not download a model. Apply the draft, then review and confirm separately. Live execution is not connected. See [scope and testing](docs/strategies-and-practice.md).
+The Strategy tab supports scheduled, price-threshold, target-allocation and cautious-accumulation buys, with review before confirmation. Practice provides fake cash, fixture prices, approval/automatic choices, pause/revoke and simulated receipts. It saves fake balances, rules and receipts per signed-in owner, with optional background practice; it is not a blockchain test transaction. Server-side Cloudflare Workers AI can interpret direction into a validated draft once the site owner configures its credentials. Users do not download a model. Apply the draft, then review and confirm separately. Live execution is not connected. See [scope and testing](docs/strategies-and-practice.md).

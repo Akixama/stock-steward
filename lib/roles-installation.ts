@@ -20,7 +20,7 @@ type Log={address:string;topics:Hex[];data:Hex;blockNumber:Hex;blockHash:Hex;tra
 export type RolesInstallation={state:'verified_policy_state'|'blocked';observedAt:string;block:Hex|null;blockHash:Hex|null;policyHash:string|null;dailyRemainingCalls:string|null;totalRemainingCalls:string|null;walletOwners:string[];walletOwnershipVerified:false;executionEnabled:false;why:string};
 // Server-side chain inspection only. A client-supplied boolean/signature cannot verify policy state.
 // Fingerprints identify the locally tested runtimes; they are not an independent source audit.
-export async function inspectRolesInstallation(policy:RolesPolicy,creationTx:Hex,fetcher:typeof fetch=fetch):Promise<RolesInstallation>{
+export async function inspectRolesInstallation(policy:RolesPolicy,creationTx:Hex,fetcher:typeof fetch=fetch,atBlock?:Hex):Promise<RolesInstallation>{
  const result:RolesInstallation={state:'blocked',observedAt:new Date().toISOString(),block:null,blockHash:null,policyHash:null,dailyRemainingCalls:null,totalRemainingCalls:null,walletOwners:[],walletOwnershipVerified:false,executionEnabled:false,why:'Installed permission evidence is unavailable or does not match the tested policy.'};
  let serial=0,stage='policy';const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
  async function rpc(method:string,params:unknown[]){const id=++serial,r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(15000),cache:'no-store'});if(!r.ok)throw Error();const b=await r.json() as {id:number;result?:unknown;error?:unknown};if(b.id!==id||b.error||!Object.hasOwn(b,'result'))throw Error();return b.result;}
@@ -29,7 +29,7 @@ export async function inspectRolesInstallation(policy:RolesPolicy,creationTx:Hex
  try{
   const plan=compileRolesPolicy(policy);result.policyHash=plan.policyHash;if(!/^0x[0-9a-f]{64}$/i.test(creationTx))throw Error();
   if(await rpc('eth_chainId',[])!==CHAIN.hex)throw Error();
-  const block=await rpc('eth_blockNumber',[]);if(typeof block!=='string'||!/^0x[0-9a-f]+$/i.test(block))throw Error();
+  const block=atBlock??await rpc('eth_blockNumber',[]);if(typeof block!=='string'||!/^0x[0-9a-f]+$/i.test(block))throw Error();
   const header=await rpc('eth_getBlockByNumber',[block,false]) as {number:Hex;hash:Hex;timestamp:Hex};
   if(header?.number!==block||!/^0x[0-9a-f]{64}$/i.test(header.hash)||!/^0x[0-9a-f]+$/i.test(header.timestamp))throw Error();const at=block as Hex;
   result.block=at;result.blockHash=header.hash;

@@ -1,4 +1,5 @@
 import {D1DecisionLedger} from '../db/ledger.ts';
+import {tickPracticeSessions} from '../db/practice-sessions.ts';
 import {recoverExecutionAttempts} from './execution-recovery.ts';
 import {getOwnership} from '../db/wallet-ownership.ts';
 import {claimWorker,finishWorker,dueSchedules,claimSchedule,claimCurrent,finishSchedule} from '../db/scheduler.ts';
@@ -9,8 +10,9 @@ import {enrichObservation} from './chain-analysis.ts';
 import {autonomyReadiness,readInfrastructure,attachHistoricalControl} from './autonomy.ts';
 export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch){
   const token=await claimWorker(db);if(!token)return {busy:true,observed:0,failed:0,reconciled:0};
-  const summary={busy:false,observed:0,failed:0,canceled:0,reconciled:0,executionRecovered:0,executionSettled:0,executionUnresolved:0,batchState:'completed'};
+  const summary={busy:false,observed:0,failed:0,canceled:0,reconciled:0,executionRecovered:0,executionSettled:0,executionUnresolved:0,practiceUpdated:0,practiceFailed:0,batchState:'completed'};
   try {
+    const practice=await tickPracticeSessions(db);summary.practiceUpdated=practice.updated;summary.practiceFailed=practice.failed;
     for(const schedule of await dueSchedules(db)){
       const claim=await claimSchedule(db,schedule);if(!claim)continue;
       let observation=null,receipt=null;
