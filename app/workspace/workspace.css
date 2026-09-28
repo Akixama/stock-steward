@@ -123,3 +123,5 @@
 .ws-strategy button:focus-visible{outline:2px solid #d7e8d8;outline-offset:4px}
 .ws-strategy[aria-busy=true] .ws-agent-controls{opacity:.75;transition:opacity 180ms ease}
 @media(max-width:640px){.ws-practice-scenarios,.ws-practice-background{padding:18px}.ws-practice-scenarios button,.ws-practice-background button{width:100%;margin-right:0}}
+
+.ws-account-numbers .ws-practice-balance>span{font:inherit;color:inherit}.ws-action-row>span{color:#aebbb2}

@@ -9,7 +9,7 @@ export default function MonitorPanel({address}:{address:string}){
   const [hash,setHash]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');const generation=useRef(0);
   async function load(){const [schedule,transactions]=await Promise.all([fetch('/api/workspace/schedule',{cache:'no-store'}),fetch('/api/workspace/transactions',{cache:'no-store'})]);
     const [rawS,rawT]=await Promise.all([schedule.json(),transactions.json()]);const s=rawS as Status & {error?:string},t=rawT as {watches:TransactionWatch[];error?:string};if(!schedule.ok||!transactions.ok)throw new Error(s.error??t.error??'Monitoring status unavailable.');return {s,w:t.watches};}
-  useEffect(()=>{const ticket=++generation.current;load().then(data=>{if(ticket===generation.current){setStatus(data.s);setWatches(data.w);}}).catch(()=>{});return()=>{generation.current++;};},[]);
+  useEffect(()=>{const ticket=++generation.current;load().then(data=>{if(ticket===generation.current){setStatus(data.s);setWatches(data.w);}}).catch(e=>{if(ticket===generation.current)setError(e instanceof Error?e.message:'Monitoring status is unavailable. Refresh to retry.');});return()=>{generation.current++;};},[]);
   async function action(kind:'refresh'|'start'|'pause'|'resume'|'watch'|'remove',id?:string){
     const ticket=++generation.current;setBusy(true);setError('');setMessage('');
     try{
@@ -31,7 +31,7 @@ export default function MonitorPanel({address}:{address:string}){
       <button disabled={busy||!status?.workerConfigured||!/^0x[0-9a-f]{40}$/i.test(address)} onClick={()=>action('start')}><Clock3 size={16}/>{schedule?'Update monitor for this address':'Start read-only monitoring'}</button></div>
     <div className="ws-chain-tools">{schedule&&<button className="ws-recheck" disabled={busy} onClick={()=>action(schedule.enabled?'pause':'resume')}>{schedule.enabled?<Pause size={14}/>:<Play size={14}/>} {schedule.enabled?'Pause monitoring':'Resume monitoring'}</button>}<button className="ws-recheck" disabled={busy} onClick={()=>action('refresh')}><RefreshCw size={14}/>Refresh status</button></div>
     <p className="ws-chain-note">Runner wakes about every 15 minutes; GitHub may delay scheduled runs. One monitor per signed-in user. Failed reads back off to the next interval; three consecutive failures pause the monitor. Pausing is not wallet-session revocation.</p>
-    {!status?.workerConfigured&&<p className="ws-chain-note">Background runner configuration is unavailable. Refresh status after setup; no schedule can start yet.</p>}
+    {status&&!status.workerConfigured&&<p className="ws-chain-note">Background runner configuration is unavailable. Refresh status after setup; no schedule can start yet.</p>}
     {schedule&&<div className="ws-monitor-stats"><div><span>Watched address</span><strong>{schedule.address.slice(0,8)}…{schedule.address.slice(-6)}</strong></div><div><span>Next eligible run</span><strong>{schedule.enabled?time(schedule.next_due_at):'Paused'}</strong></div><div><span>Last observation saved</span><strong>{time(schedule.last_success_at)}</strong></div></div>}
     {schedule?.last_error&&<p className="ws-error">{schedule.last_error}</p>}
     {status?.health&&<p className="ws-chain-note">Worker last woke {time(status.health.last_started_at)} · last batch finished {time(status.health.last_completed_at)}.</p>}

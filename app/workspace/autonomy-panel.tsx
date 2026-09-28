@@ -50,7 +50,7 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
     <section className="ws-monitor" aria-labelledby="permission-contract-status">
       <span className="ws-label">SPENDING PERMISSIONS / IMPLEMENTATION</span>
       <h3 id="permission-contract-status">The limits reach the contracts.</h3>
-      <p>The permission integration has passed 37 checks in an isolated local chain, including wallet creation, shared spending quotas, rejected unsafe calls and owner revocation. The swap test uses Robinhood contract bytecode with fixture assets and liquidity.</p>
+      <p>The permission integration has passed 44 checks in an isolated local chain, including wallet creation, shared spending quotas, rejected unsafe calls and owner revocation. The swap test uses Robinhood contract bytecode with fixture assets and liquidity.</p>
       <div className="ws-chain-brief"><strong>Live permission not installed</strong><p>Your own wallet must be verified first. An example address cannot grant authority. Wallet setup, full fees and the exact spending policy need review before you sign; live valuation, accounting and the spending worker remain activation gates.</p></div>
       <div className="ws-chain-tools"><a className="ws-recheck" href="/guide#spending-permissions">Read the permission implementation <ArrowRight size={14}/></a><span>No signature, payment or spending grant is requested here.</span></div>
     </section>
