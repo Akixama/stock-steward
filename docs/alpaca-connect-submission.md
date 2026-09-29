@@ -2,14 +2,10 @@
 
 This is a preparation record, not proof of app approval or a live broker connection. Check every URL and screenshot against the public deployment immediately before submission.
 
-## Status — 26 September 2026
-
-The early-access preview and its policy pages are public. The signed-in deletion-request flow is deployed and its D1 table exists. The Alpaca form has its name, category, description, website, callback, policy URLs, and project logo prepared. Screenshots have not been uploaded, the Terms agreement is unchecked, and the application has **not** been submitted. No Connect credentials or live account connection are configured. Screenshot file export was blocked by the browser's URL security policy; finish the captures through a supported user download/upload flow.
-
 | Form item | Stock Steward value |
 | --- | --- |
 | App name | Stock Steward |
-| Public website | `https://stock-steward-brokerage.allianjola.chatgpt.site/` |
+| Public website | `https://stock-steward-brokerage.allianjola.chatgpt.site/` after public access is verified |
 | OAuth redirect | `https://stock-steward-brokerage.allianjola.chatgpt.site/api/broker/alpaca/callback` |
 | Privacy | `https://stock-steward-brokerage.allianjola.chatgpt.site/privacy` |
 | Terms | `https://stock-steward-brokerage.allianjola.chatgpt.site/terms` |
