@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {evaluateStrategy,practiceFill,validateStrategy,utcDay,type Strategy,type PracticeEvidence} from './strategy.ts';
+import {evaluateStrategy,practiceFill,revaluePracticeHolding,validateStrategy,utcDay,type Strategy,type PracticeEvidence} from './strategy.ts';
 import type {Mandate} from './decision.ts';
 const now=Date.UTC(2026,8,27,12);
 const s:Strategy={version:1,kind:'scheduled',direction:'Buy cautiously',symbol:'AAPL',amountCents:100,reserveCents:2000,intervalHours:24,thresholdCents:18000,targetBps:1000,driftBps:200,maxMovementBps:500,mode:'approval'};
@@ -28,8 +28,20 @@ test('automatic purchases obey shared daily cap and UTC reset, reserve and conce
  assert.equal(evaluateStrategy(s,m,{...e,cashCents:2050}).status,'held');assert.equal(evaluateStrategy(s,m,{...e,holdingsCents:{AAPL:50000}}).status,'held');
 });
 test('missing permission, stale/future quotes, disallowed stock and malformed rules hold or reject',()=>{
- for(const changed of [{grant:false},{quoteAt:now-60001},{quoteAt:now+1},{pricesCents:{}},{cashCents:0}])assert.equal(evaluateStrategy(s,m,{...e,...changed}).status,'held');
+ for(const changed of [{grant:false},{quoteAt:now-60001},{quoteAt:now+10001},{pricesCents:{}},{cashCents:0}])assert.equal(evaluateStrategy(s,m,{...e,...changed}).status,'held');
+ assert.equal(evaluateStrategy(s,m,{...e,quoteAt:now+100}).status,'awaiting_approval');
  assert.equal(evaluateStrategy(s,{...m,allowedSymbols:['META']},e).status,'held');
  for(const patch of [{amountCents:NaN},{intervalHours:0},{version:0},{mode:'unbounded'},{targetBps:10001}])assert.throws(()=>validateStrategy({...s,...patch} as Strategy));
  assert.throws(()=>evaluateStrategy(s,m,{...e,cashCents:NaN}));
+});
+test('fractional-share valuation does not lose cents on each quote',()=>{
+ const automatic={...s,kind:'threshold',thresholdCents:33000,mode:'automatic'} as Strategy;
+ const mandate={...m,maxDailyBuyCents:1000};let account:PracticeEvidence={...e,pricesCents:{AAPL:33000},previousPricesCents:{AAPL:33000}};
+ for(let i=0;i<6;i++){const result=evaluateStrategy(automatic,mandate,account);assert.equal(result.status,'ready');account=practiceFill(result,automatic,mandate,account);}
+ assert.equal(account.cashCents,99400);assert.equal(account.holdingsCents.AAPL,600);
+ for(let i=0;i<200;i++){const from=i%2===0?33000:33001,to=i%2===0?33001:33000;account=revaluePracticeHolding(account,'AAPL',to,from);}
+ assert.equal(account.holdingsCents.AAPL,600);
+ assert.equal(account.valuationEstimated,false);
+ const legacy=revaluePracticeHolding({...e,holdingsCents:{AAPL:515},pricesCents:{AAPL:33034}},'AAPL',33035,33034);
+ assert.equal(legacy.holdingsCents.AAPL,515);assert.equal(legacy.valuationEstimated,true);
 });

@@ -27,3 +27,11 @@ test('live quote practice uses real quote time, holds on outages and cannot use 
  assert.equal(s.account.quoteAt,at-1000);
  assert.throws(()=>act(s,{action:'price',symbol:'AAPL',priceCents:19000},at));
 });
+test('a long automatic run keeps purchase receipts while bounding repetitive holds',()=>{
+ let s=ready('automatic');
+ for(let i=0;i<130;i++)s=act(s,{action:'run'},now+i*8000);
+ assert.equal(s.account.cashCents,99900);
+ assert.equal(s.receipts.filter(r=>r.outcome==='simulated_fill').length,1);
+ assert.equal(s.receipts.filter(r=>r.outcome==='held').length,40);
+ assert.equal(s.receipts.length,41);
+});

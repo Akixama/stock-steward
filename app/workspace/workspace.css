@@ -197,6 +197,8 @@
 .ws-practice-tabs{margin-top:24px;gap:22px}
 .ws-price-source{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,310px);gap:28px;align-items:center;padding:26px;margin:26px 0 30px;border:1px solid #55705b;border-radius:20px;background:linear-gradient(130deg,#22372a,#122019)}
 .ws-price-source h3{font-size:22px;margin:10px 0 8px}.ws-price-source p{font-size:14px;line-height:1.6;color:#c1d0c2;margin:0 0 10px}.ws-price-source small{display:block;color:#aec5b1;line-height:1.5}.ws-price-source-actions{display:grid;gap:10px}.ws-price-source-actions button{justify-content:center}.ws-price-source-actions small{font-size:12px}
+.ws-legacy-valuation{margin:24px 0;padding:20px 24px;border:1px solid #8d9066;border-radius:16px;background:#262c20;color:#e3e9d5}.ws-legacy-valuation strong{font-size:16px}.ws-legacy-valuation p{margin:8px 0 0;color:#c6cebc;font-size:14px;line-height:1.6}
+.ws-trail-summary{margin:24px 0 8px;color:#b9cabe;font-size:14px;line-height:1.6}.ws-trail-group-title{margin:30px 0 0;color:#e6efe3;font-size:18px}.ws-practice-ledger .ws-trail-group-title+.ws-strategy-trail{margin-top:12px;padding-top:0;border-top:0}
 @media(max-width:760px){.ws-price-source{grid-template-columns:1fr;padding:20px;gap:18px}.ws-price-source-actions{grid-template-columns:1fr 1fr}.ws-price-source-actions small{grid-column:1/-1}}
 .ws-practice-tab-list{height:auto!important;width:100%;justify-content:flex-start!important;gap:8px!important;background:#0e1711!important;padding:6px!important;border:1px solid #435c4a;border-radius:16px!important;flex-wrap:wrap}
 .ws-practice-tab-list button{flex:0 1 auto!important;height:auto!important;padding:13px 18px!important;border-radius:11px!important;color:#aebfb3;gap:9px}

@@ -1,8 +1,16 @@
 import type {Mandate} from './decision.ts';
 export type Strategy={version:number;kind:'scheduled'|'threshold'|'allocation'|'accumulate';direction:string;symbol:string;amountCents:number;reserveCents:number;intervalHours:number;thresholdCents:number;targetBps:number;driftBps:number;maxMovementBps:number;mode:'approval'|'automatic'};
-export type PracticeEvidence={now:number;quoteAt:number;cashCents:number;holdingsCents:Record<string,number>;pricesCents:Record<string,number>;previousPricesCents:Record<string,number>;spentDay:string;spentCents:number;lastFillAt:number|null;grant:boolean};
+export type PracticeEvidence={now:number;quoteAt:number;cashCents:number;holdingsCents:Record<string,number>;pricesCents:Record<string,number>;previousPricesCents:Record<string,number>;spentDay:string;spentCents:number;lastFillAt:number|null;grant:boolean;shareUnitsNanos?:Record<string,string>;valuationEstimated?:boolean};
 export type StrategyResult={status:'held'|'awaiting_approval'|'ready';why:string;checks:{name:string;passed:boolean;detail:string}[];symbol:string;amountCents:number;strategyVersion:number;mandateVersion:number;observedAt:number;mode:'practice';evidence:PracticeEvidence};
 export const utcDay=(now:number)=>new Date(now).toISOString().slice(0,10);
+const SHARE_SCALE=1_000_000_000n;
+function unitsForValue(cents:number,priceCents:number){if(!Number.isSafeInteger(cents)||cents<0||!Number.isSafeInteger(priceCents)||priceCents<1)throw Error('Invalid practice valuation.');return (BigInt(cents)*SHARE_SCALE+BigInt(priceCents)/2n)/BigInt(priceCents);}
+function valueForUnits(units:bigint,priceCents:number){const cents=(units*BigInt(priceCents)+SHARE_SCALE/2n)/SHARE_SCALE;if(cents>BigInt(Number.MAX_SAFE_INTEGER))throw Error('Practice value exceeds supported precision.');return Number(cents);}
+function existingUnits(e:PracticeEvidence,symbol:string,priceCents:number){const saved=e.shareUnitsNanos?.[symbol];if(saved!==undefined){if(!/^\d{1,30}$/.test(saved))throw Error('Invalid practice share evidence.');return {units:BigInt(saved),estimated:e.valuationEstimated===true};}const value=e.holdingsCents[symbol]??0;return {units:unitsForValue(value,priceCents),estimated:e.valuationEstimated===true||value>0};}
+export function revaluePracticeHolding(e:PracticeEvidence,symbol:string,priceCents:number,previousPriceCents:number):PracticeEvidence{
+ const {units,estimated}=existingUnits(e,symbol,previousPriceCents);
+ return {...e,shareUnitsNanos:{...e.shareUnitsNanos,[symbol]:units.toString()},valuationEstimated:estimated,holdingsCents:{...e.holdingsCents,[symbol]:valueForUnits(units,priceCents)}};
+}
 export function validateStrategy(s:Strategy){
  if(!s||!['scheduled','threshold','allocation','accumulate'].includes(s.kind)||!['approval','automatic'].includes(s.mode)||!Number.isSafeInteger(s.version)||s.version<1||!/^([A-Z][A-Z0-9.]{0,7})$/.test(s.symbol)||typeof s.direction!=='string'||s.direction.length>1500)throw Error('Choose a supported strategy and a valid symbol.');
  for(const v of [s.amountCents,s.reserveCents,s.intervalHours,s.thresholdCents,s.targetBps,s.driftBps,s.maxMovementBps])if(!Number.isSafeInteger(v)||v<0)throw Error('Use finite, nonnegative values with at most two decimal places.');
@@ -21,7 +29,7 @@ export function evaluateStrategy(s:Strategy,m:Mandate,e:PracticeEvidence):Strate
  const trigger=s.kind==='scheduled'?elapsed:s.kind==='threshold'?price>0&&price<=s.thresholdCents:s.kind==='allocation'?belowTarget:elapsed&&movementOkay;
  const checks:StrategyResult['checks']=[];const add=(name:string,passed:boolean,detail:string)=>checks.push({name,passed,detail});
  add('Practice permission',e.grant,'Practice permission is separate from any live wallet grant.');
- add('Fresh price evidence',e.quoteAt<=e.now&&e.now-e.quoteAt<=60000&&price>0,'Price quote must be no more than 60 seconds old.');
+ add('Fresh price evidence',e.quoteAt<=e.now+10000&&e.now-e.quoteAt<=60000&&price>0,'Price quote must be no more than 60 seconds old.');
  add('Strategy trigger',trigger,s.kind==='scheduled'?`At least ${s.intervalHours} hours between completed buys.`:s.kind==='threshold'?`Price must be at or below $${(s.thresholdCents/100).toFixed(2)}.`:s.kind==='allocation'?`Buy only below ${(s.targetBps-s.driftBps)/100}% allocation; no selling is supported.`:`Interval ${s.intervalHours} hours; price movement at most ${s.maxMovementBps/100}%.`);
  add('Allowed stock',m.allowedSymbols.includes(s.symbol),`${s.symbol}; allowed: ${m.allowedSymbols.join(', ')||'none'}.`);
  add('Purchase size',s.amountCents<=m.maxOrderCents,'Strategy purchase must fit the saved purchase cap.');
@@ -36,5 +44,6 @@ export function evaluateStrategy(s:Strategy,m:Mandate,e:PracticeEvidence):Strate
 export function practiceFill(result:StrategyResult,s:Strategy,m:Mandate,e:PracticeEvidence,approved=false):PracticeEvidence{
  const fresh=evaluateStrategy(s,m,e);
  if(result.strategyVersion!==s.version||result.mandateVersion!==m.version||result.symbol!==s.symbol||result.amountCents!==s.amountCents||result.observedAt!==e.now||JSON.stringify(result.evidence)!==JSON.stringify(e)||fresh.status==='held'||fresh.status==='awaiting_approval'&&!approved)throw Error('Practice proposal changed, blocked or requires approval. Recheck first.');
- return {...e,cashCents:e.cashCents-s.amountCents,holdingsCents:{...e.holdingsCents,[s.symbol]:(e.holdingsCents[s.symbol]??0)+s.amountCents},spentDay:utcDay(e.now),spentCents:(e.spentDay===utcDay(e.now)?e.spentCents:0)+s.amountCents,lastFillAt:e.now};
+ const priceCents=e.pricesCents[s.symbol];const {units,estimated}=existingUnits(e,s.symbol,priceCents);const nextUnits=units+unitsForValue(s.amountCents,priceCents);
+ return {...e,cashCents:e.cashCents-s.amountCents,shareUnitsNanos:{...e.shareUnitsNanos,[s.symbol]:nextUnits.toString()},valuationEstimated:estimated,holdingsCents:{...e.holdingsCents,[s.symbol]:valueForUnits(nextUnits,priceCents)},spentDay:utcDay(e.now),spentCents:(e.spentDay===utcDay(e.now)?e.spentCents:0)+s.amountCents,lastFillAt:e.now};
 }
