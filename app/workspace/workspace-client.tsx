@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   ArrowRight, ArrowUpRight, Check, ChevronRight, CircleDot, Clock3,
-  FileText, LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal,
+  FileText, LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal, Play,
 } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
 import {flushSync} from 'react-dom';
@@ -16,7 +16,7 @@ import StrategyPanel from './strategy-panel';
 import AutonomyPanel from "./autonomy-panel";
 import "./workspace.css";
 
-type View = "overview" | "mandate" | "trail" | "strategy";
+type View = "overview" | "mandate" | "trail" | "strategy" | "practice";
 const initial: Mandate = {
   version: 0, allowedSymbols: [], maxOrderCents: 10_000,
   maxDailyBuyCents: 25_000, maxPositionBps: 1_500, requireApproval: true,
@@ -76,14 +76,14 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     orderCents !== mandate.maxOrderCents || dailyCents !== mandate.maxDailyBuyCents ||
     positionBps !== mandate.maxPositionBps || executionPreference !== (mandate.executionPreference ?? "approval");
 
-  async function navigate(next: View, event?: MouseEvent<HTMLButtonElement>) {
-    const ticket=++navigation.current;motion.current?.cancel();if(next===view)return;
+  function navigate(next: View, event?: MouseEvent<HTMLButtonElement>) {
+    navigation.current++;motion.current?.cancel();if(next===view)return;
     const enabled=(!event||event.detail!==0)&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setAnimateView(enabled);const panel=mainRef.current;
-    const direction=['overview','mandate','trail'].indexOf(next)>['overview','mandate','trail'].indexOf(view)?1:-1;
-    if(enabled&&panel){motion.current=panel.animate([{opacity:1,transform:'translateX(0)'},{opacity:0,transform:'translateX('+(-direction*8)+'px)'}],{duration:110,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'});try{await motion.current.finished;}catch{return;}}
-    if(ticket!==navigation.current)return;motion.current?.cancel();flushSync(()=>setView(next));window.scrollTo(0,0);
-    if(enabled&&panel)motion.current=panel.animate([{opacity:0,transform:'translateX('+(direction*12)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:240,easing:'cubic-bezier(.23,1,.32,1)'});
+    const order=['overview','mandate','strategy','practice','trail'];
+    const direction=order.indexOf(next)>order.indexOf(view)?1:-1;
+    setAnimateView(enabled);flushSync(()=>setView(next));window.scrollTo(0,0);
+    const panel=mainRef.current;
+    if(enabled&&panel)motion.current=panel.animate([{opacity:.8,transform:'translateX('+(direction*8)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:180,easing:'cubic-bezier(.23,1,.32,1)'});
   }
 
   function resetDraft() {
@@ -144,16 +144,17 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         <nav ref={navRef} className="ws-nav" aria-label="Workspace views"><span className="ws-nav-indicator" aria-hidden="true" style={{opacity:indicator.width?1:0,width:indicator.width,transform:"translateX("+indicator.left+"px)"}}/>
           <button type="button" className={view === "overview" ? "selected" : ""} aria-current={view === "overview" ? "page" : undefined} onClick={(event) => navigate("overview", event)}><CircleDot size={16} />Overview</button>
           <button type="button" className={view === "mandate" ? "selected" : ""} aria-current={view === "mandate" ? "page" : undefined} onClick={(event) => navigate("mandate", event)}><SlidersHorizontal size={16} />Mandate<span>{mandate.version ? `v${mandate.version}` : "draft"}</span></button>
-          <button type="button" className={view === "trail" ? "selected" : ""} aria-label="Decision trail" aria-current={view === "trail" ? "page" : undefined} onClick={(event) => navigate("trail", event)}><Clock3 size={16} />Trail</button>
           <button type="button" className={view === "strategy" ? "selected" : ""} aria-current={view === "strategy" ? "page" : undefined} onClick={event=>navigate('strategy',event)}><ShieldCheck size={16}/>Strategy</button>
+          <button type="button" className={view === "practice" ? "selected" : ""} aria-current={view === "practice" ? "page" : undefined} onClick={event=>navigate('practice',event)}><Play size={16}/>Practice</button>
+          <button type="button" className={view === "trail" ? "selected" : ""} aria-label="Decision trail" aria-current={view === "trail" ? "page" : undefined} onClick={(event) => navigate("trail", event)}><Clock3 size={16} />Trail</button>
         </nav>
       </div>
 
       <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
-        <div hidden={view!=='strategy'} className="ws-view" data-animate={view==='strategy'&&animateView}><StrategyPanel mandate={mandate} onSetBoundaries={()=>setView("mandate")}/></div>
+        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/></div>
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
-          <div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
+          <section className="ws-start-path" aria-labelledby="workspace-start-title"><div><span className="ws-label">NEW HERE?</span><h2 id="workspace-start-title">Start with a plan. Try it with fake money.</h2><p>No wallet connection or real funds needed for Practice.</p></div><div className="ws-start-steps"><button onClick={()=>navigate('mandate')}><span>1</span><strong>Set limits</strong><small>Approved stocks and budgets</small></button><button onClick={()=>navigate('strategy')}><span>2</span><strong>Create strategy</strong><small>Tell AI your direction, then confirm</small></button><button onClick={()=>navigate('practice')}><span>3</span><strong>Try Practice</strong><small>Run, approve and skip the wait</small></button><button onClick={()=>navigate('trail')}><span>4</span><strong>Review Trail</strong><small>See every purchase and reason</small></button></div></section><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
           <ChainPanel mandate={mandate} />
           <AutonomyPanel mandate={mandate} />
           <div className="ws-overview-grid ws-wallet-overview">
@@ -187,7 +188,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
           <div className="ws-below-note"><LockKeyhole size={16} /> A saved mandate does not grant wallet access or place an order.</div>
         </div>}
 
-        {view === "trail" && <div className="ws-view" data-animate={animateView} key="trail"><div className="ws-page-head"><div><span className="ws-eyebrow">03 / DECISION TRAIL</span><h1>See the reason.<br/><em>See the result.</em></h1><p>Saved practice decisions show the rules checked and why the agent bought or held. All purchases here use simulated funds.</p></div><OverviewMotion variant="trail" caption="PRACTICE RECEIPTS"/></div><PracticeTrail onStrategy={()=>navigate("strategy")}/></div>}
+        {view === "trail" && <div className="ws-view" data-animate={animateView} key="trail"><div className="ws-page-head"><div><span className="ws-eyebrow">03 / DECISION TRAIL</span><h1>See the reason.<br/><em>See the result.</em></h1><p>Saved practice decisions show the rules checked and why the agent bought or held. All purchases here use simulated funds.</p></div><OverviewMotion variant="trail" caption="PRACTICE RECEIPTS"/></div><PracticeTrail onStrategy={()=>navigate("practice")}/></div>}
       </main>
     </div>
   </div>;

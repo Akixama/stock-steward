@@ -21,7 +21,7 @@ export function evaluateStrategy(s:Strategy,m:Mandate,e:PracticeEvidence):Strate
  const trigger=s.kind==='scheduled'?elapsed:s.kind==='threshold'?price>0&&price<=s.thresholdCents:s.kind==='allocation'?belowTarget:elapsed&&movementOkay;
  const checks:StrategyResult['checks']=[];const add=(name:string,passed:boolean,detail:string)=>checks.push({name,passed,detail});
  add('Practice permission',e.grant,'Practice permission is separate from any live wallet grant.');
- add('Fresh simulated evidence',e.quoteAt<=e.now&&e.now-e.quoteAt<=60000&&price>0,'Simulated quote must be no more than 60 seconds old.');
+ add('Fresh price evidence',e.quoteAt<=e.now&&e.now-e.quoteAt<=60000&&price>0,'Price quote must be no more than 60 seconds old.');
  add('Strategy trigger',trigger,s.kind==='scheduled'?`At least ${s.intervalHours} hours between completed buys.`:s.kind==='threshold'?`Price must be at or below $${(s.thresholdCents/100).toFixed(2)}.`:s.kind==='allocation'?`Buy only below ${(s.targetBps-s.driftBps)/100}% allocation; no selling is supported.`:`Interval ${s.intervalHours} hours; price movement at most ${s.maxMovementBps/100}%.`);
  add('Allowed stock',m.allowedSymbols.includes(s.symbol),`${s.symbol}; allowed: ${m.allowedSymbols.join(', ')||'none'}.`);
  add('Purchase size',s.amountCents<=m.maxOrderCents,'Strategy purchase must fit the saved purchase cap.');

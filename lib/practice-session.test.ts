@@ -11,3 +11,19 @@ test('mandate changes revoke permission and stop background execution',()=>{let 
 
 test('changing a safeguard scenario permits an immediate fresh check without bypassing its limit',()=>{let s=act(ready('automatic'),{action:'run'});for(const scenario of ['stale','cash','daily','concentration'] as const){s=act(s,{action:'scenario',scenario},now+1000);const count=s.receipts.length,cash=s.account.cashCents;s=act(s,{action:'run'},now+1000);assert.equal(s.receipts.length,count+1);assert.equal(s.receipts[0].outcome,'held');assert.equal(s.account.cashCents,cash);}assert.equal(s.running,false);assert.equal(s.background,false);});
 test('a fresh practice session has no authority and needs confirmed rules and saved limits',()=>{const s=newPracticeSession(now);assert.equal(s.account.cashCents,100000);assert.deepEqual(s.account.holdingsCents,{});assert.equal(s.account.grant,false);assert.equal(s.strategy,null);assert.throws(()=>act(s,{action:'authorize'}));assert.throws(()=>act(act(s,{action:'confirm',strategy}),{action:'authorize'},now,{...m,version:0}));});
+test('live quote practice uses real quote time, holds on outages and cannot use fixture controls',()=>{
+ let s=act(newPracticeSession(now),{action:'confirm',strategy:{...strategy,mode:'automatic'}});
+ s=act(s,{action:'price_source',source:'market'});
+ assert.equal(s.account.cashCents,100000);
+ assert.throws(()=>act(s,{action:'advance'}));
+ s=act(s,{action:'authorize'});
+ s=act(s,{action:'market_quote',quote:null});
+ s=act(s,{action:'run'});
+ assert.equal(s.receipts[0].outcome,'held');assert.equal(s.account.cashCents,100000);
+ const at=now+9000;
+ s=act(s,{action:'market_quote',quote:{symbol:'AAPL',priceCents:18001,generatedAt:at-1000,source:'Robinhood underlying-equity ask'}},at);
+ s=act(s,{action:'run'},at);
+ assert.equal(s.receipts[0].outcome,'simulated_fill');assert.equal(s.account.cashCents,99900);
+ assert.equal(s.account.quoteAt,at-1000);
+ assert.throws(()=>act(s,{action:'price',symbol:'AAPL',priceCents:19000},at));
+});

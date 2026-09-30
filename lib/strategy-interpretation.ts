@@ -13,9 +13,20 @@ Exact example output:
 {"kind":"allocation","symbol":"AAPL","amountUsd":1,"reserveUsd":20,"intervalHours":null,"thresholdUsd":null,"targetPercent":10,"driftPoints":2,"maxMovementPercent":null,"mode":"approval","summary":"Buy 1 dollar of AAPL below 8% allocation toward a 10% target; keep 20 dollars cash and ask before buying.","questions":[],"unsupported":[]}
 Return every schema key. JSON only.`;
 export type Interpretation=ReturnType<typeof interpretationSchema.parse>;
+function explicitAccumulation(direction:string){
+ const intent=/\baccumulat(?:e|es|ing|ion)\b/i.test(direction);
+ const interval=direction.match(/\b(?:once\s+)?every\s+(\d+(?:\.\d+)?)\s*(hours?|days?)\b/i);
+ const movement=direction.match(/\b(?:price|quote)\b[^.]{0,100}\b(?:mov(?:e[ds]?|ement)|chang(?:e[ds]?|ing))\b[^.]{0,100}\b(?:no more than|at most|less than|under|exceeds?|more than)\s+(\d+(?:\.\d+)?)\s*%/i);
+ if(!intent||!interval||!movement)return null;
+ const hours=Number(interval[1])*(interval[2].toLowerCase().startsWith('day')?24:1),percent=Number(movement[1]);
+ return Number.isSafeInteger(hours)&&hours>=1&&Number.isFinite(percent)?{hours,percent}:null;
+}
 export function reviewInterpretation(raw:unknown,direction:string,base:Strategy){
  if(!direction.trim()||direction.length>1500)throw Error('Write a direction of up to 1,500 characters.');
- const result={...interpretationSchema.parse(raw)},questions=[...result.questions],unsupported=[...result.unsupported];
+ const result={...interpretationSchema.parse(raw)},questions:string[]=[],unsupported=[...result.unsupported];
+ const accumulation=explicitAccumulation(direction);
+ if(accumulation){result.kind='accumulate';result.intervalHours=accumulation.hours;result.maxMovementPercent=accumulation.percent;result.thresholdUsd=null;result.targetPercent=null;result.driftPoints=null;result.summary=`Cautious accumulation: buy no more often than every ${accumulation.hours} hour${accumulation.hours===1?'':'s'} when simulated price movement is at most ${accumulation.percent}%.`;}
+ // Model questions are advisory. Required-field questions below come from the supported rule kind.
  // Suggestions must be grounded in explicit numerals. Missing details never inherit example or draft values.
  const numbers=(direction.match(/\d+(?:,\d{3})*(?:\.\d+)?/g)??[]).map(n=>Number(n.replace(/,/g,'')));
  const contains=(value:number)=>numbers.some(n=>Math.abs(n-value)<1e-8);
