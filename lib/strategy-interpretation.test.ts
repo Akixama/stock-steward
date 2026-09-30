@@ -26,6 +26,15 @@ test('explicit sale and rebalance directions can become reviewable drafts',()=>{
  const b=reviewInterpretation(rebalance,'Rebalance AAPL toward 10%. Buy or sell up to $1 when it moves more than 2 percentage points from target, every 24 hours. Keep $20 cash and execute automatically.',base);
  assert.equal(b.draft?.kind,'rebalance');assert.equal(b.draft?.targetBps,1000);assert.equal(b.draft?.driftBps,200);assert.equal(b.draft?.mode,'automatic');
 });
+test('an explicit sell price survives an AI omission or wrong extraction',()=>{
+ const direction='In Practice, use only my fake funds and existing AAPL holding. Sell exactly $1 worth of AAPL when its market price is at or above $330. Wait at least 1 hour between completed trades. Ask me to approve each sale. Never buy under this strategy, and stay within my saved Mandate.';
+ const sale={...result,kind:'sell_threshold' as const,amountUsd:1,reserveUsd:null,intervalHours:1,thresholdUsd:null,targetPercent:null,driftPoints:null};
+ const missing=reviewInterpretation(sale,direction,base);
+ assert.equal(missing.draft?.kind,'sell_threshold');assert.equal(missing.draft?.thresholdCents,33000);assert.equal(missing.draft?.mode,'approval');assert.deepEqual(missing.questions,[]);
+ assert.equal(reviewInterpretation({...sale,thresholdUsd:1},direction,base).draft?.thresholdCents,33000);
+ const ambiguous=direction.replace('at or above $330','at or above $330 or above $340');
+ assert.equal(reviewInterpretation(sale,ambiguous,base).draft,null);
+});
 test('AI portfolio drafts need explicit distinct targets and stay review-only',()=>{
  const direction='Rebalance AAPL to 10% and META to 15% of my fake portfolio. Buy or sell up to $1 per trade when either moves more than 2 percentage points from target, at least 24 hours apart. Keep $20 cash and ask before each trade.';
  const raw={...result,kind:'portfolio' as const,symbol:'AAPL',targets:[{symbol:'AAPL',targetPercent:10},{symbol:'META',targetPercent:15}],amountUsd:1,reserveUsd:20,intervalHours:24,targetPercent:null,driftPoints:2};
