@@ -57,3 +57,26 @@ test('fixture overweight scenario has precise shares for a rebalancing sale',()=
  assert.equal(s.receipts[0].side,'sell');assert.equal(s.receipts[0].outcome,'simulated_fill');
  assert.equal(s.account.cashCents,100100);assert.equal(s.account.holdingsCents.AAPL,999900);
 });
+test('portfolio live checks hold on one missing quote and trade after both quotes arrive',()=>{
+ const mandate={...m,allowedSymbols:['AAPL','META']};
+ const portfolio:Strategy={...strategy,kind:'portfolio',targets:[{symbol:'AAPL',targetBps:1000},{symbol:'META',targetBps:1500}],mode:'automatic'};
+ let s=act(newPracticeSession(now),{action:'confirm',strategy:portfolio},now,mandate);
+ s=act(s,{action:'price_source',source:'market'},now,mandate);
+ s=act(s,{action:'authorize'},now,mandate);
+ s=act(s,{action:'market_quotes',quotes:[{symbol:'AAPL',priceCents:18001,bidCents:18000,generatedAt:now,source:'Robinhood underlying-equity ask'},null]},now,mandate);
+ s=act(s,{action:'run'},now,mandate);assert.equal(s.receipts[0].outcome,'held');
+ const at=now+9000;
+ s=act(s,{action:'market_quotes',quotes:[{symbol:'AAPL',priceCents:18001,bidCents:18000,generatedAt:at,source:'Robinhood underlying-equity ask'},{symbol:'META',priceCents:50001,bidCents:50000,generatedAt:at,source:'Robinhood underlying-equity ask'}]},at,mandate);
+ s=act(s,{action:'run'},at,mandate);assert.equal(s.receipts[0].outcome,'simulated_fill');assert.equal(s.receipts[0].symbol,'META');
+ assert.equal(s.account.cashCents,99900);assert.equal(s.account.quoteAtBySymbol?.META,at);
+});
+test('portfolio confirmation respects approved symbols, concentration and existing holdings',()=>{
+ const portfolio:Strategy={...strategy,kind:'portfolio',targets:[{symbol:'AAPL',targetBps:1000},{symbol:'META',targetBps:1500}]};
+ assert.throws(()=>act(newPracticeSession(now),{action:'confirm',strategy:portfolio}));
+ const mandate={...m,allowedSymbols:['AAPL','META'],maxPositionBps:1000};
+ assert.throws(()=>act(newPracticeSession(now),{action:'confirm',strategy:portfolio},now,mandate));
+ const allowed={...mandate,maxPositionBps:2000};
+ let session=act(newPracticeSession(now),{action:'confirm',strategy:{...strategy,symbol:'AAPL',mode:'automatic'}},now,allowed);
+ session=act(session,{action:'authorize'},now,allowed);session=act(session,{action:'run'},now,allowed);
+ assert.throws(()=>act(session,{action:'confirm',strategy:{...portfolio,targets:[{symbol:'META',targetBps:1000},{symbol:'MSFT',targetBps:1000}]}},now,{...allowed,allowedSymbols:['AAPL','META','MSFT']}));
+});

@@ -83,3 +83,46 @@ test('rebalancing buys below its band, sells above it, and waits between trades'
  assert.equal(evaluateStrategy(strategy,m,inBand).status,'held');
  assert.throws(()=>validateStrategy({...strategy,targetBps:9900,driftBps:200}));
 });
+test('portfolio rules select one bounded trade, prefer reducing overweight holdings, and require every quote',()=>{
+ const mandate={...m,allowedSymbols:['AAPL','META']};
+ const portfolio:Strategy={...s,kind:'portfolio',targets:[{symbol:'AAPL',targetBps:1000},{symbol:'META',targetBps:1500}],driftBps:200,intervalHours:1,mode:'automatic'};
+ const account:PracticeEvidence={...e,pricesCents:{AAPL:18000,META:50000},previousPricesCents:{AAPL:18000,META:50000},quoteAtBySymbol:{AAPL:now,META:now}};
+ const first=evaluateStrategy(portfolio,mandate,account);assert.equal(first.status,'ready');assert.equal(first.symbol,'META');assert.equal(first.side,'buy');
+ const bought=practiceFill(first,portfolio,mandate,account);assert.equal(bought.cashCents,99900);assert.equal(bought.holdingsCents.META,100);
+ assert.equal(evaluateStrategy(portfolio,mandate,{...account,quoteAtBySymbol:{AAPL:now,META:now-61000}}).status,'held');
+ assert.equal(evaluateStrategy(portfolio,m,account).status,'held');
+ const overweight:PracticeEvidence={...account,cashCents:70000,holdingsCents:{AAPL:30000},shareUnitsNanos:{AAPL:'1666666667'},valuationEstimated:false};
+ const sale=evaluateStrategy(portfolio,mandate,overweight);assert.equal(sale.status,'ready');assert.equal(sale.symbol,'AAPL');assert.equal(sale.side,'sell');
+ const sold=practiceFill(sale,portfolio,mandate,overweight);assert.equal(sold.cashCents,70100);assert.equal(sold.holdingsCents.AAPL,29900);
+ assert.throws(()=>practiceFill(sale,portfolio,mandate,sold));
+ for(const targets of [[{symbol:'AAPL',targetBps:8000},{symbol:'META',targetBps:3000}],[{symbol:'AAPL',targetBps:1000},{symbol:'AAPL',targetBps:2000}]])assert.throws(()=>validateStrategy({...portfolio,targets}));
+});
+test('live quote spread uses ask to buy and bid to value or sell',()=>{
+ const mandate={...m,maxDailyBuyCents:500};
+ const rule={...s,kind:'threshold',thresholdCents:18001,mode:'automatic'} as Strategy;
+ const account={...e,pricesCents:{AAPL:18000},askPricesCents:{AAPL:18001}};
+ const bought=practiceFill(evaluateStrategy(rule,mandate,account),rule,mandate,account);
+ assert.equal(bought.cashCents,99900);assert.equal(bought.holdingsCents.AAPL,100);
+ const saleRule={...s,kind:'sell_threshold',intervalHours:1,thresholdCents:18000,mode:'automatic'} as Strategy;
+ const later={...bought,now:now+3600000,quoteAt:now+3600000};
+ const sale=evaluateStrategy(saleRule,mandate,later);assert.equal(sale.side,'sell');
+ assert.equal(practiceFill(sale,saleRule,mandate,later).cashCents,100000);
+ const wide={...s,kind:'threshold',mode:'automatic',amountCents:10000,thresholdCents:20000} as Strategy;
+ const wideMandate={...m,maxOrderCents:10000,maxDailyBuyCents:10000};
+ const marked=practiceFill(evaluateStrategy(wide,wideMandate,{...e,pricesCents:{AAPL:18000},askPricesCents:{AAPL:20000}}),wide,wideMandate,{...e,pricesCents:{AAPL:18000},askPricesCents:{AAPL:20000}});
+ assert.equal(marked.cashCents,90000);assert.equal(marked.holdingsCents.AAPL,9000);
+});
+test('price range buys below its ceiling and sells held shares above its floor',()=>{
+ const range:Strategy={...s,kind:'price_band',thresholdCents:18000,sellThresholdCents:20000,intervalHours:1,mode:'automatic'};
+ const buy=evaluateStrategy(range,m,e);assert.equal(buy.status,'ready');assert.equal(buy.side,'buy');
+ const bought=practiceFill(buy,range,m,e);
+ const middle={...bought,now:now+3600000,quoteAt:now+3600000,pricesCents:{AAPL:19000},askPricesCents:{AAPL:19001}};
+ assert.equal(evaluateStrategy(range,m,middle).status,'held');
+ const high=revaluePracticeHolding({...middle,pricesCents:{AAPL:20000},askPricesCents:{AAPL:20001}},'AAPL',20000,18000);
+ const sell=evaluateStrategy(range,m,high);assert.equal(sell.status,'ready');assert.equal(sell.side,'sell');
+ const after=practiceFill(sell,range,m,high);assert.equal(after.cashCents,100000);assert.ok((after.holdingsCents.AAPL??0)>0);
+ const loss={...s,kind:'sell_below',thresholdCents:18000,intervalHours:1,mode:'automatic'} as Strategy;
+ assert.equal(evaluateStrategy(loss,m,high).status,'held');
+ assert.equal(evaluateStrategy(loss,m,{...bought,now:now+3600000,quoteAt:now+3600000}).side,'sell');
+ assert.throws(()=>validateStrategy({...range,sellThresholdCents:17999}));
+});

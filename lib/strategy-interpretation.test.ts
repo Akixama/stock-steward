@@ -26,3 +26,18 @@ test('explicit sale and rebalance directions can become reviewable drafts',()=>{
  const b=reviewInterpretation(rebalance,'Rebalance AAPL toward 10%. Buy or sell up to $1 when it moves more than 2 percentage points from target, every 24 hours. Keep $20 cash and execute automatically.',base);
  assert.equal(b.draft?.kind,'rebalance');assert.equal(b.draft?.targetBps,1000);assert.equal(b.draft?.driftBps,200);assert.equal(b.draft?.mode,'automatic');
 });
+test('AI portfolio drafts need explicit distinct targets and stay review-only',()=>{
+ const direction='Rebalance AAPL to 10% and META to 15% of my fake portfolio. Buy or sell up to $1 per trade when either moves more than 2 percentage points from target, at least 24 hours apart. Keep $20 cash and ask before each trade.';
+ const raw={...result,kind:'portfolio' as const,symbol:'AAPL',targets:[{symbol:'AAPL',targetPercent:10},{symbol:'META',targetPercent:15}],amountUsd:1,reserveUsd:20,intervalHours:24,targetPercent:null,driftPoints:2};
+ const reviewed=reviewInterpretation(raw,direction,base);
+ assert.equal(reviewed.draft?.kind,'portfolio');assert.deepEqual(reviewed.draft?.targets,[{symbol:'AAPL',targetBps:1000},{symbol:'META',targetBps:1500}]);assert.equal(reviewed.draft?.mode,'approval');
+ assert.equal(reviewInterpretation(raw,direction.replace('15%','some amount'),base).draft,null);
+ assert.equal(reviewInterpretation({...raw,targets:[{symbol:'AAPL',targetPercent:10},{symbol:'META',targetPercent:90}]},direction,base).draft,null);
+});
+test('AI can draft a two-sided price rule and asks for a missing sell price',()=>{
+ const direction='Buy $1 of AAPL at $175 or below; sell $1 of held AAPL at $200 or above. Wait 1 hour between trades, keep $20 cash, and ask before each trade.';
+ const raw={...result,kind:'price_band' as const,amountUsd:1,reserveUsd:20,intervalHours:1,thresholdUsd:175,sellThresholdUsd:200,targetPercent:null,driftPoints:null};
+ assert.equal(reviewInterpretation(raw,direction,base).draft?.sellThresholdCents,20000);
+ const missing=reviewInterpretation({...raw,sellThresholdUsd:null},direction.replace('$200','a price'),base);
+ assert.equal(missing.draft,null);assert.ok(missing.questions.some(q=>q.includes('sell')));
+});

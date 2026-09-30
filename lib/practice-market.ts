@@ -1,4 +1,4 @@
-export type PracticeMarketQuote = {symbol:string;priceCents:number;generatedAt:number;source:'Robinhood underlying-equity ask'};
+export type PracticeMarketQuote = {symbol:string;priceCents:number;bidCents?:number;askCents?:number;generatedAt:number;source:'Robinhood underlying-equity ask'};
 
 // Practice uses the underlying stock ask as an indicative buy price. It is not a token swap quote.
 export function parsePracticeMarketQuote(body:unknown,symbol:string,now=Date.now()):PracticeMarketQuote|null {
@@ -13,9 +13,9 @@ export function parsePracticeMarketQuote(body:unknown,symbol:string,now=Date.now
     if(!/^\d{1,8}(\.\d{1,4})?$/.test(q.bid)||!/^\d{1,8}(\.\d{1,4})?$/.test(q.ask))return null;
     const bid=Number(q.bid),ask=Number(q.ask),generatedAt=Date.parse(q.generatedAt);
     if(!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<bid||!Number.isFinite(generatedAt)||generatedAt>now+10000||now-generatedAt>60000)return null;
-    const priceCents=Math.ceil(ask*100);
-    if(!Number.isSafeInteger(priceCents)||priceCents<1||priceCents>100000000)return null;
-    return {symbol,priceCents,generatedAt,source:'Robinhood underlying-equity ask'};
+    const priceCents=Math.ceil(ask*100),bidCents=Math.floor(bid*100);
+    if(!Number.isSafeInteger(priceCents)||priceCents<1||priceCents>100000000||!Number.isSafeInteger(bidCents)||bidCents<1)return null;
+    return {symbol,priceCents,bidCents,askCents:priceCents,generatedAt,source:'Robinhood underlying-equity ask'};
   }catch{return null;}
 }
 

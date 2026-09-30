@@ -13,8 +13,9 @@ export async function commandPractice(db:D1Database,owner:string,expected:number
 }
 async function preparePracticeRun(session:PracticeSession,m:Mandate,now:number,trigger:PracticeReceipt['trigger']){
  if(session.priceSource!=='market'||!session.strategy||session.receipts.some(r=>r.outcome==='awaiting_approval')||now-session.lastCheckWallAt<8000)return session;
- const quote=await fetchPracticeMarketQuote(session.strategy.symbol,now);
- return transitionPractice(session,m,{action:'market_quote',quote},now,trigger);
+ const symbols=[...new Set([...(session.strategy.kind==='portfolio'?session.strategy.targets!.map(t=>t.symbol):[session.strategy.symbol]),...Object.entries(session.account.holdingsCents).filter(([,value])=>value>0).map(([held])=>held)])];
+ const quotes=await Promise.all(symbols.map(symbol=>fetchPracticeMarketQuote(symbol,now)));
+ return transitionPractice(session,m,symbols.length===1?{action:'market_quote',quote:quotes[0]}:{action:'market_quotes',quotes},now,trigger);
 }
 export async function tickPracticeSessions(db:D1Database,now=Date.now()){
  const rows=await db.prepare('SELECT owner_ref,revision,session_json FROM practice_sessions WHERE background=1 AND next_due_at<=? ORDER BY next_due_at LIMIT 5').bind(now).all<Row>();const summary={checked:0,updated:0,conflicts:0,failed:0,transactionsSent:0};
