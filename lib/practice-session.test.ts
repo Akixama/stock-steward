@@ -35,3 +35,25 @@ test('a long automatic run keeps purchase receipts while bounding repetitive hol
  assert.equal(s.receipts.filter(r=>r.outcome==='held').length,40);
  assert.equal(s.receipts.length,41);
 });
+test('a reviewed practice sale needs exact approval and stays in the trail',()=>{
+ let s=ready('automatic');s=act(s,{action:'run'});
+ assert.equal(s.account.cashCents,99900);
+ s=act(s,{action:'confirm',strategy:{...strategy,kind:'sell_threshold',thresholdCents:18000,intervalHours:1,mode:'approval'}},now+1000);
+ assert.equal(s.account.grant,false);assert.equal(s.account.holdingsCents.AAPL,100);
+ s=act(s,{action:'authorize'},now+1000);
+ s=act(s,{action:'run'},now+3600000);
+ const pending=s.receipts[0];assert.equal(pending.side,'sell');assert.equal(pending.outcome,'awaiting_approval');
+ assert.equal(s.account.cashCents,99900);
+ s=act(s,{action:'approve',id:pending.id},now+3600000+1000);
+ assert.equal(s.account.cashCents,100000);assert.equal(s.account.holdingsCents.AAPL,0);
+ assert.equal(s.receipts[0].outcome,'simulated_fill');assert.equal(s.receipts[0].side,'sell');
+ assert.throws(()=>act(s,{action:'approve',id:pending.id},now+3600000+2000));
+});
+test('fixture overweight scenario has precise shares for a rebalancing sale',()=>{
+ let s=act(newPracticeSession(now),{action:'confirm',strategy:{...strategy,kind:'rebalance',targetBps:1000,driftBps:200,intervalHours:1,mode:'automatic'}});
+ s=act(s,{action:'authorize'});s=act(s,{action:'scenario',scenario:'concentration'});
+ assert.equal(s.account.valuationEstimated,false);assert.ok(s.account.shareUnitsNanos?.AAPL);
+ s=act(s,{action:'run'});
+ assert.equal(s.receipts[0].side,'sell');assert.equal(s.receipts[0].outcome,'simulated_fill');
+ assert.equal(s.account.cashCents,100100);assert.equal(s.account.holdingsCents.AAPL,999900);
+});
