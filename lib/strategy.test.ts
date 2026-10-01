@@ -54,6 +54,10 @@ test('practice sale requires held precise shares and preserves fake portfolio va
  const sale={...s,kind:'sell_threshold',thresholdCents:18000,intervalHours:1,mode:'approval'} as Strategy;
  const proposal=evaluateStrategy(sale,m,account);
  assert.equal(proposal.side,'sell');assert.equal(proposal.status,'awaiting_approval');
+ assert.equal(proposal.checks.find(check=>check.name==='Strategy trigger')?.detail,'Observed sale price $180.00; sell at or above $180.00. 60 minutes since the last completed trade. At least 1 hour between trades.');
+ const tooSoon=evaluateStrategy(sale,m,{...account,now:at-60000,quoteAt:at-60000});
+ assert.equal(tooSoon.status,'held');
+ assert.match(tooSoon.why,/59 minutes since the last completed trade\. At least 1 hour between trades\./);
  assert.throws(()=>practiceFill(proposal,sale,m,account));
  const before=account.cashCents+account.holdingsCents.AAPL;
  const filled=practiceFill(proposal,sale,m,account,true);
