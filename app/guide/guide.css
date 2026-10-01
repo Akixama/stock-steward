@@ -49,3 +49,11 @@
 @media(max-width:520px){.guide-header .brand-name{font-size:1.12rem}.guide-header-right a{font-size:0;gap:0}.guide-header-right a svg{width:18px;height:18px}.guide-flow,.guide-spec,.guide-receipt,.guide-event-chain,.guide-roadmap{grid-template-columns:1fr}.guide-flow>div,.guide-spec>div{border-right:0;border-bottom:1px solid #393631}.guide-flow>div:last-child,.guide-spec>div:last-child{border-bottom:0}.guide-status-table>div,.guide-checks li,.guide-glossary>div{display:block}.guide-status-table span{display:block;margin:8px 0}.guide-checks span{display:block;margin-top:7px}.guide-glossary dd{margin-top:6px}.guide-end{display:block}.guide-end a{margin-top:18px}}
 @media(prefers-reduced-motion:reduce){.guide *{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 @media(max-width:740px){.guide-sidebar-inner{scrollbar-width:none}.guide-sidebar-inner::-webkit-scrollbar{display:none}}
+
+/* Match the public site and workspace color system. */
+.guide{background:#070806;color:#ecece4}
+.guide-header,.guide-sidebar{background:#12130f;border-color:#24261e}
+.guide-brand,.guide-hero h1,.guide-chapter h2{color:#ecece4}
+.guide-overline,.guide-hero h1 em,.guide-flow-number{color:#a5ce1f}
+.guide-header-right a{border-color:#35392d;color:#ecece4}
+.guide-header-right a:hover{background:#242a17;border-color:#a5ce1f}
