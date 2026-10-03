@@ -19,6 +19,7 @@ test('calls the protected tick once with the worker key', async () => {
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, env.STEWARD_TICK_URL);
     assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.redirect, 'manual');
     assert.equal(calls[0].options.headers.Authorization, `Bearer ${key}`);
   } finally {
     globalThis.fetch = originalFetch;
@@ -39,6 +40,8 @@ test('does not call the endpoint without a configured key', async () => {
 test('rejects failed and unsafe endpoint responses', async () => {
   const originalFetch = globalThis.fetch;
   try {
+    globalThis.fetch = async () => new Response(null, { status: 302, headers: { Location: 'https://example.test/other' } });
+    await assert.rejects(worker.scheduled({}, env), /HTTP 302/);
     globalThis.fetch = async () => new Response(null, { status: 503 });
     await assert.rejects(worker.scheduled({}, env), /HTTP 503/);
     globalThis.fetch = async () => Response.json({ summary: {}, spendingEnabled: true });

@@ -87,9 +87,9 @@ Run core checks: `node --experimental-strip-types --test lib/autonomy.test.ts db
 
 ### Read-only monitoring runner
 
-The authenticated GitHub workflow wakes every 15 minutes and handles at most two due wallet schedules and three transaction watches. Database leases, stable retry IDs and revision fencing prevent overlap and discard paused results. Three consecutive observation failures pause a schedule. GitHub wake-ups may be delayed or disabled after repository inactivity; actual run timestamps are visible.
+An authenticated Cloudflare Cron Worker requests a wake every 15 minutes and handles at most two due wallet schedules and three transaction watches. Database leases, stable retry IDs and revision fencing prevent overlap and discard paused results. Three consecutive observation failures pause a schedule. Scheduled wakes can be delayed; actual run timestamps are visible.
 
-Setup requires a dedicated server secret and encrypted GitHub Actions secret named STEWARD_WORKER_KEY. Never commit it. Set server STEWARD_RUNNER_ENABLED=true only after runner verification; start/resume stays disabled until then. The key permits read-only wakes, not signing or spending. Workflow logs contain summary counts only.
+Setup requires matching STEWARD_WORKER_KEY secrets in the Site runtime and the Cloudflare Worker. Never commit the key. The Worker code and cron configuration are in `scheduler/`; `scheduler/cloudflare-api.mjs` can upload the Worker, set its secret and confirm the `*/15 * * * *` schedule. Set server STEWARD_RUNNER_ENABLED=true only after runner verification; start/resume stays disabled until then. The key permits read-only wakes, not signing or spending. Worker logs contain summary counts only. The GitHub Actions workflow remains available for manual fallback.
 
 External transaction watches label RPC finality separately. Outer success does not prove a swap or user-operation outcome. Unknown/reorged evidence never releases reservations or triggers resubmission.
 

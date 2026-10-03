@@ -10,7 +10,7 @@ export default {
     const response = await fetch(env.STEWARD_TICK_URL, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}` },
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) {

@@ -1,6 +1,6 @@
 # Stock Steward background scheduler
 
-This separate Cloudflare Worker requests the existing protected read-only/fake-money tick every 15 minutes. It has no database, brokerage credentials, wallet keys, or transaction signer. The Stock Steward endpoint still owns its database lease and all eligibility checks. Keep the GitHub Actions schedule in place until a real Cloudflare Cron wake is verified, then remove the duplicate schedule while retaining manual dispatch.
+This separate Cloudflare Worker requests the existing protected read-only/fake-money tick every 15 minutes. It has no database, brokerage credentials, wallet keys, or transaction signer. The Stock Steward endpoint still owns its database lease and all eligibility checks. Cloudflare Cron was verified against the production endpoint on October 3, 2026. GitHub Actions is manual-only; refresh its STEWARD_WORKER_KEY repository secret before using that fallback.
 
 Deployment requires access to a Cloudflare account. Run these steps from the repository root with the repository's Wrangler dependency:
 
