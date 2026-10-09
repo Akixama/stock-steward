@@ -37,17 +37,44 @@ function eventHeadline(event: OrderEvent): string {
   }
 }
 
-function RecordDetails({ record }: { record: BrokerRecord }) {
+function RecordDetails({ record: initial }: { record: BrokerRecord }) {
+  const [record, setRecord] = useState(initial);
+  const [orderBusy, setOrderBusy] = useState(false);
+  const [orderNote, setOrderNote] = useState<string | null>(null);
+  useEffect(() => { setRecord(initial); setOrderNote(null); }, [initial]);
   const partial = record.kind === "observation";
-  const lastEvent = record.kind === "decision" ? record.orderEvents.at(-1) : undefined;
+  const orderEvents = record.kind === "decision" ? record.orderEvents : [];
+  const lastEvent = orderEvents.at(-1);
   const headline = partial ? "Market closed · partial check"
     : record.status === "held" ? "Held by your limits"
     : lastEvent ? eventHeadline(lastEvent) : "Limits passed · no order sent";
   const submitted = !!lastEvent && ["submitted", "partially_filled", "filled", "canceled", "expired", "rejected"].includes(lastEvent.type);
+  // A look-up is useful exactly while the broker's answer is still missing or partial.
+  const canCheckOrder = record.kind === "decision" && !!lastEvent &&
+    ["submitted", "partially_filled", "submission_unknown"].includes(lastEvent.type);
   const rows = record.kind === "observation"
     ? record.checks.map(check => ({ rule: check.rule, state: check.state, detail: check.detail }))
     : record.checks.map(check => ({ rule: check.rule, state: check.passed ? "pass" : "fail",
       detail: `${check.explanation} Observed ${check.observed}; limit ${check.limit}.` }));
+  async function checkOrderStatus() {
+    if (orderBusy) return;
+    setOrderBusy(true); setOrderNote(null);
+    try {
+      const response = await fetch(`/api/workspace/decisions/${record.id}/reconcile`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const payload = await response.json() as { receipt?: DecisionReceipt; brokerStatus?: string; error?: string };
+      if (!response.ok || !payload.receipt) throw new Error(payload.error ?? "The broker lookup failed.");
+      setRecord(payload.receipt);
+      setOrderNote(payload.brokerStatus === "not_found"
+        ? "The broker does not know this order yet. Check again shortly."
+        : `Broker reports: ${String(payload.brokerStatus).replaceAll("_", " ")}.`);
+    } catch (cause) {
+      setOrderNote(cause instanceof Error ? cause.message : "The broker lookup failed.");
+    } finally {
+      setOrderBusy(false);
+    }
+  }
   return <div className="ws-broker-record">
     <div className="ws-broker-record-head"><strong>{headline}</strong>
       <time dateTime={record.createdAt}>{new Date(record.createdAt).toLocaleString()}</time></div>
@@ -61,6 +88,14 @@ function RecordDetails({ record }: { record: BrokerRecord }) {
         <b>{check.state.toUpperCase()}</b><span><strong>{check.rule.replaceAll("_", " ")}</strong>
           <small>{check.detail}</small></span>
       </div>)}</div>
+    {orderEvents.length > 0 && <div className="ws-order-events"><span>ORDER EVENTS</span>
+      {orderEvents.map((event, index) => <div key={`${event.type}-${index}`}>
+        <b>{eventHeadline(event)}</b><small>{new Date(event.at).toLocaleString()}</small></div>)}</div>}
+    {canCheckOrder && <div className="ws-order-review">
+      <button type="button" onClick={checkOrderStatus} disabled={orderBusy}>{orderBusy ? "Checking the broker…" : "Check order status"}</button>
+      <p>Read-only: looks up this one order at the broker and records what it finds. Never resubmits.</p>
+    </div>}
+    {orderNote && <p className="ws-chain-brief" role="status">{orderNote}</p>}
     <small>Record ID {record.id}. {submitted ? "One order attempt only; it is never retried." : "This check reads broker data and never submits an order."}</small>
   </div>;
 }

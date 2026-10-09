@@ -20,6 +20,17 @@ export async function issueDemoSession(secret:string,displayName:string,now=Date
  return {cookieValue:`${payload}|${signature}`,identity:{userId,displayName:name,expiresAt}};
 }
 
+// Refreshes an existing identity with a new signature and expiry. Used by the sign-in-code
+// transfer: the same workspace reappears on another host without minting a new identity.
+export async function reissueDemoSession(secret:string,identity:DemoIdentity,now=Date.now(),lifetimeMs=30*86400000):Promise<{cookieValue:string;identity:DemoIdentity}|null>{
+ if(typeof secret!=='string'||secret.length<16)return null;
+ const name=namePattern.test(identity.displayName)?identity.displayName:'Practice Demo';
+ const expiresAt=now+lifetimeMs;
+ const payload=[VERSION,identity.userId,name,String(expiresAt)].join('|');
+ const signature=hex(await crypto.subtle.sign('HMAC',await importKey(secret),encoder.encode(payload)));
+ return {cookieValue:`${payload}|${signature}`,identity:{userId:identity.userId,displayName:name,expiresAt}};
+}
+
 export async function verifyDemoSession(secret:string,cookieValue:unknown,now=Date.now()):Promise<DemoIdentity|null>{
  if(typeof secret!=='string'||secret.length<16||typeof cookieValue!=='string'||cookieValue.length>256)return null;
  const parts=cookieValue.split('|');
@@ -34,9 +45,12 @@ export async function verifyDemoSession(secret:string,cookieValue:unknown,now=Da
  return {userId,displayName:name,expiresAt};
 }
 
-export function demoSessionCookie(cookieValue:string,maxAgeSeconds=30*86400):string{
- return `${DEMO_COOKIE_NAME}=${cookieValue}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}`;
+// On the production domain the cookie spans apex and www so a sign-in on one host
+// is the same workspace on the other. Any other host gets a host-only cookie.
+const cookieDomain=(host:string)=>host==='stocksteward.app'||host.endsWith('.stocksteward.app')?'; Domain=.stocksteward.app':'';
+export function demoSessionCookie(cookieValue:string,maxAgeSeconds=30*86400,host=''):string{
+ return `${DEMO_COOKIE_NAME}=${cookieValue}; HttpOnly; Secure; SameSite=Lax; Path=/${cookieDomain(host)}; Max-Age=${maxAgeSeconds}`;
 }
-export function demoSessionClearedCookie():string{
- return `${DEMO_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
+export function demoSessionClearedCookie(host=''):string{
+ return `${DEMO_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/${cookieDomain(host)}; Max-Age=0`;
 }

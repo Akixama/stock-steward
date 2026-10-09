@@ -2,7 +2,9 @@ import { env } from "cloudflare:workers";
 import { RouteLink } from "@/components/route-transition";
 import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 import { requireChatGPTUser, chatGPTSignOutPath } from "@/app/chatgpt-auth";
+import { reissueDemoSession } from "@/lib/demo-auth";
 import { BrandMark, BrandName } from "@/components/brand";
+import SignInCode from "./sign-in-code";
 import "./account.css";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +20,17 @@ export default async function AccountPage() {
     } catch { /* The account page remains available during a database migration. */ }
   }
   const deletionEmail = `mailto:stocksteward.support@gmail.com?subject=${encodeURIComponent("Stock Steward data deletion request")}&body=${encodeURIComponent(`Please delete my Stock Steward workspace data.\n\nMy support ID: ${user.userId}\n\n${isDemo?'I am using a temporary practice workspace.':'I am sending this from my Stock Steward sign-in email.'}`)}`;
+  const transfer = isDemo && env.STEWARD_DEMO_AUTH
+    ? await reissueDemoSession(env.STEWARD_DEMO_AUTH, { userId: user.userId, displayName: user.displayName, expiresAt: 0 })
+    : null;
   return <div className="account-page"><div className="account-shell">
     <header className="account-header"><RouteLink href="/" className="account-brand"><BrandMark /><BrandName /></RouteLink><RouteLink href="/workspace" className="account-back"><ArrowLeft size={15} /> Workspace</RouteLink></header>
     <main className="account-main"><div className="account-intro"><span>YOUR STOCK STEWARD ACCOUNT</span><h1>One identity.<br /><em>Your own trail.</em></h1><p>Your saved limits, practice sessions and wallet observations belong to this sign-in. Wallet spending permission is a separate choice.</p></div>
-      <section className="account-panel"><div className="account-panel-head"><ShieldCheck size={18} /><span>SIGNED IN</span></div><div className="account-panel-body"><span className="account-label">{isDemo?'PRACTICE WORKSPACE':'ACCOUNT EMAIL'}</span><strong>{isDemo?user.displayName:user.email}</strong><p>{isDemo?'This demo uses a temporary browser session. Keep this browser session to return to your saved practice records; no email address was collected.':'Stock Steward uses your site-specific sign-in identity to keep mandates and receipts in your workspace.'}</p><DataRequestSection userId={user.userId} deletionRequest={deletionRequest} deletionEmail={deletionEmail} /></div><div className="account-panel-foot"><RouteLink href="/workspace">Open workspace <ArrowRight size={15} /></RouteLink><a href={chatGPTSignOutPath("/")} className="account-signout">Sign out</a></div></section>
+      <section className="account-panel"><div className="account-panel-head"><ShieldCheck size={18} /><span>SIGNED IN</span></div><div className="account-panel-body"><span className="account-label">{isDemo?'PRACTICE WORKSPACE':'ACCOUNT EMAIL'}</span><strong>{isDemo?user.displayName:user.email}</strong><p>{isDemo?'This demo uses a temporary browser session. Keep this browser session to return to your saved practice records; no email address was collected.':'Stock Steward uses your site-specific sign-in identity to keep mandates and receipts in your workspace.'}</p>
+        {transfer && <><div className="account-divider" /><span className="account-label">WORKSPACE SIGN-IN CODE</span>
+          <p>Paste this at the sign-in screen on another address or device to continue with this exact workspace. Anyone holding this code can enter the workspace — treat it like a password and do not share it.</p>
+          <SignInCode code={transfer.cookieValue} /></>}
+        <DataRequestSection userId={user.userId} deletionRequest={deletionRequest} deletionEmail={deletionEmail} /></div><div className="account-panel-foot"><RouteLink href="/workspace">Open workspace <ArrowRight size={15} /></RouteLink><a href={chatGPTSignOutPath("/")} className="account-signout">Sign out</a></div></section>
     </main><footer className="account-footer"><span><LockKeyhole size={14} /> Your wallet keys stay with you.</span><div><RouteLink href="/privacy">Privacy</RouteLink><RouteLink href="/terms">Terms</RouteLink></div></footer>
   </div></div>;
 }
