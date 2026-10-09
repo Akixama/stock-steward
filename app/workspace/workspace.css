@@ -355,9 +355,17 @@
 .ws-chain-fund-options a{text-decoration:none}
 .ws-chain-fund small{color:#8f8e8c;display:block;line-height:1.6}
 @media(max-width:640px){.ws-chain-fund-options{flex-direction:column}}
-.ws-lifi{display:grid;gap:10px;grid-column:1/-1;margin:6px 0 10px;padding:14px;border:1px solid #3a3937;border-radius:12px;background:#131211}
-.ws-lifi>button{justify-self:start}
-.ws-lifi small{color:#8f8e8c;line-height:1.6;max-width:640px}
+.ws-bridge-embed{margin:14px 0}
+.ws-bridge-teaser{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;border:1px solid #3a3937;border-radius:14px;background:linear-gradient(120deg,#1a1917,#121110)}
+.ws-bridge-teaser strong{color:#f1f0ed;font-size:.95rem}
+.ws-bridge-teaser p{margin:6px 0 0;color:#a9a8a4;font-size:.78rem;line-height:1.6;max-width:560px}
+.ws-bridge-box{max-width:560px;margin:0 auto;padding:18px;border:1px solid #3a3937;border-radius:18px;background:#0f0e0d;box-shadow:0 12px 40px #0009}
+.ws-bridge-box small{display:block;margin-top:10px;color:#8f8e8c;line-height:1.6}
+@media(max-width:640px){.ws-bridge-teaser{flex-direction:column;align-items:stretch}.ws-bridge-box{padding:12px}}
 .ws-install-review{margin:22px 0;padding:22px;border:1px solid #3c3b39;border-radius:16px;background:#171614}
 .ws-install-review h3{margin:6px 0 8px;font-size:1.55rem;letter-spacing:-.02em}
 .ws-install-body{margin-top:18px;display:grid;gap:14px}
+.ws-install-driver{margin-top:14px;display:grid;gap:12px}
+.ws-status-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0 6px;padding:16px 20px;border:1px solid #b8e62e55;border-radius:14px;background:#14130f}
+.ws-status-strip strong{display:block;margin-top:4px;color:#f1f0ed;font-size:.86rem}
+@media(max-width:700px){.ws-status-strip{grid-template-columns:1fr}}

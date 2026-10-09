@@ -169,7 +169,11 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
               <button type="button" onClick={() => navigate("alerts")}><strong>Alerts</strong><small>Arm price watches for your mandate stocks</small><ArrowRight size={15} /></button>
               <button type="button" onClick={() => navigate("trail")}><strong>Trail</strong><small>Every decision and the reason behind it</small><ArrowRight size={15} /></button>
             </div>
-          </section><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
+          </section><div className="ws-status-strip" role="status">
+            <div><span className="ws-label">MANDATE</span><strong>{mandate.version ? `v${mandate.version} saved · ${mandate.allowedSymbols.join(", ") || "no symbols"}` : "Not saved yet"}</strong></div>
+            <div><span className="ws-label">MODE</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Automatic within limits" : "Ask me every time"}</strong></div>
+            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review the install in Autonomy"}</strong></div>
+          </div><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
           <ChainPanel mandate={mandate} />
           <AutonomyPanel mandate={mandate} />
           <div className="ws-overview-grid ws-wallet-overview">
