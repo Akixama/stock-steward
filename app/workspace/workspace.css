@@ -323,3 +323,28 @@
 .ws-agent-provenance{margin:0 0 4px;padding:7px 11px;border-left:2px solid #A5CE1F;background:#1b211433;color:#c3df75;font-size:.75rem;line-height:1.5}
 .ws-agent-decisions .ws-broker-meta{margin-top:14px}
 @media(max-width:700px){.ws-agent-form{grid-template-columns:1fr}.ws-agent-decisions{padding-inline:0}}
+
+/* Where-things-are map + richer motion */
+.ws-quick-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border-top:1px solid #2f2e2c;margin-top:18px;padding-top:18px}
+.ws-quick-map>.ws-label{grid-column:1/-1}
+.ws-quick-map button{position:relative;text-align:left;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 10px;padding:13px 16px;border:1px solid #3a3937;border-radius:12px;background:#151412;color:#ecebe9;cursor:pointer;transition:transform .18s var(--ws-ease),border-color .18s ease,background-color .18s ease}
+.ws-quick-map button strong{font-size:.82rem;letter-spacing:.01em}
+.ws-quick-map button small{grid-column:1;color:#9c9b97;font-size:.68rem;line-height:1.5}
+.ws-quick-map button svg{grid-row:1/3;grid-column:2;color:#7e7d7a;transition:transform .18s var(--ws-ease),color .18s ease}
+.ws-quick-map button:hover{border-color:#5d5c5a;background:#1c1b19;transform:translateY(-2px)}
+.ws-quick-map button:hover svg{transform:translateX(3px);color:#d8d7d4}
+.ws-quick-map button:active{transform:translateY(0) scale(.99)}
+.ws-agent-decisions{animation:ws-plan-in .4s var(--ws-ease) both}
+.ws-nav button svg{transition:transform .18s var(--ws-ease)}
+.ws-nav button:hover svg{transform:scale(1.12) rotate(6deg)}
+.ws-nav button.selected svg{color:#d3d2d0;animation:ws-nav-pop .32s var(--ws-ease) both}
+@keyframes ws-nav-pop{from{transform:scale(.8);opacity:.4}to{transform:scale(1);opacity:1}}
+.ws-broker-approve button:hover{transform:translateY(-1px);box-shadow:0 4px 14px #a5ce1f33}
+.ws-broker-approve button{transition:transform .16s var(--ws-ease),box-shadow .2s ease}
+.ws-broker-panel,.ws-check-panel{scroll-margin-top:120px}
+@media(max-width:900px){.ws-quick-map{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.ws-quick-map{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.ws-quick-map button:hover,.ws-nav button:hover svg,.ws-broker-approve button:hover{transform:none}.ws-nav button.selected svg,.ws-agent-decisions{animation:none}}
+.ws-start-steps button{transition:background-color .18s ease,transform .22s var(--ws-ease),border-color .18s ease}
+@media(hover:hover){.ws-start-steps button:hover{transform:translateY(-3px);border-color:#6b6a68;background:#1e1d1b}}
+@media(prefers-reduced-motion:reduce){.ws-start-steps button:hover{transform:none}}

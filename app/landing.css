@@ -49,3 +49,17 @@
 .lp-demo-badge,.lp-evidence>div,.lp-principle-grid article{background:#1a1b16;border-color:#24261e}.lp-principle-grid article:hover{border-color:#a5ce1f}
 .lp-progress{background:#24261e}.lp-progress span{background:#a5ce1f}.lp-demo-verdict,.lp-evidence strong.lp-warn{color:#c3df75}
 .lp-bottom{border-color:#24261e}.lp-text-link,.lp-hero-guide{color:#a5ce1f}
+
+/* How-it-works band + entrance motion */
+.lp-how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:1180px;margin:10px auto 70px;padding:0 24px}
+.lp-how-card{position:relative;padding:30px 28px;border:1px solid #2f2e2c;border-radius:18px;background:#151412;opacity:0;transform:translateY(18px);animation:lp-how-in .6s var(--lp-ease,cubic-bezier(.23,1,.32,1)) both}
+.lp-how-card:nth-child(1){animation-delay:.05s}.lp-how-card:nth-child(2){animation-delay:.18s}.lp-how-card:nth-child(3){animation-delay:.31s}
+.lp-how-card svg{color:#c8c7c4;margin-bottom:16px}
+.lp-how-step{position:absolute;top:24px;right:26px;font-size:.62rem;font-weight:800;letter-spacing:.18em;color:#5c5b59}
+.lp-how-card h3{margin:0 0 10px;font-size:1.35rem;letter-spacing:-.02em;color:#f1f0ed}
+.lp-how-card p{margin:0;color:#a9a8a4;font-size:.88rem;line-height:1.65}
+.lp-how-card{transition:transform .22s cubic-bezier(.23,1,.32,1),border-color .2s ease}
+@media(hover:hover){.lp-how-card:hover{transform:translateY(-4px);border-color:#575654}}
+@keyframes lp-how-in{to{opacity:1;transform:translateY(0)}}
+@media(max-width:900px){.lp-how{grid-template-columns:1fr;margin-bottom:50px}}
+@media(prefers-reduced-motion:reduce){.lp-how-card{animation:none;opacity:1;transform:none}.lp-how-card:hover{transform:none}}

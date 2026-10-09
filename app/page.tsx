@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Check, CirclePause, CirclePlay, Eye, FileText, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, CirclePause, CirclePlay, Eye, FileText, Link2, LockKeyhole, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
 import { RouteLink } from "@/components/route-transition";
 
@@ -59,7 +59,12 @@ function TenSecondDemo() {
 
 export default function Landing() {
   return <div className="lp"><header className="lp-header"><RouteLink className="lp-brand" href="/" aria-label="Stock Steward home"><BrandMark /><BrandName /></RouteLink><nav aria-label="Primary"><a href="#walkthrough">Walkthrough</a><RouteLink href="/guide">How it works</RouteLink><a href="/account">Account</a><RouteLink className="lp-nav-cta" href="/workspace">Open workspace <ArrowUpRight size={15} /></RouteLink></nav></header>
-    <main><section className="lp-hero"><div className="lp-hero-glow" aria-hidden="true" /><div className="lp-eyebrow"><span className="lp-eyebrow-line" /> AN ACCOUNTABLE WAY TO INVEST</div><h1>Every dollar<br />deserves <em>a reason.</em></h1><p>Stock Steward is designed to watch your limits, explain every proposed move, and keep the evidence behind every decision—including the times it holds back.</p><div className="lp-hero-actions"><RouteLink className="lp-button-primary" href="/workspace">Set your mandate <ArrowRight size={17} /></RouteLink><a className="lp-button-secondary" href="#walkthrough">Watch the 10-second walkthrough <CirclePlay size={18} /></a></div><RouteLink className="lp-hero-guide" href="/guide">Read the technical guide <ArrowUpRight size={15} /></RouteLink><div className="lp-hero-note"><span /> Brokerage connection and live execution are not enabled in this version.</div></section>
+    <main><section className="lp-hero"><div className="lp-hero-glow" aria-hidden="true" /><div className="lp-eyebrow"><span className="lp-eyebrow-line" /> AN ACCOUNTABLE WAY TO INVEST</div><h1>Every dollar<br />deserves <em>a reason.</em></h1><p>Stock Steward is designed to watch your limits, explain every proposed move, and keep the evidence behind every decision—including the times it holds back.</p><div className="lp-hero-actions"><RouteLink className="lp-button-primary" href="/workspace">Set your mandate <ArrowRight size={17} /></RouteLink><a className="lp-button-secondary" href="#walkthrough">Watch the 10-second walkthrough <CirclePlay size={18} /></a></div><RouteLink className="lp-hero-guide" href="/guide">Read the technical guide <ArrowUpRight size={15} /></RouteLink><div className="lp-hero-note"><span /> A guarded broker connection ships now · real-money execution stays off in this version.</div></section>
+      <section className="lp-how" aria-label="How Stock Steward works">
+        <div className="lp-how-card"><span className="lp-how-step">01</span><SlidersHorizontal size={22} /><h3>Set your limits</h3><p>Choose which stocks are allowed and your maximums — one trade, one day, one position. Your rules are saved and versioned.</p></div>
+        <div className="lp-how-card"><span className="lp-how-step">02</span><Link2 size={22} /><h3>Connect — with a leash</h3><p>Link your broker in one click. Steward reads your account and checks every proposed buy against your rules before anything can happen.</p></div>
+        <div className="lp-how-card"><span className="lp-how-step">03</span><FileText size={22} /><h3>Every move leaves a receipt</h3><p>Buys, holds and refusals — each one recorded with the figures and the reason. Including the times Steward holds back.</p></div>
+      </section>
       <section className="lp-demo-wrap"><TenSecondDemo /></section>
       <section className="lp-bottom"><div><span className="lp-kicker">READY TO START WITH YOUR RULES?</span><h2>Make every decision<br /><em>answerable.</em></h2><RouteLink className="lp-text-link" href="/guide">Read how Steward works <ArrowUpRight size={16} /></RouteLink></div><RouteLink className="lp-button-primary" href="/workspace">Open your workspace <ArrowRight size={17} /></RouteLink></section>
     </main><footer className="lp-footer"><span>© {new Date().getFullYear()} Stock Steward</span><span><RouteLink href="/privacy">Privacy</RouteLink> · <RouteLink href="/terms">Terms</RouteLink> · Review-first · Broker disconnected</span></footer>

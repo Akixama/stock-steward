@@ -77,7 +77,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   if (snapshot && contract && mandate.version && Number.isSafeInteger(amountCents) && amountCents > 0) {
     try { preview = purchasePreview(snapshot, contract, amountCents, mandate); } catch { /* Invalid input shows no checks. */ }
   }
-  return <section className="ws-check-panel ws-chain-panel" aria-busy={busy}>
+  return <section id="ws-chain-panel" className="ws-check-panel ws-chain-panel" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
       <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
       {connected?<button className="ws-recheck" onClick={()=>{clear();setSelectedProvider(undefined);}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setSelectedProvider(p);setAddress(address);setConnected(true);}}/>}</div>

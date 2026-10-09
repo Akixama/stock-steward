@@ -242,7 +242,7 @@ export default function BrokerPanel({ status, mandate, onOpenMandate }: {
     }
   }
 
-  return <section className="ws-broker-panel" aria-labelledby="ws-broker-title">
+  return <section id="ws-broker-panel" className="ws-broker-panel" aria-labelledby="ws-broker-title">
     <div className="ws-broker-panel-head"><div><span className="ws-label">BROKER CONNECTION</span>
       <h2 id="ws-broker-title">{status ? `${status.environment === "paper" ? "Paper" : "Live"} account connected.` : "Connect an account to inspect it."}</h2>
       <p>{status ? "Alpaca account data can be checked here. This panel only reads and never submits an order." : "Practice works without a broker. Connect Alpaca separately when you want to test account reads."}</p>

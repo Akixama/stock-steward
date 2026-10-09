@@ -29,7 +29,7 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
     }catch(e){if(version===ticket.current)setError(e instanceof Error ? e.message:'Check unavailable.');}
     finally{if(version===ticket.current)setBusy(false);}
   }
-  return <section className="ws-check-panel ws-autonomy-panel">
+  return <section id="ws-autonomy-panel" className="ws-check-panel ws-autonomy-panel">
     <div className="ws-account-head"><div><span className="ws-label"><ShieldCheck size={14}/> AUTONOMOUS STEWARD / READINESS</span>
       <h2>Let it act. Keep the limits.</h2><p>Autonomy is the destination. Before it can spend, Steward must prove its authority, route and budget. Inspect what is ready and what still blocks it.</p></div>
       <span className="ws-autonomy-state"><CirclePause size={16}/> Execution inactive</span></div>
