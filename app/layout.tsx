@@ -7,7 +7,7 @@ import { RouteStage } from "@/components/route-transition";
 
 export const metadata: Metadata = {
   title: "Stock Steward — know what happened and why",
-  description: "A clear decision trail for stock investing boundaries and broker-confirmed orders.",
+  description: "A clear decision trail for stock investing boundaries and onchain-confirmed buys.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
