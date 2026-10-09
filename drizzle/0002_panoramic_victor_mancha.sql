@@ -1,0 +1,1 @@
+ALTER TABLE `broker_connections` ADD `trading_scope` integer DEFAULT false NOT NULL;

@@ -1,0 +1,4 @@
+.route-stage{min-height:100vh;animation:route-arrive .34s cubic-bezier(.23,1,.32,1) both;transition:opacity .17s ease,transform .17s ease}
+.route-leaving .route-stage{opacity:0;transform:translateY(-7px)}
+@keyframes route-arrive{from{opacity:.25;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.route-stage{animation:none;transition:none}.route-leaving .route-stage{opacity:1;transform:none}}

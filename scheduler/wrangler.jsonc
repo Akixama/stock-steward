@@ -1,0 +1,15 @@
+{
+  "name": "stock-steward-scheduler",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-02",
+  "workers_dev": false,
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "vars": {
+    "STEWARD_TICK_URL": "https://stock-steward.stock-steward-be4a66a9.workers.dev/api/internal/autonomy/tick"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

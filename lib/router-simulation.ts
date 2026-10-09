@@ -1,0 +1,20 @@
+import {keccak256,type Hex} from 'viem';import {CHAIN} from './robinhood-chain.ts';import {routerCandidate} from './router-candidate.ts';import type {RouteEvidence} from './chain-route.ts';
+export type RouterSimulation={state:'call_succeeded'|'reverted'|'unavailable'|'expired';intentDigest:string|null;calldataHash:string|null;blockHash:string;codeHash:string|null;estimatedExecutionGas:string|null;revertSelector:string|null;observedAt:string;sourceRevision:string;delegatedAccountVerified:false;executionEnabled:false;why:string};
+export async function simulateRouter(route:RouteEvidence,version:number|null,expectedCodeHash:string|null,fetcher:typeof fetch=fetch):Promise<RouterSimulation>{
+ const result:RouterSimulation={state:'unavailable',intentDigest:null,calldataHash:null,blockHash:route.blockHash,codeHash:null,estimatedExecutionGas:null,revertSelector:null,observedAt:new Date().toISOString(),sourceRevision:'universal-router/2.1.2; v4-periphery/545a5d2a87228167edde48f3b9eda122d1e3c4d6',delegatedAccountVerified:false,executionEnabled:false,why:'A direct-router call is not a delegated-account simulation, spending permission or complete fee estimate.'};
+ if(Date.now()>=Date.parse(route.expiresAt)){result.state='expired';return result;}
+ let id=0;async function rpc(method:string,params:unknown[]){const serial=++id;const response=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:serial,method,params}),signal:AbortSignal.timeout(10000),cache:'no-store'});if(!response.ok)throw Error('RPC unavailable');const body=await response.json() as {id:number;result?:unknown;error?:{code?:number;data?:unknown}};if(body.id!==serial)throw Error('RPC identity mismatch');return body;}
+ try{
+ const candidate=routerCandidate(route,version);result.intentDigest=candidate.intentDigest;result.calldataHash=candidate.calldataHash;
+ const chain=await rpc('eth_chainId',[]);if(chain.error||chain.result!==CHAIN.hex)throw Error('Wrong network');
+ const header=await rpc('eth_getBlockByNumber',[route.block,false]);if(header.error||(header.result as {hash?:string})?.hash!==route.blockHash)throw Error('Block unavailable');
+ const code=await rpc('eth_getCode',[candidate.to,route.block]);if(code.error||typeof code.result!=='string'||!/^0x(?:[0-9a-f]{2})+$/i.test(code.result))throw Error('Code unavailable');result.codeHash=keccak256(code.result as Hex);if(!expectedCodeHash||result.codeHash!==expectedCodeHash)throw Error('Code fingerprint mismatch');
+ const call={from:candidate.from,to:candidate.to,data:candidate.data,value:candidate.value};const response=await rpc('eth_call',[call,route.block]);
+ if(response.error){const data=response.error.data;if(typeof data==='string'&&/^0x[0-9a-f]{8}/i.test(data)){result.state='reverted';result.revertSelector=data.slice(0,10);result.why='The candidate reverted at the recorded block. Funds, allowances, token restrictions or route conditions may prevent it; no transaction was sent.';}else throw Error('Call evidence unavailable');}
+ else if(response.result==='0x'){result.state='call_succeeded';const gas=await rpc('eth_estimateGas',[call,route.block]);if(!gas.error&&typeof gas.result==='string'&&/^0x[0-9a-f]+$/i.test(gas.result)&&BigInt(gas.result)>0n)result.estimatedExecutionGas=BigInt(gas.result).toString();}
+ else throw Error('Unexpected call result');
+ const canonical=await rpc('eth_getBlockByNumber',[route.block,false]);if(canonical.error||(canonical.result as {hash?:string})?.hash!==route.blockHash)throw Error('Block changed');
+ if(Date.now()>=Date.parse(route.expiresAt)){result.state='expired';result.estimatedExecutionGas=null;result.why='Evidence expired during simulation; re-inspect the route. No transaction was sent.';}
+ }catch{result.state='unavailable';result.estimatedExecutionGas=null;result.revertSelector=null;result.why='Direct-router simulation evidence is unavailable or inconsistent. No success or spending conclusion was made.';}
+ result.observedAt=new Date().toISOString();return result;
+}

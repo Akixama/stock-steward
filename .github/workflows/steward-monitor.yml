@@ -1,0 +1,26 @@
+name: Steward read-only monitor
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: steward-read-only-monitor
+  cancel-in-progress: false
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the read-only worker
+        env:
+          STEWARD_WORKER_KEY: ${{ secrets.STEWARD_WORKER_KEY }}
+        run: |
+          node --input-type=module <<'JS'
+          if (!process.env.STEWARD_WORKER_KEY) throw new Error('Worker secret is not configured.');
+          const response = await fetch('https://stock-steward-brokerage.allianjola.chatgpt.site/api/internal/autonomy/tick', {
+            method: 'POST', headers: { Authorization: `Bearer ${process.env.STEWARD_WORKER_KEY}` },
+            signal: AbortSignal.timeout(240000), redirect: 'error',
+          });
+          if (!response.ok) throw new Error(`Worker returned HTTP ${response.status}. No transaction was submitted.`);
+          const result = await response.json();
+          console.log(JSON.stringify({ summary: result.summary, spendingEnabled: result.spendingEnabled }));
+          JS

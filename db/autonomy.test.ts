@@ -1,0 +1,20 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';
+import {reserveSpend,listAutonomyRuns,saveAutonomyRun} from './autonomy.ts';
+import {autonomyReadiness} from '../lib/autonomy.ts';
+test('actual SQLite reservations retain unknown spend, reject duplicates and isolate owners and history',async()=>{
+  const sql=new DatabaseSync(':memory:');sql.exec('CREATE TABLE autonomy_spends(owner_ref TEXT,address TEXT,execution_day TEXT,intent_id TEXT,amount_cents INTEGER,state TEXT,PRIMARY KEY(owner_ref,address,intent_id)); CREATE TABLE autonomy_runs(id TEXT PRIMARY KEY,owner_ref TEXT,address TEXT,receipt_json TEXT,created_at TEXT);');
+  const db={prepare(query:string){return {bind(...args:(string|number)[]){return {async run(){return {meta:{changes:Number(sql.prepare(query).run(...args).changes)}};},async all(){return {results:sql.prepare(query).all(...args)};}};}};}} as unknown as D1Database;
+  const a='0x'+'a'.repeat(40),day='2026-09-26';
+  assert.equal(await reserveSpend(db,'alice',a,day,'one',60,100),true);
+  assert.equal(await reserveSpend(db,'alice',a,day,'one',60,100),false);
+  sql.exec("UPDATE autonomy_spends SET state='unknown'");
+  assert.equal(await reserveSpend(db,'alice',a,day,'two',41,100),false);
+  assert.equal(await reserveSpend(db,'alice',a,day,'three',40,100),true);
+  assert.equal(await reserveSpend(db,'bob',a,day,'one',100,100),true);
+  assert.equal(await reserveSpend(db,'alice',a,'2026-09-27','four',100,100),false);
+  sql.exec("UPDATE autonomy_spends SET state='confirmed' WHERE owner_ref='alice'");
+  assert.equal(await reserveSpend(db,'alice',a,'2026-09-27','four',100,100),true);
+  await saveAutonomyRun(db,'alice',autonomyReadiness(a,null,null));
+  assert.equal((await listAutonomyRuns(db,'alice')).length,1);assert.deepEqual(await listAutonomyRuns(db,'bob'),[]);
+  sql.close();
+});
