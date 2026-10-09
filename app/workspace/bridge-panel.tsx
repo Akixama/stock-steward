@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { ArrowDown, Check, Loader2 } from 'lucide-react';
 import type { WalletProvider } from '@/lib/browser-wallet';
+import WalletConnect from './wallet-connect';
 import { BRIDGE_DESTINATIONS, BRIDGE_SOURCES, formatTokenAmount, parseBridgeAmount, type BridgeQuote } from '@/lib/bridge';
 
 // In-Steward bridging: quote, sign and track a transfer to Robinhood Chain using
@@ -156,7 +157,10 @@ export default function BridgePanel({ provider, address }: {
   }
 
   return <div className="ws-bridge-fancy">
-    {!connected && <p className="ws-chain-note">Connect and verify your wallet above first — the bridge sends only to your own address.</p>}
+    {!connected && <div className="ws-bridge-connect">
+      <p className="ws-chain-note">Connect your wallet to unlock the bridge — it sends only to your own address. No signature needed to connect.</p>
+      <WalletConnect disabled={busy} onConnected={() => { setError(''); }} />
+    </div>}
     <ol className="ws-bridge-steps" aria-label="Bridge progress">
       {['Quote', 'Sign', 'Arrive'].map((label, index) => <li key={label} className={stage > index ? 'done' : stage === index ? 'now' : ''}>
         <span>{stage > index ? <Check size={13} /> : index + 1}</span>{label}</li>)}

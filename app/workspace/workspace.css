@@ -414,3 +414,5 @@
 .ws-bridge-meta{margin:0;color:#9c9b97;font-size:.74rem;line-height:1.6}
 @media(max-width:640px){.ws-bridge-form{grid-template-columns:1fr}.ws-bridge-steps li{font-size:0;justify-content:center}.ws-bridge-steps li span{margin:0}}
 @media(prefers-reduced-motion:reduce){.ws-bridge-lane.live span,.ws-spin{animation:none}}
+.ws-bridge-connect{display:grid;gap:10px;padding:14px;border:1px dashed #4a4947;border-radius:12px;background:#141312}
+.ws-bridge-cta:disabled{opacity:.45;cursor:not-allowed}
