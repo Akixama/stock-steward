@@ -115,10 +115,12 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     {notice && <p className="ws-chain-brief" role="status">{notice}</p>}
     {snapshot && <div className="ws-account-evidence">
       <span className="ws-label">{shorten(snapshot.address)} · OBSERVED {when(snapshot.observedAt)}</span>
-      <div className="ws-account-numbers"><div><span>ETH on Robinhood Chain</span><strong title={snapshot.eth+' ETH'}>{snapshot.eth.split('.')[0]}{snapshot.eth.includes('.')?'.'+snapshot.eth.split('.')[1].slice(0,4):''}</strong><small>ETH · used for network fees. Exact balance in evidence.</small></div>
-        <div><span>Supported stock holdings</span><strong>{snapshot.holdings.length}</strong><small>{snapshot.pricedCount} of {snapshot.holdings.length} holdings have indicative prices.</small></div>
-        <div><span>{historical ? "Historical stock value" : "Estimated stock value"}</span><strong>{usdMicro(snapshot.subtotalMicroUsd)}</strong><small>Supported stocks only · excludes ETH and other assets.</small></div></div>
-      <div className="ws-chain-brief"><strong>What needs attention</strong>{snapshot.alerts.map((alert, i) => <p key={i}>{alert}</p>)}</div>
+      <div className="ws-account-numbers ws-account-numbers-four">
+        <div><span>ETH · gas</span><strong title={snapshot.eth+' ETH'}>{snapshot.eth.split('.')[0]}{snapshot.eth.includes('.')?'.'+snapshot.eth.split('.')[1].slice(0,4):''}</strong><small>Network fees. Exact balance in evidence.</small></div>
+        <div><span>USDG · buying power</span><strong title={(snapshot.usdg ?? 'unknown')+' USDG'}>{snapshot.usdg == null ? '—' : snapshot.usdg.includes('.') ? snapshot.usdg.split('.')[0] + '.' + snapshot.usdg.split('.')[1].slice(0, 2).padEnd(2, '0') : snapshot.usdg}</strong><small>{snapshot.usdg == null ? 'Balance unreadable at this block.' : 'The chain’s dollar. Exact balance in evidence.'}</small></div>
+        <div><span>Stock holdings</span><strong>{snapshot.holdings.length}</strong><small>{snapshot.pricedCount} of {snapshot.holdings.length} have indicative prices.</small></div>
+        <div><span>{historical ? "Historical stock value" : "Stock value"}</span><strong>{usdMicro(snapshot.subtotalMicroUsd)}</strong><small>Supported stocks only.</small></div></div>
+      <div className="ws-chain-brief"><strong>What needs attention</strong><ul className="ws-alert-list">{snapshot.alerts.map((alert, i) => <li key={i}>{alert}</li>)}</ul></div>
       {previous && <div className="ws-chain-brief"><strong>What changed since {when(previous.observedAt)}</strong>{compareObservations(snapshot, previous).map((line, i) => <p key={i}>{line}</p>)}</div>}
       <div className="ws-chain-holdings">{snapshot.holdings.length ? snapshot.holdings.map(holding => {
         const price = snapshot.prices[holding.contract];
@@ -129,7 +131,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
           <p>State when observed: {price?.state ?? "unavailable"} · Generated {price?.generatedAt ? when(price.generatedAt) : "unknown"}</p>
           <p>Underlying bid / ask: {price?.bid ?? "—"} / {price?.ask ?? "—"} USD.</p><p>{price?.reason}</p>
         </details>;
-      }) : <p>{snapshot.failures ? "No positive holdings confirmed in the successful reads; coverage is incomplete." : "No supported stock tokens held at the observed block."}</p>}</div>
+      }) : <div className="ws-empty-holdings"><strong>No stock tokens here yet.</strong><p>{snapshot.failures ? "Some reads failed, so this is not proof of zero holdings — but no positive balance was confirmed." : "This wallet holds no supported stock tokens at the observed block. Fund it and buy your first one to see it here."}</p></div>}</div>
       {snapshot.holdings.length > 0 && <div className="ws-chain-preview"><span className="ws-label">WHAT IF / HYPOTHETICAL PURCHASE</span><h3>Check before you act.</h3>
         <p>Would this purchase fit your saved rules? Choose a holding and enter an amount to preview the checks. Uses saved mandate v{mandate.version || "—"}; save any changes in Mandate first.</p><p>A failed check blocks the proposal. Pending means more evidence is needed. Passing individual checks does not authorize a trade.</p>
         <div className="ws-check-fields"><label>Observed stock token<select value={contract} onChange={e => setContract(e.target.value)}>{snapshot.holdings.map(h => <option key={h.contract} value={h.contract}>{h.symbol} · {shorten(h.contract)}</option>)}</select></label>
@@ -138,11 +140,17 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
         {mandate.version > 0 && !preview && <p>Enter a positive amount with at most two decimal places.</p>}
         {preview?.checks.map(check => <div className={`ws-receipt-check ws-partial-${check.state}`} key={check.label}><b>{check.state.toUpperCase()}</b><span><strong>{check.label}</strong><small>{check.detail}</small></span></div>)}
         <p>No order is prepared, signed or sent. Automatic spending is unavailable.</p></div>}
-      <details className="ws-chain-evidence"><summary>Inspect observation evidence</summary><p>ID: {snapshot.id}</p><p>Exact ETH balance: {snapshot.eth} ETH. The summary truncates to four decimal places.</p><p>Source: {snapshot.source} plus official Robinhood quote API</p>
-        <p>Address: {snapshot.address} · Chain {snapshot.chainId}</p><p>Block <a href={`${CHAIN.explorer}/block/${BigInt(snapshot.block).toString()}`} target="_blank" rel="noreferrer">{BigInt(snapshot.block).toString()}</a>. Same-block balances; finality is not guaranteed.</p>
-        <p>{snapshot.scanned} supported contracts scanned · {snapshot.failures} failed balance reads. Failures do not prove zero holdings.</p>
-        <p>Quotes are excluded if more than two minutes old, halted, mismatched or missing a valid multiplier. Prices are indicative midpoints, not swap quotes. At most 20 held tokens are priced per scan.</p>
-        <a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official data documentation ↗</a></details>
+      <details className="ws-chain-evidence"><summary>Inspect observation evidence</summary>
+        <dl className="ws-evidence-table">
+          <div><dt>Record</dt><dd>{snapshot.id}</dd></div>
+          <div><dt>ETH</dt><dd>{snapshot.eth} ETH</dd></div>
+          <div><dt>USDG</dt><dd>{snapshot.usdg == null ? 'Unreadable at this block' : `${snapshot.usdg} USDG`}</dd></div>
+          <div><dt>Wallet</dt><dd>{snapshot.address} · Chain {snapshot.chainId}</dd></div>
+          <div><dt>Block</dt><dd><a href={`${CHAIN.explorer}/block/${BigInt(snapshot.block).toString()}`} target="_blank" rel="noreferrer">{BigInt(snapshot.block).toString()}</a> · same-block balances; finality is not guaranteed</dd></div>
+          <div><dt>Coverage</dt><dd>{snapshot.scanned} contracts scanned · {snapshot.failures} failed reads (failures do not prove zero holdings)</dd></div>
+          <div><dt>Prices</dt><dd>Indicative midpoints, not swap quotes · quotes older than two minutes, halted, mismatched or multiplier-less are excluded · at most 20 held tokens priced per scan</dd></div>
+          <div><dt>Source</dt><dd>{snapshot.source} plus official Robinhood quote API · <a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official data documentation ↗</a></dd></div>
+        </dl></details>
       <p>Optional monitoring and ownership verification are in Autonomy. Live spending remains inactive.</p>
     </div>}
     {history.length > 0 && <div className="ws-chain-history"><span className="ws-label">YOUR SAVED OBSERVATIONS / LATEST 20</span>{history.map((record, i) => <div key={record.id}>

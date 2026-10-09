@@ -11,7 +11,7 @@ function quote(changes: Record<string, unknown> = {}) { return { quotes:[{tokenS
   currency:"USD",bid:"99",ask:"101",isTradingHalt:false,generatedAt:new Date(now).toISOString(),...changes}] }; }
 const mandate: Mandate = { version:1,allowedSymbols:["AAPL"],maxOrderCents:100,maxDailyBuyCents:200,maxPositionBps:2000,requireApproval:true };
 const base: ChainObservation = { address:contract,chainId:4663,block:"0x42",observedAt:new Date(now).toISOString(),
-  eth:"0",scanned:195,holdings:[holding],failures:0,source:"test" };
+  eth:"0",usdg:"17.36",scanned:195,holdings:[holding],failures:0,source:"test" };
 test("valuation applies multiplier exactly once with precise decimal math",()=>{
   assert.equal(parseUsdCents("1.01"),101);
   assert.equal(parseUsdCents("90071992547409.91"),Number.MAX_SAFE_INTEGER);
