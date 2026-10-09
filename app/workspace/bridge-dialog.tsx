@@ -16,7 +16,7 @@ export default function BridgeDialog({ provider, address }: {
   return <div className="ws-bridge-embed">
     <div className="ws-bridge-teaser">
       <div><strong>Bridge without leaving Steward</strong>
-      <p>Destination is locked: USDG on Robinhood Chain · to {short}. You sign every transfer in your own wallet.</p></div>
+      <p>Destination is locked to Robinhood Chain · to {short}: USDG for buying power, ETH for gas. You sign every transfer in your own wallet.</p></div>
       <button type="button" className="ws-action-primary" onClick={() => setOpen(true)}>Open the bridge <ArrowUpRight size={16} /></button>
     </div>
     <Dialog.Root open={open} onOpenChange={setOpen}>

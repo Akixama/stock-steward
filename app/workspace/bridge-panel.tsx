@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import type { WalletProvider } from '@/lib/browser-wallet';
-import { BRIDGE_SOURCES, formatUsdg, parseBridgeAmount, type BridgeQuote } from '@/lib/bridge';
+import { BRIDGE_DESTINATIONS, BRIDGE_SOURCES, formatTokenAmount, parseBridgeAmount, type BridgeQuote } from '@/lib/bridge';
 
 // In-Steward bridging: quote, sign and track a transfer to USDG on Robinhood Chain
 // using the wallet already connected above. Every transaction is signed in the
@@ -18,6 +18,7 @@ export default function BridgePanel({ provider, address }: {
 }) {
   const [chainId, setChainId] = useState(1);
   const [tokenSymbol, setTokenSymbol] = useState<'ETH' | 'USDC'>('ETH');
+  const [destinationSymbol, setDestinationSymbol] = useState<'USDG' | 'ETH'>('USDG');
   const [amount, setAmount] = useState('');
   const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,6 +29,7 @@ export default function BridgePanel({ provider, address }: {
 
   const source = BRIDGE_SOURCES.find((candidate) => candidate.chainId === chainId)!;
   const token = source.tokens.find((candidate) => candidate.symbol === tokenSymbol)!;
+  const destination = BRIDGE_DESTINATIONS.find((candidate) => candidate.symbol === destinationSymbol)!;
   const connected = !!provider && /^0x[0-9a-f]{40}$/i.test(address);
 
   async function getQuote() {
@@ -37,7 +39,7 @@ export default function BridgePanel({ provider, address }: {
       const fromAmountRaw = parseBridgeAmount(amount, token.decimals);
       const response = await fetch('/api/workspace/bridge/quote', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fromChainId: source.chainId, fromToken: token.address, fromAmountRaw, fromAddress: address }),
+        body: JSON.stringify({ fromChainId: source.chainId, fromToken: token.address, fromAmountRaw, fromAddress: address, toToken: destination.token }),
       });
       const payload = await response.json() as { quote?: BridgeQuote; error?: string };
       if (!response.ok || !payload.quote) throw new Error(payload.error ?? 'Bridge quote unavailable.');
@@ -152,6 +154,10 @@ export default function BridgePanel({ provider, address }: {
         onChange={(event) => { setTokenSymbol(event.target.value as 'ETH' | 'USDC'); setQuote(null); }}>
         {source.tokens.map((candidate) => <option key={candidate.symbol} value={candidate.symbol}>{candidate.symbol}</option>)}
       </select></label>
+      <label>Receive on Robinhood Chain<select value={destinationSymbol} disabled={busy}
+        onChange={(event) => { setDestinationSymbol(event.target.value as 'USDG' | 'ETH'); setQuote(null); }}>
+        {BRIDGE_DESTINATIONS.map((candidate) => <option key={candidate.symbol} value={candidate.symbol}>{candidate.symbol} · {candidate.blurb}</option>)}
+      </select></label>
       <label>Amount<input value={amount} disabled={busy} inputMode="decimal" placeholder="0.01"
         onChange={(event) => { setAmount(event.target.value); setQuote(null); }} /></label>
       <button type="button" onClick={getQuote} disabled={!connected || busy || !amount.trim()}>
@@ -159,7 +165,7 @@ export default function BridgePanel({ provider, address }: {
     </div>
     {quote && <div className="ws-order-plan">
       <span>QUOTE · VIA {quote.tool.toUpperCase()}</span>
-      <strong>You receive ≈ {formatUsdg(quote.toAmountRaw)} USDG on Robinhood Chain{quote.toAmountUSD ? ` (≈ $${quote.toAmountUSD})` : ''}</strong>
+      <strong>You receive ≈ {formatTokenAmount(quote.toAmountRaw, destination.decimals)} {destination.symbol} on Robinhood Chain{quote.toAmountUSD ? ` (≈ $${quote.toAmountUSD})` : ''}</strong>
       <p>To your wallet {address.slice(0, 6)}…{address.slice(-4)}. Nothing else can receive it.
         {quote.estimatedSeconds ? ` Usually lands in about ${Math.max(1, Math.round(quote.estimatedSeconds / 60))} minutes.` : ''}</p>
       {!txHash && <button type="button" className="ws-action-primary" onClick={signBridge} disabled={busy}>
