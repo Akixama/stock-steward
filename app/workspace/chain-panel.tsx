@@ -7,6 +7,7 @@ import { compareObservations, purchasePreview, parseUsdCents, type PricedObserva
 import type { Mandate } from "@/lib/decision";
 
 const valid = (s: string) => /^0x[0-9a-f]{40}$/i.test(s);
+const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
 const shorten = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
 const when = (s: string) => new Date(s).toLocaleString();
 function usdMicro(value: string) {
@@ -95,6 +96,18 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>Load saved observations</button>
       <span>Robinhood mainnet 4663 · reads limited to once per 15 seconds</span></div>
     <p className="ws-chain-note">Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p>
+    <details className="ws-chain-fund">
+      <summary>Get funds onto Robinhood Chain</summary>
+      <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
+      <div className="ws-chain-fund-options">
+        <a className="ws-recheck" target="_blank" rel="noreferrer"
+          href={`https://jumper.exchange/?toChain=4663&toToken=${USDG}${valid(address) ? `&toAddress=${address}` : ""}`}>Bridge with Jumper ↗</a>
+        <a className="ws-recheck" target="_blank" rel="noreferrer"
+          href={`https://relay.link/bridge?toChainId=4663&toCurrency=${USDG}${valid(address) ? `&toAddress=${address}` : ""}`}>Bridge with Relay ↗</a>
+        <a className="ws-recheck" target="_blank" rel="noreferrer" href="https://docs.robinhood.com/chain/bridging/">Official bridging guide ↗</a>
+      </div>
+      <small>Arriving with USDC or another token? Swap to USDG in the same bridge app after it lands. Then press Observe & save here.</small>
+    </details>
     {error && <p className="ws-error" role="alert">{error}{snapshot && " Previous evidence below was not refreshed."}</p>}
     {notice && <p className="ws-chain-brief" role="status">{notice}</p>}
     {snapshot && <div className="ws-account-evidence">

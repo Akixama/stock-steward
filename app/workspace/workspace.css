@@ -348,3 +348,10 @@
 .ws-start-steps button{transition:background-color .18s ease,transform .22s var(--ws-ease),border-color .18s ease}
 @media(hover:hover){.ws-start-steps button:hover{transform:translateY(-3px);border-color:#6b6a68;background:#1e1d1b}}
 @media(prefers-reduced-motion:reduce){.ws-start-steps button:hover{transform:none}}
+.ws-chain-fund{margin:16px 0;padding:16px 18px;border:1px solid #474644;border-radius:12px;background:#1c1b19}
+.ws-chain-fund summary{cursor:pointer;font-weight:700;color:#ecebe9;font-size:.92rem}
+.ws-chain-fund p{color:#b7b6b4;font-size:.8rem;line-height:1.65;max-width:640px}
+.ws-chain-fund-options{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.ws-chain-fund-options a{text-decoration:none}
+.ws-chain-fund small{color:#8f8e8c;display:block;line-height:1.6}
+@media(max-width:640px){.ws-chain-fund-options{flex-direction:column}}
