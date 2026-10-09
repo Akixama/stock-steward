@@ -369,3 +369,5 @@
 .ws-status-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0 6px;padding:16px 20px;border:1px solid #b8e62e55;border-radius:14px;background:#14130f}
 .ws-status-strip strong{display:block;margin-top:4px;color:#f1f0ed;font-size:.86rem}
 @media(max-width:700px){.ws-status-strip{grid-template-columns:1fr}}
+.ws-bridge-dialog{width:min(620px,calc(100vw - 32px))}
+.ws-bridge-dialog .MuiBox-root{max-width:100%}
