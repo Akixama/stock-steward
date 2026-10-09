@@ -441,3 +441,7 @@
 .ws-install-gate p{margin:0;color:#a9a8a4;font-size:.8rem;line-height:1.6;max-width:560px}
 .ws-install-gate button{justify-self:start;margin-top:6px}
 #ws-ownership{scroll-margin-top:120px}
+.ws-wallet-setup{display:grid;gap:12px;padding:22px;border:1px solid #3c3b39;border-radius:16px;background:#171614;margin:18px 0}
+.ws-wallet-setup h3{margin:6px 0 0;font-size:1.4rem;letter-spacing:-.02em}
+.ws-wallet-setup>p{margin:0;color:#a9a8a4;font-size:.8rem;line-height:1.6;max-width:600px}
+.ws-wallet-setup .ws-bridge-steps{margin-top:6px}
