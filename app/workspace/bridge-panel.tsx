@@ -1,16 +1,27 @@
 'use client';
 import { useState } from 'react';
+import { ArrowDown, Check, Loader2 } from 'lucide-react';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import { BRIDGE_DESTINATIONS, BRIDGE_SOURCES, formatTokenAmount, parseBridgeAmount, type BridgeQuote } from '@/lib/bridge';
 
-// In-Steward bridging: quote, sign and track a transfer to USDG on Robinhood Chain
-// using the wallet already connected above. Every transaction is signed in the
-// owner's own wallet; the server only fetches quotes and tracks status.
+// In-Steward bridging: quote, sign and track a transfer to Robinhood Chain using
+// the wallet already connected above. Every transaction is signed in the owner's
+// own wallet; the server only fetches quotes and tracks status.
 
 const NATIVE = '0x0000000000000000000000000000000000000000';
+const TOKEN_STYLE: Record<string, { glyph: string; tint: string }> = {
+  ETH: { glyph: 'Ξ', tint: '#8a9cff' },
+  USDC: { glyph: '$', tint: '#4aa8ff' },
+  USDG: { glyph: 'G', tint: '#b8e62e' },
+};
 
 async function rpc<T>(provider: WalletProvider, method: string, params?: unknown[]): Promise<T> {
   return await provider.request({ method, params }) as T;
+}
+
+function TokenBadge({ symbol, size = 40 }: { symbol: string; size?: number }) {
+  const style = TOKEN_STYLE[symbol] ?? { glyph: symbol.slice(0, 1), tint: '#b8b7b5' };
+  return <span className="ws-token-badge" style={{ width: size, height: size, fontSize: size * 0.52, ['--token-tint' as string]: style.tint }} aria-hidden="true">{style.glyph}</span>;
 }
 
 export default function BridgePanel({ provider, address }: {
@@ -31,6 +42,7 @@ export default function BridgePanel({ provider, address }: {
   const token = source.tokens.find((candidate) => candidate.symbol === tokenSymbol)!;
   const destination = BRIDGE_DESTINATIONS.find((candidate) => candidate.symbol === destinationSymbol)!;
   const connected = !!provider && /^0x[0-9a-f]{40}$/i.test(address);
+  const stage = done ? 3 : txHash ? 2 : quote ? 1 : 0;
 
   async function getQuote() {
     if (!connected || busy) return;
@@ -143,34 +155,47 @@ export default function BridgePanel({ provider, address }: {
     setTracked('Still watching. Keep this tab open — the arrival can take several minutes. Your transaction hash is saved above.');
   }
 
-  return <div className="ws-bridge-sign">
+  return <div className="ws-bridge-fancy">
     {!connected && <p className="ws-chain-note">Connect and verify your wallet above first — the bridge sends only to your own address.</p>}
-    <div className="ws-check-fields">
-      <label>From chain<select value={chainId} disabled={busy}
-        onChange={(event) => { setChainId(Number(event.target.value)); setQuote(null); }}>
-        {BRIDGE_SOURCES.map((candidate) => <option key={candidate.chainId} value={candidate.chainId}>{candidate.chainName}</option>)}
+    <ol className="ws-bridge-steps" aria-label="Bridge progress">
+      {['Quote', 'Sign', 'Arrive'].map((label, index) => <li key={label} className={stage > index ? 'done' : stage === index ? 'now' : ''}>
+        <span>{stage > index ? <Check size={13} /> : index + 1}</span>{label}</li>)}
+    </ol>
+    <div className="ws-bridge-route">
+      <div className="ws-bridge-end">
+        <TokenBadge symbol={token.symbol} />
+        <div><strong>{amount.trim() || '0.00'} {token.symbol}</strong><small>{source.chainName}</small></div>
+      </div>
+      <div className={`ws-bridge-lane${quote ? ' live' : ''}`} aria-hidden="true"><span /><ArrowDown size={15} /></div>
+      <div className="ws-bridge-end">
+        <TokenBadge symbol={destination.symbol} />
+        <div><strong>{quote ? `${formatTokenAmount(quote.toAmountRaw, destination.decimals)} ${destination.symbol}` : `… ${destination.symbol}`}</strong><small>Robinhood Chain · {destination.blurb}</small></div>
+      </div>
+    </div>
+    <div className="ws-bridge-form">
+      <label>From<select value={`${chainId}:${tokenSymbol}`} disabled={busy || !!txHash}
+        onChange={(event) => {
+          const [nextChain, nextToken] = event.target.value.split(':');
+          setChainId(Number(nextChain)); setTokenSymbol(nextToken as 'ETH' | 'USDC'); setQuote(null);
+        }}>
+        {BRIDGE_SOURCES.flatMap((candidate) => candidate.tokens.map((candidateToken) =>
+          <option key={`${candidate.chainId}:${candidateToken.symbol}`} value={`${candidate.chainId}:${candidateToken.symbol}`}>{candidateToken.symbol} on {candidate.chainName}</option>))}
       </select></label>
-      <label>Token<select value={tokenSymbol} disabled={busy}
-        onChange={(event) => { setTokenSymbol(event.target.value as 'ETH' | 'USDC'); setQuote(null); }}>
-        {source.tokens.map((candidate) => <option key={candidate.symbol} value={candidate.symbol}>{candidate.symbol}</option>)}
-      </select></label>
-      <label>Receive on Robinhood Chain<select value={destinationSymbol} disabled={busy}
+      <label>To<select value={destinationSymbol} disabled={busy || !!txHash}
         onChange={(event) => { setDestinationSymbol(event.target.value as 'USDG' | 'ETH'); setQuote(null); }}>
         {BRIDGE_DESTINATIONS.map((candidate) => <option key={candidate.symbol} value={candidate.symbol}>{candidate.symbol} · {candidate.blurb}</option>)}
       </select></label>
-      <label>Amount<input value={amount} disabled={busy} inputMode="decimal" placeholder="0.01"
+      <label className="ws-bridge-amount">Amount<input value={amount} disabled={busy || !!txHash} inputMode="decimal" placeholder="0.01"
         onChange={(event) => { setAmount(event.target.value); setQuote(null); }} /></label>
-      <button type="button" onClick={getQuote} disabled={!connected || busy || !amount.trim()}>
-        {busy && !quote ? 'Finding a route…' : 'Get a quote'}</button>
+      {!quote
+        ? <button type="button" className="ws-action-primary ws-bridge-cta" onClick={getQuote} disabled={!connected || busy || !amount.trim()}>
+            {busy ? <><Loader2 size={16} className="ws-spin" /> Finding the best route…</> : 'Get a quote'}</button>
+        : !txHash
+          ? <button type="button" className="ws-action-primary ws-bridge-cta" onClick={signBridge} disabled={busy}>
+              {busy ? <><Loader2 size={16} className="ws-spin" /> Waiting on your wallet…</> : `Sign the bridge · receive ${formatTokenAmount(quote.toAmountRaw, destination.decimals)} ${destination.symbol}`}</button>
+          : null}
     </div>
-    {quote && <div className="ws-order-plan">
-      <span>QUOTE · VIA {quote.tool.toUpperCase()}</span>
-      <strong>You receive ≈ {formatTokenAmount(quote.toAmountRaw, destination.decimals)} {destination.symbol} on Robinhood Chain{quote.toAmountUSD ? ` (≈ $${quote.toAmountUSD})` : ''}</strong>
-      <p>To your wallet {address.slice(0, 6)}…{address.slice(-4)}. Nothing else can receive it.
-        {quote.estimatedSeconds ? ` Usually lands in about ${Math.max(1, Math.round(quote.estimatedSeconds / 60))} minutes.` : ''}</p>
-      {!txHash && <button type="button" className="ws-action-primary" onClick={signBridge} disabled={busy}>
-        {busy ? 'Waiting on your wallet…' : 'Sign the bridge in my wallet'}</button>}
-    </div>}
+    {quote && !txHash && <p className="ws-bridge-meta">Via {quote.tool}{quote.toAmountUSD ? ` · ≈ $${quote.toAmountUSD}` : ''}{quote.estimatedSeconds ? ` · lands in about ${Math.max(1, Math.round(quote.estimatedSeconds / 60))} min` : ''}. To your wallet {address.slice(0, 6)}…{address.slice(-4)} — nothing else can receive it.</p>}
     {txHash && <p className="ws-chain-brief" role="status">Transfer sent: {txHash.slice(0, 10)}…{txHash.slice(-8)}</p>}
     {tracked && !done && <p className="ws-chain-brief" role="status">{tracked}</p>}
     {done && <div className="ws-chain-brief" role="status"><strong>Funds arrived.</strong><p>{tracked}</p></div>}
