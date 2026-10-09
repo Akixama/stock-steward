@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import WalletConnect from './wallet-connect';
 import { useWalletSession, shareWalletSession } from './wallet-session';
+import LifiBridge from './lifi-bridge';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
 import type { Mandate } from "@/lib/decision";
@@ -100,6 +101,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
       <summary>Get funds onto Robinhood Chain</summary>
       <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
       <div className="ws-chain-fund-options">
+        <LifiBridge address={address} />
         <a className="ws-recheck" target="_blank" rel="noreferrer"
           href={`https://jumper.exchange/?toChain=4663&toToken=${USDG}${valid(address) ? `&toAddress=${address}` : ""}`}>Bridge with Jumper ↗</a>
         <a className="ws-recheck" target="_blank" rel="noreferrer"

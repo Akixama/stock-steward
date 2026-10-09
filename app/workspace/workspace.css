@@ -355,3 +355,6 @@
 .ws-chain-fund-options a{text-decoration:none}
 .ws-chain-fund small{color:#8f8e8c;display:block;line-height:1.6}
 @media(max-width:640px){.ws-chain-fund-options{flex-direction:column}}
+.ws-lifi{display:grid;gap:10px;grid-column:1/-1;margin:6px 0 10px;padding:14px;border:1px solid #3a3937;border-radius:12px;background:#131211}
+.ws-lifi>button{justify-self:start}
+.ws-lifi small{color:#8f8e8c;line-height:1.6;max-width:640px}
