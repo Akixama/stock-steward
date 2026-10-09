@@ -96,7 +96,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
       <button onClick={read} disabled={busy || !valid(address)}>{busy ? "Reading evidence…" : "Observe & save"}</button></div>
     <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>Load saved observations</button>
       <span>Robinhood mainnet 4663 · reads limited to once per 15 seconds</span></div>
-    <p className="ws-chain-note">Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p>
+    <details className="ws-chain-note"><summary>About watching and saved records</summary><p>Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p></details>
     <details className="ws-chain-fund">
       <summary>Get funds onto Robinhood Chain</summary>
       <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
