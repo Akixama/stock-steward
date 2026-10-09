@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import WalletConnect from './wallet-connect';
+import { useWalletSession, shareWalletSession } from './wallet-session';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
 import type { Mandate } from "@/lib/decision";
 
-type Provider = { request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on?: (event: string, callback: () => void) => void; removeListener?: (event: string, callback: () => void) => void };
 const valid = (s: string) => /^0x[0-9a-f]{40}$/i.test(s);
 const shorten = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
 const when = (s: string) => new Date(s).toLocaleString();
@@ -15,6 +14,8 @@ function usdMicro(value: string) {
   return `$${(cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(cents % 100n).toString().padStart(2, "0")}`;
 }
 export default function ChainPanel({ mandate }: { mandate: Mandate }) {
+  const session = useWalletSession();
+  const connected = !!session;
   const [address, setAddress] = useState("");
   const [snapshot, setSnapshot] = useState<PricedObservation | null>(null);
   const [history, setHistory] = useState<PricedObservation[]>([]);
@@ -23,22 +24,28 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
   const [contract, setContract] = useState("");
   const [amount, setAmount] = useState("1.00");
   const generation = useRef(0);
-  const [selectedProvider,setSelectedProvider]=useState<Provider|undefined>();
-  const provider = () => selectedProvider;
   function clear() {
-    generation.current++; setSnapshot(null); setPrevious(null); setConnected(false);
+    generation.current++; setSnapshot(null); setPrevious(null);
     setAddress(""); setBusy(false); setError(null); setNotice(null); setContract("");
   }
+  // One wallet connection is shared with every panel. A wallet that joined in
+  // Autonomy (or anywhere) appears here immediately; a wallet-level account
+  // change drops the session and returns the panel to watch-only.
+  const sessionAddress = session?.address ?? "";
+  const lastSessionAddress = useRef("");
   useEffect(() => {
-    const p = provider();
-    const changed = () => { clear(); setError("Wallet account or network changed. Reconnect to observe the new address."); };
-    p?.on?.("accountsChanged", changed); p?.on?.("chainChanged", changed);
-    return () => { generation.current++; p?.removeListener?.("accountsChanged", changed); p?.removeListener?.("chainChanged", changed); };
-  }, [selectedProvider]);
+    if (sessionAddress) {
+      setAddress(sessionAddress); setSnapshot(null); setPrevious(null);
+      setNotice("Wallet connected. Observe & save reads its holdings at one block.");
+    } else if (lastSessionAddress.current) {
+      setSnapshot(null); setPrevious(null); setAddress(lastSessionAddress.current);
+      setNotice("Wallet account changed or was disconnected. Saved receipts remain; observe again to read the current state.");
+    }
+    lastSessionAddress.current = sessionAddress;
+  }, [sessionAddress]);
   useEffect(() => { if (!snapshot) return; const timer = setInterval(() => setClock(Date.now()), 15000); return () => clearInterval(timer); }, [snapshot]);
   const historical = snapshot ? clock - Date.parse(snapshot.observedAt) > 120000 : false;
   async function loadHistory(ticket: number, target?: string) {
@@ -80,9 +87,9 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   return <section id="ws-chain-panel" className="ws-check-panel ws-chain-panel" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
       <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
-      {connected?<button className="ws-recheck" onClick={()=>{clear();setSelectedProvider(undefined);}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setSelectedProvider(p);setAddress(address);setConnected(true);}}/>}</div>
+      {connected?<button className="ws-recheck" onClick={()=>{clear();shareWalletSession(null);setNotice("Disconnected. Saved receipts remain; you can still watch any address.");}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setAddress(address);setNotice("Wallet connected. Observe & save reads its holdings at one block.");}}/>}</div>
     <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
-      generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setConnected(false); setNotice(null);
+      generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setNotice(null);
     }} placeholder="0x…" spellCheck={false} /></label>
       <button onClick={read} disabled={busy || !valid(address)}>{busy ? "Reading evidence…" : "Observe & save"}</button></div>
     <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>Load saved observations</button>
@@ -125,7 +132,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     {history.length > 0 && <div className="ws-chain-history"><span className="ws-label">YOUR SAVED OBSERVATIONS / LATEST 20</span>{history.map((record, i) => <div key={record.id}>
       <span>{shorten(record.address)} · {when(record.observedAt)} · {record.holdings.length} holdings</span><button className="ws-recheck" disabled={busy} onClick={() => {
         generation.current++; setAddress(record.address); setSnapshot(record); setPrevious(history.slice(i + 1).find(h => h.address === record.address) ?? null);
-        setConnected(false); setContract(record.holdings[0]?.contract ?? ""); setNotice("Inspecting saved evidence. Refresh before relying on its prices.");
+        setContract(record.holdings[0]?.contract ?? ""); setNotice("Inspecting saved evidence. Refresh before relying on its prices.");
       }}>Inspect</button></div>)}</div>}
   </section>;
 }
