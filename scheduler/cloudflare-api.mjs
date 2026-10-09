@@ -31,7 +31,7 @@ if (command === 'upload') {
   form.append('metadata', JSON.stringify({
     main_module: 'worker.mjs',
     compatibility_date: '2026-10-02',
-    bindings: [{ type: 'plain_text', name: 'STEWARD_TICK_URL', text: 'https://stock-steward.stock-steward-be4a66a9.workers.dev/api/internal/autonomy/tick' }],
+    bindings: [{ type: 'plain_text', name: 'STEWARD_TICK_URL', text: 'https://stocksteward.app/api/internal/autonomy/tick' }],
   }));
   const bytes = await readFile(new URL('./worker.mjs', import.meta.url));
   form.append('worker.mjs', new Blob([bytes], { type: 'application/javascript+module' }), 'worker.mjs');

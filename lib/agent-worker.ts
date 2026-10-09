@@ -4,6 +4,7 @@ import { runAgentDecision, AGENT_MIN_DECISION_GAP_MS, type AgentDecisionStore, t
 import { alpacaOrderSubmissionEnabled, getAlpacaConnection } from "./alpaca-connection.ts";
 import { AlpacaOrderGateway } from "./alpaca-order.ts";
 import { AlpacaBrokerReader } from "./alpaca-reader.ts";
+import { refreshOpenOrders } from "./order-flow.ts";
 
 // Worker-side wiring for the automatic decision agent. Runs inside the scheduled tick
 // under its single-run lease. Broker reads use the default fetch; the tick's chain
@@ -23,11 +24,16 @@ export async function tickAgentDecisions(db: D1Database, now = new Date()) {
       const mandate = await ledger.getMandate(plan.ownerRef);
       const connection = await getAlpacaConnection(db, plan.ownerRef);
       if (!mandate || !connection) { summary.skipped++; continue; }
+      const gateway = new AlpacaOrderGateway(connection);
+      // Close out earlier orders with read-only broker lookups first, so the
+      // one-order-at-a-time gate holds only while an outcome is genuinely unknown.
+      try { await refreshOpenOrders({ ownerRef: plan.ownerRef, accountRef: connection.accountRef }, store, gateway); }
+      catch { /* A lookup failure must not stop this decision; the gate stays closed. */ }
       const result = await runAgentDecision({
         plan, mandate, accountRef: connection.accountRef,
         environment: connection.environment, tradingScope: connection.tradingScope,
         submissionEnabled: alpacaOrderSubmissionEnabled(connection.environment),
-        store, reader: new AlpacaBrokerReader(connection), gateway: new AlpacaOrderGateway(connection),
+        store, reader: new AlpacaBrokerReader(connection), gateway,
       }, now);
       if (result.status === "skipped") summary.skipped++;
       else if (result.status === "held") { summary.held++; summary.decided++; }
