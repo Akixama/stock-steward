@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import WalletConnect from './wallet-connect';
 import { useWalletSession, shareWalletSession } from './wallet-session';
-import LifiBridge from './lifi-bridge';
+import BridgeDialog from './bridge-dialog';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
 import type { Mandate } from "@/lib/decision";
@@ -100,7 +100,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     <details className="ws-chain-fund">
       <summary>Get funds onto Robinhood Chain</summary>
       <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
-      <LifiBridge address={address} />
+      <BridgeDialog address={address} />
       <div className="ws-chain-fund-options">
         <span className="ws-label">PREFER ANOTHER APP?</span>
         <a className="ws-recheck" target="_blank" rel="noreferrer"

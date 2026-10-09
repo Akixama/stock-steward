@@ -371,3 +371,5 @@
 @media(max-width:700px){.ws-status-strip{grid-template-columns:1fr}}
 .ws-bridge-dialog{width:min(620px,calc(100vw - 32px))}
 .ws-bridge-dialog .MuiBox-root{max-width:100%}
+.ws-bridge-routes{display:grid;gap:10px;margin:20px 0 6px}
+.ws-bridge-go{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
