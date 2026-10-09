@@ -358,3 +358,6 @@
 .ws-lifi{display:grid;gap:10px;grid-column:1/-1;margin:6px 0 10px;padding:14px;border:1px solid #3a3937;border-radius:12px;background:#131211}
 .ws-lifi>button{justify-self:start}
 .ws-lifi small{color:#8f8e8c;line-height:1.6;max-width:640px}
+.ws-install-review{margin:22px 0;padding:22px;border:1px solid #3c3b39;border-radius:16px;background:#171614}
+.ws-install-review h3{margin:6px 0 8px;font-size:1.55rem;letter-spacing:-.02em}
+.ws-install-body{margin-top:18px;display:grid;gap:14px}

@@ -8,7 +8,13 @@ export async function POST(request:Request){
  const text=await request.text();if(text.length>8500)return Response.json({error:'Request too large.'},{status:413,headers});let b:{action?:unknown;address?:unknown;challengeId?:unknown;signature?:unknown};try{b=JSON.parse(text);}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}if(!b)return Response.json({error:'Invalid request.'},{status:400,headers});
  try{
  if(b.action==='forget'){await env.DB.prepare('DELETE FROM wallet_ownership WHERE owner_ref=?').bind(user.userId).run();return Response.json({forgotten:true},{headers});}
- if(b.action==='challenge'){if(typeof b.address!=='string'||!/^0x[0-9a-f]{40}$/i.test(b.address))return Response.json({error:'Invalid wallet address.'},{status:400,headers});if(!await claimChainRead(env.DB,user.userId))return Response.json({error:'Wait 15 seconds between chain reads.'},{status:429,headers});const c=ownershipChallenge(b.address,origin);await saveChallenge(env.DB,user.userId,c);return Response.json({ownership:c},{headers});}
+ if(b.action==='challenge'){if(typeof b.address!=='string'||!/^0x[0-9a-f]{40}$/i.test(b.address))return Response.json({error:'Invalid wallet address.'},{status:400,headers});
+  // A completed verification is never wiped by another look: only an unverified or
+  // different-address record may be replaced by a fresh challenge.
+  const address=b.address.toLowerCase();
+  const existing=await getOwnership(env.DB,user.userId);
+  if(existing?.verifiedAt&&existing.address===address)return Response.json({ownership:existing},{headers});
+  if(!await claimChainRead(env.DB,user.userId))return Response.json({error:'Wait 15 seconds between chain reads.'},{status:429,headers});const c=ownershipChallenge(address,origin);await saveChallenge(env.DB,user.userId,c);return Response.json({ownership:c},{headers});}
  if(b.action==='verify'){if(typeof b.challengeId!=='string'||typeof b.signature!=='string')return Response.json({error:'Invalid signature request.'},{status:400,headers});const c=await getOwnership(env.DB,user.userId);if(!c||c.challengeId!==b.challengeId)return Response.json({error:'Challenge changed or missing. Request a new one.'},{status:409,headers});const method=await verifyOwnership(c,b.signature,chainTransport(env.ALCHEMY_API_KEY));if(!await consumeChallenge(env.DB,user.userId,c.challengeId,method))return Response.json({error:'Challenge was used or expired.'},{status:409,headers});return Response.json({ownership:await getOwnership(env.DB,user.userId),spendingEnabled:false},{headers});}
  return Response.json({error:'Invalid ownership action.'},{status:400,headers});
  }catch{return Response.json({error:'Verification unavailable, expired or rejected. No spending permission was granted.'},{status:400,headers});}
