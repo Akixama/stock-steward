@@ -21,6 +21,17 @@ export default function WalletOnboarding({onAddress,onProvider,disabled}:{onAddr
   p?.on?.('chainChanged',changed);return()=>{alive=false;generation.current++;p?.removeListener?.('chainChanged',changed);};},[provider]);
  async function switchNetwork(){const ticket=++generation.current;setBusy(true);setMessage('');try{if(!provider||!connected)throw Error('Connect a wallet first.');await switchRobinhood(provider);if(ticket!==generation.current)return;setChainId('4663');setMessage('Your wallet is now on Robinhood Chain. No funds moved and no spending permission was granted.');}catch{if(ticket===generation.current)setMessage('Network switch canceled or unavailable. You can choose Robinhood Chain manually in your wallet.');}finally{if(ticket===generation.current)setBusy(false);}}
  function select(next:typeof mode){generation.current++;setBusy(false);setMessage('');setMode(next);}
+ const short = session ? `${session.address.slice(0, 6)}…${session.address.slice(-4)}` : '';
+ // Once a wallet is connected the picker tabs are noise: collapse to a compact
+ // status bar with the only two actions that still matter.
+ if (connected) return <div className="ws-wallet-connected" role="status">
+   <span className="ws-wallet-dot" aria-hidden="true" />
+   <div><strong>Wallet connected · {short}</strong>
+   <small>{chainId === '4663' ? 'On Robinhood Chain. Keys stay in your wallet.' : 'Not on Robinhood Chain yet — switch below to sign here.'}</small></div>
+   {chainId !== '4663' && <button type="button" className="ws-recheck" disabled={disabled || busy} onClick={switchNetwork}>{busy ? 'Switching…' : 'Switch to Robinhood Chain'}</button>}
+   <button type="button" className="ws-recheck" disabled={disabled || busy} onClick={() => { generation.current++; shareWalletSession(null); }}>Disconnect</button>
+   {message && <p role="status">{message}</p>}
+ </div>;
  return <div className="ws-wallet-onboarding"><span className="ws-label">YOUR WALLET / YOUR CHOICE</span><h3>Start with an address. Keep control.</h3><p>Stock Steward never asks you to paste a private key or recovery phrase.</p><div className="ws-wallet-options">
  <button type="button" aria-pressed={mode==='connect'} disabled={disabled||busy} onClick={()=>select('connect')}><Wallet size={19}/><strong>Connect your wallet</strong><small>Available · your wallet keeps the keys</small></button>
  <button type="button" aria-pressed={mode==='watch'} disabled={disabled||busy} onClick={()=>select('watch')}><Eye size={19}/><strong>Watch an address</strong><small>Available · no signature required</small></button>

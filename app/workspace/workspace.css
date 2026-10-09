@@ -429,3 +429,10 @@
 .ws-evidence-table dd{margin:0;color:#d6d5d3;font-size:.76rem;line-height:1.6;overflow-wrap:anywhere}
 @media(max-width:900px){.ws-account-numbers-four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.ws-evidence-table>div{grid-template-columns:1fr;gap:4px}}
+.ws-wallet-connected{display:flex;align-items:center;gap:14px;padding:16px 20px;border:1px solid #3c3b39;border-radius:14px;background:#151412}
+.ws-wallet-dot{flex:none;width:10px;height:10px;border-radius:50%;background:#b8e62e;box-shadow:0 0 12px #b8e62e88}
+.ws-wallet-connected>div{flex:1;min-width:0}
+.ws-wallet-connected strong{color:#f1f0ed;font-size:.88rem}
+.ws-wallet-connected small{display:block;color:#9c9b97;font-size:.72rem;margin-top:2px}
+.ws-wallet-connected p{flex-basis:100%;margin:0}
+@media(max-width:640px){.ws-wallet-connected{flex-wrap:wrap}}
