@@ -11,10 +11,10 @@ The Cloudflare Worker has the Alpaca client ID, client secret, paper environment
 | Form item | Stock Steward value |
 | --- | --- |
 | App name | Stock Steward |
-| Public website | `https://stock-steward.stock-steward-be4a66a9.workers.dev/` |
-| OAuth redirect | `https://stock-steward.stock-steward-be4a66a9.workers.dev/api/broker/alpaca/callback` |
-| Privacy | `https://stock-steward.stock-steward-be4a66a9.workers.dev/privacy` |
-| Terms | `https://stock-steward.stock-steward-be4a66a9.workers.dev/terms` |
+| Public website | `https://stocksteward.app/` |
+| OAuth redirect | `https://stocksteward.app/api/broker/alpaca/callback` |
+| Privacy | `https://stocksteward.app/privacy` |
+| Terms | `https://stocksteward.app/terms` |
 | Contact | `stocksteward.support@gmail.com` |
 | Logo | `docs/alpaca-connect-logo.png` |
 
