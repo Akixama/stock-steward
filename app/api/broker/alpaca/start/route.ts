@@ -18,11 +18,14 @@ export async function POST(request: Request) {
   if (!alpacaConfigured()) return Response.redirect(new URL("/workspace?broker=unavailable", request.url), 303);
   const trading = new URL(request.url).searchParams.get("intent") === "trading";
   if (trading) {
-    if (!alpacaOrderSubmissionEnabled(alpacaEnvironment())) {
+    if (!(alpacaOrderSubmissionEnabled("paper") || alpacaOrderSubmissionEnabled("live"))) {
       return Response.redirect(new URL("/workspace?broker=unavailable", request.url), 303);
     }
-    const existing = await getAlpacaConnection(env.DB!, user.userId);
-    if (!existing || existing.environment !== alpacaEnvironment()) {
+    const [paper, live] = await Promise.all([
+      getAlpacaConnection(env.DB!, user.userId, "paper"),
+      getAlpacaConnection(env.DB!, user.userId, "live"),
+    ]);
+    if (!paper && !live) {
       return Response.redirect(new URL("/workspace?broker=unavailable", request.url), 303);
     }
   }

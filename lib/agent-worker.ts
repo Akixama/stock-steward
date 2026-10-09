@@ -22,7 +22,9 @@ export async function tickAgentDecisions(db: D1Database, now = new Date()) {
     summary.due++;
     try {
       const mandate = await ledger.getMandate(plan.ownerRef);
-      const connection = await getAlpacaConnection(db, plan.ownerRef);
+      // The agent is paper-only by design: it always names the paper connection and
+      // skips entirely when only a live account is connected.
+      const connection = await getAlpacaConnection(db, plan.ownerRef, "paper");
       if (!mandate || !connection) { summary.skipped++; continue; }
       const gateway = new AlpacaOrderGateway(connection);
       // Close out earlier orders with read-only broker lookups first, so the

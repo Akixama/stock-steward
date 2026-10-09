@@ -42,7 +42,7 @@ export const accountOrderGates = sqliteTable("account_order_gates", {
 }, (table) => [primaryKey({ columns: [table.ownerRef, table.accountRef] })]);
 
 export const brokerConnections = sqliteTable("broker_connections", {
-  ownerRef: text("owner_ref").primaryKey(),
+  ownerRef: text("owner_ref").notNull(),
   broker: text("broker").notNull(),
   accountRef: text("account_ref").notNull(),
   environment: text("environment").notNull(),
@@ -50,7 +50,7 @@ export const brokerConnections = sqliteTable("broker_connections", {
   tokenIv: text("token_iv").notNull(),
   tokenCiphertext: text("token_ciphertext").notNull(),
   connectedAt: text("connected_at").notNull(),
-});
+}, (table) => [primaryKey({ columns: [table.ownerRef, table.broker, table.environment] })]);
 
 export const dataDeletionRequests = sqliteTable("data_deletion_requests", {
   ownerRef: text("owner_ref").primaryKey(),

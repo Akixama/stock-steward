@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { oauthRedirect } from "@/lib/oauth-redirect";
 import { alpacaConfigured, alpacaEnvironment, alpacaOrderSubmissionEnabled,
-  getAlpacaConnection, saveAlpacaConnection } from "@/lib/alpaca-connection";
+  getAlpacaConnection, saveAlpacaConnection, type AlpacaEnvironment } from "@/lib/alpaca-connection";
 import { alpacaBase } from "@/lib/alpaca-http";
 
 type TokenResponse = { access_token?: string; token_type?: string; scope?: string };
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!state || !cookie || state !== cookie) return response("invalid_state");
   const trading = state.startsWith("trading_");
   if (!trading && !state.startsWith("read_")) return response("invalid_state");
-  if (trading && !alpacaOrderSubmissionEnabled(alpacaEnvironment())) return response("unavailable");
+  if (trading && !(alpacaOrderSubmissionEnabled("paper") || alpacaOrderSubmissionEnabled("live"))) return response("unavailable");
   if (url.searchParams.has("error")) return response("denied");
   const code = url.searchParams.get("code");
   if (!code) return response("denied");
@@ -42,20 +42,29 @@ export async function GET(request: Request) {
       (trading ? !scopes.has("trading") : scopes.has("trading"))) {
       throw new Error("Alpaca returned a different permission scope than requested.");
     }
-    const environment = alpacaEnvironment();
-    const accountResponse = await fetch(`${alpacaBase(environment)}/v2/account`, {
-      headers: { Authorization: `Bearer ${grant.access_token}`, Accept: "application/json" }, cache: "no-store",
-    });
-    if (!accountResponse.ok) throw new Error(`Account verification failed (${accountResponse.status}).`);
-    const account = await accountResponse.json() as AccountResponse;
-    if (!account.id) throw new Error("Alpaca returned no account ID.");
+    // A token works only against the environment its account lives on. Probe the
+    // deployment's primary environment first, then the other, and save the one that
+    // verifies so a live account is never stored as paper (or the reverse).
+    const environments: AlpacaEnvironment[] = alpacaEnvironment() === "paper" ? ["paper", "live"] : ["live", "paper"];
+    let environment: AlpacaEnvironment | null = null;
+    let account: AccountResponse | null = null;
+    for (const candidate of environments) {
+      const accountResponse = await fetch(`${alpacaBase(candidate)}/v2/account`, {
+        headers: { Authorization: `Bearer ${grant.access_token}`, Accept: "application/json" }, cache: "no-store",
+      });
+      if (!accountResponse.ok) continue;
+      const parsed = await accountResponse.json() as AccountResponse;
+      if (parsed.id) { environment = candidate; account = parsed; break; }
+    }
+    if (!environment || !account?.id) throw new Error("Account verification failed on both environments.");
+    const accountRef = account.id;
     if (trading) {
-      const existing = await getAlpacaConnection(env.DB!, user.userId);
-      if (!existing || existing.accountRef !== account.id || existing.environment !== environment) {
+      const existing = await getAlpacaConnection(env.DB!, user.userId, environment);
+      if (!existing || existing.accountRef !== accountRef) {
         throw new Error("Trading grant account does not match the existing read-only connection.");
       }
     }
-    await saveAlpacaConnection(env.DB!, user.userId, account.id, environment,
+    await saveAlpacaConnection(env.DB!, user.userId, accountRef, environment,
       grant.access_token, trading);
     return response(trading ? "trading_connected" : "connected");
   } catch (error) {
