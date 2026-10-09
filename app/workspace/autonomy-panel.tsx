@@ -11,7 +11,7 @@ import OwnershipPanel from './ownership-panel';
 import InstallReview from './install-review';
 import SettlementDetails from './settlement-details';
 import WalletProfileDetails from './wallet-profile-details';
-export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
+export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;onOpenMandate:()=>void}) {
   const [walletProvider,setWalletProvider]=useState<WalletProvider|null>(null);
   const [address,setAddress]=useState(''); const [runs,setRuns]=useState<AutonomyReceipt[]>([]);
   const [active,setActive]=useState<AutonomyReceipt|null>(null); const [busy,setBusy]=useState(false);
@@ -47,8 +47,8 @@ export default function AutonomyPanel({mandate}:{mandate:Mandate}) {
       {active.checks.map(item=><div className={`ws-receipt-check ws-partial-${item.state}`} key={item.name}><b>{item.state.toUpperCase()}</b><span><strong>{item.name}</strong><small>{item.reason}</small></span></div>)}
       <details><summary>Inspect infrastructure evidence</summary><p>Receipt {active.id}</p><p>Address {active.address} · {active.checks.some(c=>c.name==='Historical wallet control'&&c.state==='pass')?'historical control signature verified; no spending grant':'ownership unverified'}</p>{active.infrastructure ? <><p>Chain {active.infrastructure.chainId} · block {BigInt(active.infrastructure.block).toString()}</p><p>Gas price {active.infrastructure.gasPriceWei} wei · not a total fee estimate</p>{Object.entries(active.infrastructure.contracts).map(([name,bytes])=><p key={name}>{name}: {bytes} bytes of code at the observed block</p>)}</> : <p>RPC evidence unavailable. No zero balances or liquidity conclusions were inferred.</p>}</details></div>}
     {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · {run.trigger==='scheduled'?'scheduled · ':''}blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
-    <OwnershipPanel address={address} provider={walletProvider}/>
-    <InstallReview/>
+    <div id="ws-ownership"><OwnershipPanel address={address} provider={walletProvider}/></div>
+    <InstallReview provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
     <section className="ws-monitor" aria-labelledby="permission-contract-status">
       <span className="ws-label">SPENDING PERMISSIONS / IMPLEMENTATION</span>
       <h3 id="permission-contract-status">The limits reach the contracts.</h3>

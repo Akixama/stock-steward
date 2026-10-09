@@ -175,7 +175,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
             <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review the install in Autonomy"}</strong></div>
           </div><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
           <ChainPanel mandate={mandate} />
-          <AutonomyPanel mandate={mandate} />
+          <AutonomyPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
           <div className="ws-overview-grid ws-wallet-overview">
             <section className="ws-mandate-preview">
               <div className="ws-panel-top"><span className="ws-label">YOUR BOUNDARIES</span><span className="ws-panel-index">SAVED LIMITS</span></div>

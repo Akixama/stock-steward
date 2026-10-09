@@ -436,3 +436,8 @@
 .ws-wallet-connected small{display:block;color:#9c9b97;font-size:.72rem;margin-top:2px}
 .ws-wallet-connected p{flex-basis:100%;margin:0}
 @media(max-width:640px){.ws-wallet-connected{flex-wrap:wrap}}
+.ws-install-gate{display:grid;gap:8px;margin-top:16px;padding:20px;border:1px solid #b8e62e55;border-radius:14px;background:#14130f}
+.ws-install-gate strong{color:#f1f0ed;font-size:1.05rem}
+.ws-install-gate p{margin:0;color:#a9a8a4;font-size:.8rem;line-height:1.6;max-width:560px}
+.ws-install-gate button{justify-self:start;margin-top:6px}
+#ws-ownership{scroll-margin-top:120px}
