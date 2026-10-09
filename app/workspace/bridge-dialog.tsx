@@ -2,20 +2,17 @@
 import { useState } from 'react';
 import { Dialog } from 'radix-ui';
 import { ArrowUpRight, X } from 'lucide-react';
+import type { WalletProvider } from '@/lib/browser-wallet';
+import BridgePanel from './bridge-panel';
 
-// Bridging happens on established hosted bridges, opened prefilled from Steward.
-// (An embedded widget was tried and removed: its wallet picker ships no connector
-// technology in this version, so it could never see any wallet. The hosted apps
-// carry the full production wallet stack.) Settlement happens at the bridge —
-// Stock Steward never holds or carries funds.
-const USDG = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168';
-
-export default function BridgeDialog({ address }: { address: string }) {
+// In-Steward bridging in its own dialog. Quotes come from an established routing
+// API; every transfer is signed in the owner's already-connected wallet and
+// settles at the quoted bridge. Stock Steward never holds or carries funds.
+export default function BridgeDialog({ provider, address }: {
+  provider: WalletProvider | null; address: string;
+}) {
   const [open, setOpen] = useState(false);
-  const destination = /^0x[0-9a-f]{40}$/i.test(address) ? address : undefined;
-  const short = destination ? `${destination.slice(0, 6)}…${destination.slice(-4)}` : 'your wallet';
-  const jumper = `https://jumper.exchange/?toChain=4663&toToken=${USDG}${destination ? `&toAddress=${destination}` : ''}`;
-  const relay = `https://relay.link/bridge?toChainId=4663&toCurrency=${USDG}${destination ? `&toAddress=${destination}` : ''}`;
+  const short = /^0x[0-9a-f]{40}$/i.test(address) ? `${address.slice(0, 6)}…${address.slice(-4)}` : 'your wallet';
   return <div className="ws-bridge-embed">
     <div className="ws-bridge-teaser">
       <div><strong>Bridge without leaving Steward</strong>
@@ -31,15 +28,18 @@ export default function BridgeDialog({ address }: { address: string }) {
             <Dialog.Close asChild><button type="button" aria-label="Close bridge"><X size={20} /></button></Dialog.Close>
           </div>
           <Dialog.Description>USDG on Robinhood Chain, straight to {short}. Review every transfer in your wallet before signing.</Dialog.Description>
+          <BridgePanel provider={provider} address={address} />
           <div className="ws-bridge-routes">
-            <a className="ws-action-primary ws-bridge-go" target="_blank" rel="noreferrer" href={jumper}>Continue to Jumper <ArrowUpRight size={16} /></a>
-            <a className="ws-recheck" target="_blank" rel="noreferrer" href={relay}>Relay instead ↗</a>
-            <a className="ws-recheck" target="_blank" rel="noreferrer" href="https://docs.robinhood.com/chain/bridging/">Official guide ↗</a>
+            <span className="ws-label">PREFER ANOTHER APP?</span>
+            <div>
+              <a className="ws-recheck" target="_blank" rel="noreferrer"
+                href={`https://jumper.exchange/?toChain=4663&toToken=0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168${/^0x[0-9a-f]{40}$/i.test(address) ? `&toAddress=${address}` : ''}`}>Jumper ↗</a>
+              <a className="ws-recheck" target="_blank" rel="noreferrer"
+                href={`https://relay.link/bridge?toChainId=4663&toCurrency=0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168${/^0x[0-9a-f]{40}$/i.test(address) ? `&toAddress=${address}` : ''}`}>Relay ↗</a>
+              <a className="ws-recheck" target="_blank" rel="noreferrer" href="https://docs.robinhood.com/chain/bridging/">Guide ↗</a>
+            </div>
           </div>
-          <div className="ws-chain-brief"><strong>What to pick inside</strong>
-            <p>From: ETH (or USDC) on Ethereum. To: already set to USDG on Robinhood Chain, to your address.</p>
-            <p>Keep a few dollars as ETH for gas; the rest can arrive as USDG — your buying power.</p></div>
-          <p className="ws-wallet-dialog-note" role="status">Routes across established bridges (LI.FI). Stock Steward never holds funds.</p>
+          <p className="ws-wallet-dialog-note" role="status">Routes across established bridges. Stock Steward never holds funds.</p>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

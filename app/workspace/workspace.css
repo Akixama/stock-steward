@@ -373,3 +373,9 @@
 .ws-bridge-dialog .MuiBox-root{max-width:100%}
 .ws-bridge-routes{display:grid;gap:10px;margin:20px 0 6px}
 .ws-bridge-go{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.ws-bridge-sign{display:grid;gap:12px;margin-top:16px}
+.ws-bridge-sign .ws-check-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ws-bridge-routes{margin-top:18px;display:grid;gap:8px}
+.ws-bridge-routes>div{display:flex;flex-wrap:wrap;gap:8px}
+.ws-bridge-routes a{text-decoration:none}
+@media(max-width:640px){.ws-bridge-sign .ws-check-fields{grid-template-columns:1fr}}

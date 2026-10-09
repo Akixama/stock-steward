@@ -100,7 +100,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     <details className="ws-chain-fund">
       <summary>Get funds onto Robinhood Chain</summary>
       <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
-      <BridgeDialog address={address} />
+      <BridgeDialog provider={session?.provider ?? null} address={valid(address) ? address : sessionAddress} />
       <div className="ws-chain-fund-options">
         <span className="ws-label">PREFER ANOTHER APP?</span>
         <a className="ws-recheck" target="_blank" rel="noreferrer"
