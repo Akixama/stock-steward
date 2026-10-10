@@ -50,6 +50,21 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       if (!response.ok || !payload.steps) throw new Error(payload.error ?? 'Activation unavailable.');
       setPhase(payload);
       say('Phase 1 of 2: create your owner-controlled wallet and the permission module.');
+      // Pre-flight: the factory must answer, and an already-created wallet is
+      // skipped, never re-sent (re-creating it would always fail onchain).
+      const codeOf = async (target: string) => {
+        try { return await provider.request({ method: 'eth_getCode', params: [target, 'latest'] }) as string; }
+        catch { return '0x'; }
+      };
+      const factoryCode = await codeOf(payload.steps[0].to);
+      if (!factoryCode || factoryCode === '0x') {
+        throw new Error('The wallet factory is not answering on this network. Confirm Robinhood Chain is selected in your wallet.');
+      }
+      const safeCode = await codeOf(payload.safe);
+      if (safeCode && safeCode !== '0x' && payload.steps.length > 1) {
+        setNext(1);
+        say('Your Steward wallet already exists onchain, so its creation is skipped. Continue with the next step.');
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Activation unavailable.');
     } finally { setBusy(false); }
@@ -58,8 +73,30 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   async function signCurrent() {
     if (!provider || !phase || busy) return;
     const step = phase.steps[next];
+    if (!step) { setError('No step is waiting. Press Restart activation to check again.'); return; }
     setBusy(true); setError('');
     try {
+      // Pre-flight: estimate first so a doomed step never reaches the wallet,
+      // and warn plainly when the wallet is short of network fees.
+      const eth = (wei: bigint) => (Number(wei) / 1e18).toFixed(4);
+      const balance = await provider.request({ method: 'eth_getBalance', params: [address, 'latest'] }) as string;
+      let estimate = '0x0';
+      try {
+        estimate = await provider.request({ method: 'eth_estimateGas', params: [{ from: address, to: step.to, data: step.data }] }) as string;
+      } catch {
+        throw new Error('The network expects this step to fail right now, so nothing was sent. If you completed it before, press Restart activation to skip ahead; otherwise try again in a moment.');
+      }
+      if (!/^0x[0-9a-f]+$/i.test(estimate)) throw new Error('No gas estimate came back. Nothing was sent; try again in a moment.');
+      try {
+        const gasPrice = await provider.request({ method: 'eth_gasPrice', params: [] }) as string;
+        if (/^0x[0-9a-f]+$/i.test(balance) && /^0x[0-9a-f]+$/i.test(gasPrice) &&
+          BigInt(balance) < BigInt(estimate) * BigInt(gasPrice)) {
+          throw new Error(`Short of network fees: this step needs about ${eth(BigInt(estimate) * BigInt(gasPrice))} ETH but the wallet holds ${eth(BigInt(balance))} ETH. Top up a little ETH and try again. Nothing was sent.`);
+        }
+      } catch (cause) {
+        if (cause instanceof Error && /Short of network fees/.test(cause.message)) throw cause;
+        /* Gas price unreadable: let the wallet decide. */
+      }
       const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: address, to: step.to, data: step.data }] }) as string;
       if (!/^0x[0-9a-f]{64}$/i.test(hash)) throw new Error('Wallet returned no transaction hash.');
       say(`Sent: ${step.label} (${hash.slice(0, 10)}…) — waiting for confirmation.`);
