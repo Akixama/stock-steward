@@ -130,7 +130,7 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
 // who its owner is.
 export async function findUnenabledModule(safe: string, transport: typeof fetch): Promise<string | null> {
   try {
-    const signature = keccak256(toHex("ModuleProxyCreation(address,address)"));
+    const signature = keccak256(toHex("ModuleProxyCreation(address,address,address)"));
     const masterTopic = `0x${"0".repeat(24)}${ROLES_CONTRACTS.roles.slice(2).toLowerCase()}`;
     // Newest-first walk with adaptive windows: big fast windows where the
     // endpoint allows them, shrinking where a provider caps log ranges. Stops
