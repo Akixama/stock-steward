@@ -114,6 +114,8 @@ export default function RealOrderPanel({ provider, address }: {
       <button type="button" className="ws-recheck" onClick={loadStatus} disabled={busy}>Refresh</button></div>
     {status?.permissionActive && <p className="ws-chain-note">
       Spent today {dollars(status.spentTodayCents)} · {dollars(status.remainingTodayCents)} left of your daily limit · pilot caps {status.perTrade} a trade, {status.daily} a day, {status.total} total.</p>}
+    {status?.permissionActive && <p className="ws-chain-note">
+      Fund this Steward wallet address with USDG before ordering: {status.safe} <button type="button" className="ws-recheck" disabled={busy} onClick={() => { try { void navigator.clipboard.writeText(status.safe); } catch { /* Clipboard unavailable. */ } }}>Copy address</button></p>}
     {status && !status.permissionActive && <p className="ws-chain-note">Turn on the permission above first. Real orders stay locked until activation is verified.</p>}
     {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields">
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
