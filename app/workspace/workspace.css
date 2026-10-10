@@ -123,7 +123,7 @@
 .ws-strategy-modes,.ws-strategy-types{display:flex;gap:10px;flex-wrap:wrap}
 .ws-strategy-modes button,.ws-strategy-types button{background:#171614;color:#b3b2b0;border:1px solid #383735;border-radius:14px;padding:14px 20px;transition:background .18s ease-out,border-color .18s ease-out}
 .ws-strategy-modes button[aria-pressed=true],.ws-strategy-types button[aria-pressed=true]{background:#2e2d2b;border-color:#848381;color:#f2f1ef}
-.ws-strategy-types{margin:28px 0}.ws-strategy-types button{flex:1;min-width:180px;text-align:left}.ws-strategy-types small{display:block;margin-top:8px;line-height:1.5}
+.ws-strategy-types{margin:28px 0}.ws-strategy-types button{flex:1;min-width:180px;text-align:left}.ws-strategy-types small{display:block;margin-top:8px;line-height:1.5}.ws-strategy-group{flex:1 1 100%;display:grid;gap:10px}.ws-strategy-group-options{display:flex;gap:10px;flex-wrap:wrap}
 .ws-strategy-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin:24px 0}
 .ws-strategy-fields label,.ws-strategy-direction{display:flex;flex-direction:column;gap:10px;color:#d3d2d0;font-weight:600}
 .ws-strategy-fields input,.ws-strategy-fields select,.ws-strategy-direction textarea{width:100%;background:#131210;color:#f2f1ef;border:1px solid #484745;border-radius:16px;padding:18px;font:inherit;color-scheme:dark}
