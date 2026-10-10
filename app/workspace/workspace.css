@@ -366,6 +366,20 @@
 .ws-install-review h3{margin:6px 0 8px;font-size:1.55rem;letter-spacing:-.02em}
 .ws-install-body{margin-top:18px;display:grid;gap:14px}
 .ws-install-driver{margin-top:14px;display:grid;gap:12px}
+.ws-install-review details{margin-top:12px;border:1px solid #3a3937;border-radius:12px;background:#121110;overflow:hidden}
+.ws-install-review summary{cursor:pointer;display:flex;align-items:center;gap:10px;padding:13px 16px;color:#e8e7e5;font-size:.8rem;font-weight:750;list-style:none;transition:background .18s ease}
+.ws-install-review summary::-webkit-details-marker{display:none}
+.ws-install-review summary:hover{background:#1c1b19}
+.ws-install-review summary:focus-visible{outline:2px solid #c9c8c6;outline-offset:2px}
+.ws-install-review summary::before{content:'›';color:#b8b7b5;font-size:1.05rem;line-height:1;transition:transform .18s ease}
+.ws-install-review details[open] summary::before{transform:rotate(90deg)}
+.ws-install-review details>p{margin:0;padding:6px 16px;color:#c4c3c1;font-size:.78rem;line-height:1.65}
+.ws-install-review details>p:last-child{padding-bottom:14px}
+.ws-install-review details>div{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 16px;padding:9px 0;border-top:1px solid #2c2b29}
+.ws-install-review details>div:first-of-type{border-top:0}
+.ws-install-review details b{color:#efeeec;font-size:.78rem;font-weight:700;text-transform:capitalize}
+.ws-install-review details small{color:#a9a8a4;font-size:.72rem;line-height:1.5}
+.ws-install-review details>small{display:block;padding:8px 16px 14px}
 .ws-status-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0 6px;padding:16px 20px;border:1px solid #b8e62e55;border-radius:14px;background:#14130f}
 .ws-status-strip strong{display:block;margin-top:4px;color:#f1f0ed;font-size:.86rem}
 @media(max-width:700px){.ws-status-strip{grid-template-columns:1fr}}
