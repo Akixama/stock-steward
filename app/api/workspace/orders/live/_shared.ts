@@ -132,46 +132,54 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
   try {
     const signature = keccak256(toHex("ModuleProxyCreation(address,address)"));
     const masterTopic = `0x${"0".repeat(24)}${ROLES_CONTRACTS.roles.slice(2).toLowerCase()}`;
-    const scan = async (fromBlock: string) => {
+    const scan = async (fromBlock: string, toBlock: string) => {
       const response = await transport(CHAIN_RPC, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getLogs",
-          params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic], fromBlock, toBlock: "latest" }] }),
-        cache: "no-store", signal: AbortSignal.timeout(20000),
+          params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic], fromBlock, toBlock }] }),
+        cache: "no-store", signal: AbortSignal.timeout(25000),
       });
       const body = await response.json() as { result?: { topics?: string[] }[]; error?: unknown };
       if (body.error || !Array.isArray(body.result)) throw new Error("Log scan unavailable.");
       return body.result;
     };
-    let logs: { topics?: string[] }[];
-    try {
-      logs = await scan("0x0");
-    } catch {
-      const head = await transport(CHAIN_RPC, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
-        cache: "no-store", signal: AbortSignal.timeout(15000),
-      }).then(async (r) => (await r.json() as { result?: string }).result);
-      if (!head || !/^0x[0-9a-f]+$/i.test(head)) return null;
-      const from = `0x${(BigInt(head) - 500000n).toString(16)}`;
-      logs = await scan(from);
-    }
-    const proxies = [...new Set(logs
-      .map((entry) => entry.topics?.[1])
-      .filter((topic): topic is string => typeof topic === "string" && /^0x[0-9a-f]{64}$/i.test(topic))
-      .map((topic) => `0x${topic.slice(-40)}`))].slice(-200);
-    if (!proxies.length) return null;
-    const batch = proxies.map((proxy, index) => ({ jsonrpc: "2.0", id: index + 1, method: "eth_call",
-      params: [{ to: proxy, data: "0x8da5cb5b" }, "latest"] }));
-    const response = await transport(CHAIN_RPC, {
+    const head = await transport(CHAIN_RPC, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify(batch), cache: "no-store", signal: AbortSignal.timeout(20000),
-    });
-    const results = await response.json() as { id: number; result?: string }[];
-    if (!Array.isArray(results)) return null;
-    for (const [index, proxy] of proxies.entries()) {
-      const owner = results.find((row) => row.id === index + 1)?.result;
-      if (typeof owner === "string" && owner.toLowerCase().endsWith(safe.slice(2).toLowerCase())) return proxy;
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
+      cache: "no-store", signal: AbortSignal.timeout(15000),
+    }).then(async (r) => (await r.json() as { result?: string }).result);
+    if (!head || !/^0x[0-9a-f]+$/i.test(head)) return null;
+    const latest = BigInt(head);
+    // Walk backwards in node-sized chunks, newest first; an earlier attempt is
+    // usually days old, so the first chunk normally already matches.
+    const CHUNK = 9_000_000n;
+    for (let round = 0; round < 4; round++) {
+      const to = latest - CHUNK * BigInt(round);
+      const from = latest - CHUNK * BigInt(round + 1) > 0n ? latest - CHUNK * BigInt(round + 1) : 0n;
+      let logs: { topics?: string[] }[];
+      try {
+        logs = await scan(`0x${from.toString(16)}`, `0x${to.toString(16)}`);
+      } catch {
+        continue;
+      }
+      const proxies = [...new Set(logs
+        .map((entry) => entry.topics?.[1])
+        .filter((topic): topic is string => typeof topic === "string" && /^0x[0-9a-f]{64}$/i.test(topic))
+        .map((topic) => `0x${topic.slice(-40)}`))].slice(-300);
+      if (!proxies.length) continue;
+      const batch = proxies.map((proxy, index) => ({ jsonrpc: "2.0", id: index + 1, method: "eth_call",
+        params: [{ to: proxy, data: "0x8da5cb5b" }, "latest"] }));
+      const response = await transport(CHAIN_RPC, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(batch), cache: "no-store", signal: AbortSignal.timeout(25000),
+      });
+      const results = await response.json() as { id: number; result?: string }[];
+      if (!Array.isArray(results)) continue;
+      for (const [index, proxy] of proxies.entries()) {
+        const owner = results.find((row) => row.id === index + 1)?.result;
+        if (typeof owner === "string" && owner.toLowerCase().endsWith(safe.slice(2).toLowerCase())) return proxy;
+      }
+      if (from === 0n) break;
     }
     return null;
   } catch { /* An unreadable history simply reports nothing found. */ return null; }
