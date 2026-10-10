@@ -5,6 +5,7 @@ import { getOwnership } from "@/db/wallet-ownership";
 import { CHAIN, registry } from "@/lib/robinhood-chain";
 import { planFromMandate, planSummary } from "@/lib/permission-plan";
 import { reviewSetupFees, type SetupFeeEvidence } from "@/lib/setup-fees";
+import { validatePilotMandate } from "@/lib/pilot-policy";
 
 // Compiles the owner's saved mandate into the exact onchain spending policy activation
 // would create, with the complete setup-fee review in dollars. Read-only: nothing is signed,
@@ -64,6 +65,10 @@ export async function GET() {
     const plan = planFromMandate(mandate, ownership.address,
       outputs.length ? outputs : tokens.map((token) => ({ symbol: token.symbol, token: token.contract })));
     if ("error" in plan) return Response.json({ error: plan.error }, { status: 422 });
+    // Pilot lock: activation refuses any mandate above $10 a trade, $50 a day
+    // ($100 total), or without approval on every order.
+    const pilot = validatePilotMandate(mandate);
+    if (!pilot.ok) return Response.json({ error: pilot.error }, { status: 422 });
     const now = Date.now();
     const evidence = await feeEvidence(now);
     const review = reviewSetupFees(evidence, mandate!.maxDailyBuyCents, now);

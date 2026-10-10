@@ -12,6 +12,7 @@ type Phase = {
   safe: string;
   steps: Step[];
   module?: string;
+  revocation?: Step;
   checks?: { label: string; expect: string; observed: string; ok: boolean }[];
   installed?: boolean;
   limitations?: string[];
@@ -19,8 +20,8 @@ type Phase = {
 
 const rolesFactoryAbi = parseAbi(['event ModuleProxyCreation(address indexed proxy,address indexed masterCopy,address initializer)']);
 
-export default function InstallDriver({ provider, address, policyVersion }: {
-  provider: WalletProvider | null; address: string; policyVersion: number;
+export default function InstallDriver({ provider, address, policyVersion, feesOk }: {
+  provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean;
 }) {
   const [phase, setPhase] = useState<Phase | null>(null);
   const [next, setNext] = useState(0);
@@ -109,13 +110,30 @@ export default function InstallDriver({ provider, address, policyVersion }: {
     } finally { setBusy(false); }
   }
 
+  async function killSwitch() {
+    if (!provider || !phase?.revocation || busy) return;
+    const step = phase.revocation;
+    setBusy(true); setError('');
+    try {
+      const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: address, to: step.to, data: step.data }] }) as string;
+      if (!/^0x[0-9a-f]{64}$/i.test(hash)) throw new Error('Wallet returned no transaction hash.');
+      say(`Sent: ${step.label} (${hash.slice(0, 10)}…) — waiting for confirmation.`);
+      const receipt = await waitForReceipt(hash);
+      if (receipt.status !== '0x1') throw new Error('Revocation reverted onchain. The permission may still be active.');
+      say('Confirmed: the spending permission is turned off. Re-activate to grant it again.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The revocation did not complete.');
+      say('Stopped. The permission may still be active; verify before relying on it.');
+    } finally { setBusy(false); }
+  }
+
   const current = phase?.steps?.[next];
   return <div className="ws-install-driver">
     <div className="ws-chain-tools">
-      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || !provider || !policyVersion}>
+      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || !provider || !policyVersion || !feesOk}>
         {phase ? 'Restart activation' : 'Turn on permission (you sign each step)'}
       </button>
-      <span>{provider ? 'Each step opens your wallet. Review and sign one at a time.' : 'Connect and verify your wallet above first.'}</span>
+      <span>{!provider ? 'Connect and verify your wallet above first.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : 'Each step opens your wallet. Review and sign one at a time.'}</span>
     </div>
     {current && <div className="ws-order-plan">
       <span>STEP {next + 1} OF {phase!.steps.length}</span>
@@ -123,6 +141,14 @@ export default function InstallDriver({ provider, address, policyVersion }: {
       <p>{current.verify}</p>
       <button type="button" className="ws-action-primary" onClick={signCurrent} disabled={busy}>
         {busy ? 'Working…' : `Sign: ${current.label}`}
+      </button>
+    </div>}
+    {phase?.revocation && <div className="ws-order-plan">
+      <span>KILL SWITCH</span>
+      <strong>Turn off the permission</strong>
+      <p>Removes the spending permission from your wallet in one signature. Costs a small network fee. Steward cannot undo this for you; re-activate to grant again.</p>
+      <button type="button" className="ws-action-primary" onClick={killSwitch} disabled={busy}>
+        {busy ? 'Working…' : `Sign: ${phase.revocation.label}`}
       </button>
     </div>}
     {phase?.checks && <div className="ws-order-events"><span>ONCHAIN READBACK</span>

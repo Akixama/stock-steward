@@ -135,6 +135,6 @@ export async function GET(request: Request) {
     }
     return Response.json({ ...payload, checks, installed: checks.every((check) => check.ok) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Install assembly unavailable." }, { status: 502 });
+    return Response.json({ error: error instanceof Error ? error.message : "Activation unavailable." }, { status: 502 });
   }
 }

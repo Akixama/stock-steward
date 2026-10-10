@@ -80,7 +80,7 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
               : plan.fees.review.state === 'over_cap'
                 ? `The maximum setup cost (${dollars(plan.fees.review.maximumCents)}) exceeds your daily buy limit. Raise the limit or wait for verified live quotes.`
                 : 'Estimates are incomplete (unverified price or fixture gas). The install stays locked until the review passes on verified evidence.'}</small></details></span></div>
-      <InstallDriver provider={provider} address={address} policyVersion={policyVersion} />
+      <InstallDriver provider={provider} address={address} policyVersion={policyVersion} feesOk={plan.fees.review.state === 'within_cap'} />
     </div>}
   </section>;
 }
