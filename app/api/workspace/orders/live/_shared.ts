@@ -184,34 +184,62 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
       if (head && /^0x[0-9a-f]+$/i.test(head)) {
         const latest = BigInt(head);
         const logs = await readLogs(pub, latest - 9_000_000n > 0n ? latest - 9_000_000n : 0n, latest);
-        const match = await readOwners(pubBatch, proxiesOf(logs));
-        if (match) return match;
+        const proxies = proxiesOf(logs);
+        if (proxies.length > 0) {
+          const match = await readOwners(pubBatch, proxies);
+          if (match) {
+            console.error("leftover_scan_found_public");
+            return match;
+          }
+        }
+        console.error(`leftover_scan_missed_public logs=${logs.length} ours=${proxies.length}`);
       }
     } catch { /* Fall through to the metered walk below. */ }
-    // Slow path: small adaptive windows over the metered transport.
+    // Slow path: newest-first walk over the metered transport in modest
+    // windows. Metered endpoints cap log ranges (commonly around two thousand
+    // blocks), so windows start small and only shrink on refusal, never abort;
+    // owner checks run solely for windows holding our own modules.
     try {
       const head = await meta({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] });
-      if (typeof head.result !== "string" || !/^0x[0-9a-f]+$/i.test(head.result)) return null;
+      if (typeof head.result !== "string" || !/^0x[0-9a-f]+$/i.test(head.result)) {
+        console.error("leftover_scan_no_head");
+        return null;
+      }
       let cursor = BigInt(head.result as string);
-      let size = 50_000n;
+      let size = 10_000n;
       let scanned = 0n;
-      while (scanned < 500_000n && cursor > 0n) {
+      let windows = 0;
+      while (scanned < 100_000n && cursor > 0n) {
         const from = cursor - size > 0n ? cursor - size : 0n;
         let logs: { topics?: string[] }[];
         try {
           logs = await readLogs(metaLogs, from, cursor);
         } catch {
           size = size / 2n;
-          if (size < 2_000n) break;
-          continue;
+          if (size < 500n) size = 500n;
+          else continue;
+          try {
+            logs = await readLogs(metaLogs, cursor - size > 0n ? cursor - size : 0n, cursor);
+          } catch {
+            console.error("leftover_scan_window_refused");
+            return null;
+          }
         }
-        const match = await readOwners(metaBatch, proxiesOf(logs));
-        if (match) return match;
+        windows++;
+        const proxies = proxiesOf(logs);
+        if (proxies.length > 0) {
+          const match = await readOwners(metaBatch, proxies);
+          if (match) {
+            console.error("leftover_scan_found_metered");
+            return match;
+          }
+        }
         scanned += cursor - from;
         cursor = from;
-        size = 50_000n;
+        size = 10_000n;
         if (from === 0n) break;
       }
+      console.error(`leftover_scan_missed_metered windows=${windows} scanned=${scanned}`);
     } catch { /* Unreadable history simply reports nothing found. */ }
     return null;
   } catch { /* An unreadable history simply reports nothing found. */ return null; }
