@@ -132,57 +132,85 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
   try {
     const signature = keccak256(toHex("ModuleProxyCreation(address,address)"));
     const masterTopic = `0x${"0".repeat(24)}${ROLES_CONTRACTS.roles.slice(2).toLowerCase()}`;
-    // NOTE: history scans run against the public endpoint, not the metered
-    // transport, which caps log ranges far below what a recovery scan needs.
-    const scan = async (fromBlock: string, toBlock: string) => {
-      const response = await fetch(CHAIN_RPC, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getLogs",
-          params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic], fromBlock, toBlock }] }),
-        cache: "no-store", signal: AbortSignal.timeout(25000),
-      });
-      const body = await response.json() as { result?: { topics?: string[] }[]; error?: unknown };
+    // Newest-first walk with adaptive windows: big fast windows where the
+    // endpoint allows them, shrinking where a provider caps log ranges. Stops
+    // at the first proxy owned by this Safe; attempts are days old at most.
+    const readLogs = async (fetcher: (body: unknown) => Promise<{ result?: { topics?: string[] }[]; error?: unknown }>,
+      from: bigint, to: bigint) => {
+      const body = await fetcher({ jsonrpc: "2.0", id: 1, method: "eth_getLogs",
+        params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic],
+          fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}` }] });
       if (body.error || !Array.isArray(body.result)) throw new Error("Log scan unavailable.");
       return body.result;
     };
-    const head = await fetch(CHAIN_RPC, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
-      cache: "no-store", signal: AbortSignal.timeout(15000),
-    }).then(async (r) => (await r.json() as { result?: string }).result);
-    if (!head || !/^0x[0-9a-f]+$/i.test(head)) return null;
-    const latest = BigInt(head);
-    // Walk backwards in node-sized chunks, newest first; an earlier attempt is
-    // usually days old, so the first chunk normally already matches.
-    const CHUNK = 9_000_000n;
-    for (let round = 0; round < 4; round++) {
-      const to = latest - CHUNK * BigInt(round);
-      const from = latest - CHUNK * BigInt(round + 1) > 0n ? latest - CHUNK * BigInt(round + 1) : 0n;
-      let logs: { topics?: string[] }[];
-      try {
-        logs = await scan(`0x${from.toString(16)}`, `0x${to.toString(16)}`);
-      } catch {
-        continue;
-      }
-      const proxies = [...new Set(logs
-        .map((entry) => entry.topics?.[1])
-        .filter((topic): topic is string => typeof topic === "string" && /^0x[0-9a-f]{64}$/i.test(topic))
-        .map((topic) => `0x${topic.slice(-40)}`))].slice(-300);
-      if (!proxies.length) continue;
+    const readOwners = async (fetcher: (body: unknown) => Promise<{ id: number; result?: string }[]>,
+      proxies: string[]) => {
       const batch = proxies.map((proxy, index) => ({ jsonrpc: "2.0", id: index + 1, method: "eth_call",
         params: [{ to: proxy, data: "0x8da5cb5b" }, "latest"] }));
-      const response = await fetch(CHAIN_RPC, {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify(batch), cache: "no-store", signal: AbortSignal.timeout(25000),
-      });
-      const results = await response.json() as { id: number; result?: string }[];
-      if (!Array.isArray(results)) continue;
+      const results = await fetcher(batch);
+      if (!Array.isArray(results)) return null;
       for (const [index, proxy] of proxies.entries()) {
         const owner = results.find((row) => row.id === index + 1)?.result;
         if (typeof owner === "string" && owner.toLowerCase().endsWith(safe.slice(2).toLowerCase())) return proxy;
       }
-      if (from === 0n) break;
-    }
+      return null;
+    };
+    const proxiesOf = (logs: { topics?: string[] }[]) => [...new Set(logs
+      .map((entry) => entry.topics?.[1])
+      .filter((topic): topic is string => typeof topic === "string" && /^0x[0-9a-f]{64}$/i.test(topic))
+      .map((topic) => `0x${topic.slice(-40)}`))].slice(-300);
+    const post = async (sender: (url: string, init: RequestInit) => Promise<unknown>, body: unknown) =>
+      (await sender(CHAIN_RPC, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(25000),
+      }) as Response).json();
+    const pub = async (body: unknown) => post(fetch as (url: string, init: RequestInit) => Promise<unknown>, body) as
+      Promise<{ result?: { topics?: string[] }[]; error?: unknown }>;
+    const pubBatch = async (body: unknown) => post(fetch as (url: string, init: RequestInit) => Promise<unknown>, body) as
+      Promise<{ id: number; result?: string }[]>;
+    const meta = async (body: unknown) => post(transport as (url: string, init: RequestInit) => Promise<unknown>, body) as
+      Promise<{ result?: unknown; id: number; error?: unknown }>;
+    const metaLogs = async (body: unknown) => meta(body) as Promise<{ result?: { topics?: string[] }[]; error?: unknown }>;
+    const metaBatch = async (body: unknown) => (await meta(body) as unknown) as { id: number; result?: string }[];
+    // Fast path: one wide window on the public endpoint.
+    try {
+      const head = await fetch(CHAIN_RPC, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
+        cache: "no-store", signal: AbortSignal.timeout(15000),
+      }).then(async (r) => (await r.json() as { result?: string }).result);
+      if (head && /^0x[0-9a-f]+$/i.test(head)) {
+        const latest = BigInt(head);
+        const logs = await readLogs(pub, latest - 9_000_000n > 0n ? latest - 9_000_000n : 0n, latest);
+        const match = await readOwners(pubBatch, proxiesOf(logs));
+        if (match) return match;
+      }
+    } catch { /* Fall through to the metered walk below. */ }
+    // Slow path: small adaptive windows over the metered transport.
+    try {
+      const head = await meta({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] });
+      if (typeof head.result !== "string" || !/^0x[0-9a-f]+$/i.test(head.result)) return null;
+      let cursor = BigInt(head.result as string);
+      let size = 50_000n;
+      let scanned = 0n;
+      while (scanned < 500_000n && cursor > 0n) {
+        const from = cursor - size > 0n ? cursor - size : 0n;
+        let logs: { topics?: string[] }[];
+        try {
+          logs = await readLogs(metaLogs, from, cursor);
+        } catch {
+          size = size / 2n;
+          if (size < 2_000n) break;
+          continue;
+        }
+        const match = await readOwners(metaBatch, proxiesOf(logs));
+        if (match) return match;
+        scanned += cursor - from;
+        cursor = from;
+        size = 50_000n;
+        if (from === 0n) break;
+      }
+    } catch { /* Unreadable history simply reports nothing found. */ }
     return null;
   } catch { /* An unreadable history simply reports nothing found. */ return null; }
 }
