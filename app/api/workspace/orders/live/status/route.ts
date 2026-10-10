@@ -20,6 +20,7 @@ export async function GET() {
       safe: live.safe,
       symbols: live.plan.outputs.map((output) => output.symbol),
       perTrade: dollars(Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS)),
+      perTradeCents: Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS),
       daily: dollars(dailyCap),
       total: planSummary(live.plan).total,
       spentTodayCents: spent,

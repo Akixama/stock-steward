@@ -39,6 +39,12 @@ export async function POST(request: Request) {
     if (BigInt(route.balanceRaw) < BigInt(route.inputRaw)) {
       return Response.json({ error: "Your Steward wallet holds too little USDG for this order. Fund it first." }, { status: 422 });
     }
+    // The onchain permission pins one exact input size; anything else would be
+    // built, signed and then reverted. Refuse it here with the size spelled out.
+    if (BigInt(route.inputRaw) !== BigInt(live.policy.inputRaw)) {
+      const exact = `$${(Number(BigInt(live.policy.inputRaw) / 10000n) / 100).toFixed(2)}`;
+      return Response.json({ error: `Your permission covers one exact order size: ${exact}. Type ${(Number(BigInt(live.policy.inputRaw) / 10000n) / 100).toFixed(2)} as the amount.` }, { status: 422 });
+    }
     // Pin this order's exact pool price into the policy copy. Quotas and keys do
     // not depend on prices, so the permission match is unaffected.
     const policy = {

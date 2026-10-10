@@ -12,7 +12,7 @@ const tokens = (raw: string) => (Number(BigInt(raw)) / 1e18).toFixed(6);
 
 type Status = { permissionActive: false; blocked?: "activation" | "limits" | "wallet"; detail?: string; safe?: string; mandateVersion?: number } | {
   permissionActive: true; safe: string; symbols: string[];
-  perTrade: string; daily: string; total: string;
+  perTrade: string; perTradeCents: number; daily: string; total: string;
   spentTodayCents: number; remainingTodayCents: number;
 };
 
@@ -64,6 +64,12 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       if (!response.ok) throw new Error(payload.error ?? 'Order status unavailable.');
       setStatus(payload);
       if (payload.permissionActive && !symbol && payload.symbols.length) setSymbol(payload.symbols[0]);
+      // The permission locks one exact order size; the field starts there so a
+      // first attempt cannot fail on the amount. A deliberate edit is kept.
+      if (payload.permissionActive) {
+        const exact = (payload.perTradeCents / 100).toFixed(2);
+        setAmount((current) => current === '1.00' || current === '' ? exact : current);
+      }
       if (!payload.permissionActive && payload.blocked === 'activation' && payload.safe) void recover(payload.safe);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Order status unavailable.');
@@ -155,6 +161,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD<input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="1.00" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
+    {status?.permissionActive && !prepared && !hash && <p className="ws-chain-note">Your permission covers one exact order size: {status.perTrade}. Any other amount is refused.</p>}
     {!provider && <p className="ws-chain-note">Next: connect your wallet above, then come back here to order. Refreshing the page disconnects it, so this step comes back every visit. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-autonomy-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>EXACT ORDER · SIGN WITHIN SECONDS</span>
