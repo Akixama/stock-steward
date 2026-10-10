@@ -11,15 +11,19 @@ export type PermissionInstallPlan = {
   perTradeRaw: string;
   dailyRaw: string;
   totalRaw: string;
-  horizonDays: 30;
+  horizonDays: 2;
   expiresAt: number;
   outputs: PlanOutput[];
-  session: "deployed-at-install";
+  session: "owner-wallet";
 };
 
 export type PlanError = { error: string };
 
 const CENT_TO_USDG_RAW = 10_000n;
+// The compiled Roles policy refuses longer windows and more than three outputs:
+// short, narrow grants are the safety design, renewed as needed.
+const HORIZON_DAYS = 2;
+const MAX_OUTPUTS = 3;
 
 export function planFromMandate(mandate: Mandate | null, owner: string,
   outputs: PlanOutput[], now = new Date()): PermissionInstallPlan | PlanError {
@@ -28,6 +32,9 @@ export function planFromMandate(mandate: Mandate | null, owner: string,
   }
   if (!/^0x[0-9a-f]{40}$/i.test(owner)) return { error: "Verify your wallet ownership first." };
   if (!mandate.allowedSymbols.length) return { error: "Approve at least one stock symbol in Mandate." };
+  if (mandate.allowedSymbols.length > MAX_OUTPUTS) {
+    return { error: `An installable policy covers at most ${MAX_OUTPUTS} approved symbols; narrow your Mandate.` };
+  }
   // Fail closed: a symbol without an official registry token cannot be covered by
   // an onchain output rule, so the policy is not installable with it in place.
   for (const symbol of mandate.allowedSymbols) {
@@ -41,18 +48,20 @@ export function planFromMandate(mandate: Mandate | null, owner: string,
   }
   const perTradeRaw = BigInt(mandate.maxOrderCents) * CENT_TO_USDG_RAW;
   const dailyRaw = BigInt(mandate.maxDailyBuyCents) * CENT_TO_USDG_RAW;
-  // The cumulative ceiling covers the policy horizon; daily limits still bind every day.
-  const totalRaw = dailyRaw * 30n;
+  // The cumulative ceiling covers the short policy window; daily limits still bind every day.
+  const totalRaw = dailyRaw * BigInt(HORIZON_DAYS);
+  // Roles windows start at a UTC midnight and last exactly the horizon.
+  const startsAt = now.getTime() - (now.getTime() % 86_400_000);
   return {
     chainId: 4663,
     owner: owner.toLowerCase(),
     perTradeRaw: perTradeRaw.toString(),
     dailyRaw: dailyRaw.toString(),
     totalRaw: totalRaw.toString(),
-    horizonDays: 30,
-    expiresAt: now.getTime() + 30 * 86_400_000,
+    horizonDays: 2,
+    expiresAt: startsAt + HORIZON_DAYS * 86_400_000,
     outputs: outputs.filter((output) => mandate.allowedSymbols.includes(output.symbol)),
-    session: "deployed-at-install",
+    session: "owner-wallet",
   };
 }
 

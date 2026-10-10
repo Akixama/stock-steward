@@ -88,7 +88,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   }
   return <section id="ws-chain-panel" className="ws-check-panel ws-chain-panel" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
-      <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature, gas or trading permission is requested.</p></div>
+      <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature or trading permission is requested.</p></div>
       {connected?<button className="ws-recheck" onClick={()=>{clear();shareWalletSession(null);setNotice("Disconnected. Saved receipts remain; you can still watch any address.");}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setAddress(address);setNotice("Wallet connected. Observe & save reads its holdings at one block.");}}/>}</div>
     <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
       generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setNotice(null);
@@ -99,7 +99,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     <details className="ws-chain-note"><summary>About watching and saved records</summary><p>Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p></details>
     <details className="ws-chain-fund">
       <summary>Get funds onto Robinhood Chain</summary>
-      <p>Bring USDG (the chain's dollar) and a little ETH for gas. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
+      <p>Bring USDG (the chain's dollar) and a little ETH for network fees. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
       <BridgeDialog provider={session?.provider ?? null} address={valid(address) ? address : sessionAddress} />
       <div className="ws-chain-fund-options">
         <span className="ws-label">PREFER ANOTHER APP?</span>

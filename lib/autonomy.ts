@@ -48,11 +48,11 @@ export function autonomyReadiness(address: string, mandate: Mandate | null, infr
     {name:'Saved boundaries',state:mandate?.version ? 'pass':'pending',reason:mandate?.version ? `Saved mandate v${mandate.version}. Saving boundaries grants no wallet authority.`:'Save your purchase boundaries first.'},
     {name:'Autonomy preference',state:mandate?.executionPreference === 'automatic' ? 'pass':'pending',reason:'Automatic mode is a preference; activation requires a separate verified wallet grant.'},
     {name:'Mainnet infrastructure',state:fresh && Object.values(infrastructure!.contracts).every(bytes=>bytes>0) ? 'pass':'pending',reason:fresh ? 'Documented router, Permit2 and delegate addresses were checked at one block. Bytecode presence is not an audit, liquidity check or successful swap.' : 'Fresh network and contract evidence is unavailable.'},
-    {name:'Wallet ownership and delegation',state:'pending',reason:'This public address has not signed an ownership challenge or installed a verified delegation.'},
+    {name:'Wallet ownership and delegation',state:'pending',reason:'This public address has not signed an ownership challenge or turned on a verified permission.'},
     {name:'Bounded execution permission',state:'pending',reason:'Spend cap, exact recipients, allowed output tokens, calldata restrictions, expiry and revocation must be enforced and tested together. Broad router access is insufficient.'},
     {name:'Executable stock-token route',state:'pending',reason:'A particular settlement asset, stock-token pool, current liquidity and simulated route have not been verified.'},
     {name:'Funds, daily accounting and concentration',state:'pending',reason:'Fresh settlement funds, portfolio denominator, pending spends and confirmed fills are required before each execution.'},
-    {name:'Setup budget',state:'pending',reason:'Gas price alone is not a fee quote. Delegation, permission installation, revocation, data fees and provider fees need estimates within your cap.'},
+    {name:'Setup budget',state:'pending',reason:'The network price alone is not a fee quote. Wallet setup, permission activation, removal, data and provider fees need dollar estimates within your cap.'},
     {name:'Background execution service',state:'pending',reason:'Read-only monitoring can be scheduled separately. No session signer or live spending executor is enabled.'},
   ];
   return {id:crypto.randomUUID(),address:address.toLowerCase(),createdAt:now.toISOString(),policyVersion:mandate?.version ?? null,

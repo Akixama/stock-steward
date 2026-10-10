@@ -161,21 +161,11 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">02B / PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Arm alerts for the stocks in your Mandate. Checking them never buys or sells anything.</p></div></div><AlertsPanel mandate={mandate}/></div>} 
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
           <section className="ws-start-path" aria-labelledby="workspace-start-title"><div><span className="ws-label">NEW HERE?</span><h2 id="workspace-start-title">Start with a plan. Try it with fake money.</h2><p>No wallet connection or real funds needed for Practice.</p></div><div className="ws-start-steps"><button onClick={()=>navigate('goal')}><span>1</span><strong>Make a plan</strong><small>Your goal, timeframe and contributions</small></button><button onClick={()=>navigate('strategy')}><span>2</span><strong>Create strategy</strong><small>Tell AI your direction, then confirm</small></button><button onClick={()=>navigate('practice')}><span>3</span><strong>Try Practice</strong><small>Run, approve and skip the wait</small></button><button onClick={()=>navigate('trail')}><span>4</span><strong>Review Trail</strong><small>See every purchase and reason</small></button></div>
-            <div className="ws-quick-map"><span className="ws-label">WHERE THINGS ARE</span>
-              <button type="button" onClick={() => navigate("practice")}><strong>Practice</strong><small>Try your strategy with fake money — free, no wallet needed</small><ArrowRight size={15} /></button>
-              <button type="button" onClick={() => navigate("mandate")}><strong>Mandate</strong><small>Your approved stocks and spending limits</small><ArrowRight size={15} /></button>
-              <button type="button" onClick={() => document.getElementById("ws-chain-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}><strong>Chain</strong><small>Robinhood Chain wallet holdings (read-only)</small><ArrowRight size={15} /></button>
-              <button type="button" onClick={() => document.getElementById("ws-autonomy-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })}><strong>Autonomy</strong><small>Future real-money mode — locked and explained</small><ArrowRight size={15} /></button>
-              <button type="button" onClick={() => navigate("alerts")}><strong>Alerts</strong><small>Arm price watches for your mandate stocks</small><ArrowRight size={15} /></button>
-              <button type="button" onClick={() => navigate("trail")}><strong>Trail</strong><small>Every decision and the reason behind it</small><ArrowRight size={15} /></button>
-            </div>
           </section><div className="ws-status-strip" role="status">
             <div><span className="ws-label">MANDATE</span><strong>{mandate.version ? `v${mandate.version} saved · ${mandate.allowedSymbols.join(", ") || "no symbols"}` : "Not saved yet"}</strong></div>
             <div><span className="ws-label">MODE</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Automatic within limits" : "Ask me every time"}</strong></div>
-            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review the install in Autonomy"}</strong></div>
+            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review activation in Autonomy"}</strong></div>
           </div><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
-          <ChainPanel mandate={mandate} />
-          <AutonomyPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
           <div className="ws-overview-grid ws-wallet-overview">
             <section className="ws-mandate-preview">
               <div className="ws-panel-top"><span className="ws-label">YOUR BOUNDARIES</span><span className="ws-panel-index">SAVED LIMITS</span></div>
@@ -184,6 +174,8 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
             </section>
           </div>
           <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19}/></div><div><span className="ws-label">PRACTICE DECISION TRAIL</span><strong>See what the agent did.</strong><p>Review saved simulated purchases, holds and their reasons.</p></div></button>
+          <ChainPanel mandate={mandate} />
+          <AutonomyPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
         </div>}
 
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">

@@ -32,7 +32,7 @@ export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;o
   }
   return <section id="ws-autonomy-panel" className="ws-check-panel ws-autonomy-panel">
     <div className="ws-account-head"><div><span className="ws-label"><ShieldCheck size={14}/> AUTONOMOUS STEWARD / READINESS</span>
-      <h2>Let it act. Keep the limits.</h2><p>Autonomy is the destination. Before it can spend, Steward must prove its authority, route and budget. Inspect what is ready and what still blocks it.</p></div>
+      <h2>Let it act. Keep the limits.</h2><p>Before Steward can spend, it must prove authority, route and budget. See what is ready and what still blocks it.</p></div>
       <span className="ws-autonomy-state"><CirclePause size={16}/> Execution inactive</span></div>
     <div className="ws-autonomy-stages"><span>01 · Boundaries</span><span>02 · Permission</span><span>03 · Route & fees</span><span>04 · Act & reconcile</span></div>
     <p className="ws-chain-note">Saved mandate v{mandate.version || '—'} · {mandate.executionPreference==='automatic' ? 'Automatic preference selected':'Approval preference selected'}. Preferences do not grant wallet access.</p>
@@ -45,21 +45,22 @@ export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;o
       <div className="ws-chain-tools"><button type="button" className="ws-recheck" onClick={exportEvidence}>Download evidence receipt</button><span>Includes public address and recorded evidence. Review before sharing.</span></div>
       <details className="ws-next-steps"><summary>What still needs to be completed · {active.checks.filter(c=>c.state!=='pass').length} checks</summary><p>This is a historical checklist. Recheck after a change; a passing infrastructure check alone cannot enable spending.</p><ol>{active.checks.filter(c=>c.state!=='pass').map(c=><li key={c.name}><strong>{c.name}</strong><p>{c.reason}</p></li>)}</ol></details>
       {active.checks.map(item=><div className={`ws-receipt-check ws-partial-${item.state}`} key={item.name}><b>{item.state.toUpperCase()}</b><span><strong>{item.name}</strong><small>{item.reason}</small></span></div>)}
-      <details><summary>Inspect infrastructure evidence</summary><p>Receipt {active.id}</p><p>Address {active.address} · {active.checks.some(c=>c.name==='Historical wallet control'&&c.state==='pass')?'historical control signature verified; no spending grant':'ownership unverified'}</p>{active.infrastructure ? <><p>Chain {active.infrastructure.chainId} · block {BigInt(active.infrastructure.block).toString()}</p><p>Gas price {active.infrastructure.gasPriceWei} wei · not a total fee estimate</p>{Object.entries(active.infrastructure.contracts).map(([name,bytes])=><p key={name}>{name}: {bytes} bytes of code at the observed block</p>)}</> : <p>RPC evidence unavailable. No zero balances or liquidity conclusions were inferred.</p>}</details></div>}
+      <details><summary>Inspect infrastructure evidence</summary><p>Receipt {active.id}</p><p>Address {active.address} · {active.checks.some(c=>c.name==='Historical wallet control'&&c.state==='pass')?'historical control signature verified; no spending grant':'ownership unverified'}</p>{active.infrastructure ? <><p>Chain {active.infrastructure.chainId} · block {BigInt(active.infrastructure.block).toString()}</p><p>Full network cost is shown in dollars in the activation review below · not estimated here</p>{Object.entries(active.infrastructure.contracts).map(([name,bytes])=><p key={name}>{name}: {bytes} bytes of code at the observed block</p>)}</> : <p>RPC evidence unavailable. No zero balances or liquidity conclusions were inferred.</p>}</details></div>}
     {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · {run.trigger==='scheduled'?'scheduled · ':''}blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
     <div id="ws-ownership"><OwnershipPanel address={address} provider={walletProvider}/></div>
     <InstallReview provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
     <section className="ws-monitor" aria-labelledby="permission-contract-status">
       <span className="ws-label">SPENDING PERMISSIONS / IMPLEMENTATION</span>
       <h3 id="permission-contract-status">The limits reach the contracts.</h3>
-      <p>The permission integration has passed 44 checks in an isolated local chain, including wallet creation, shared spending quotas, rejected unsafe calls and owner revocation. The swap test uses Robinhood contract bytecode with fixture assets and liquidity.</p>
-      <div className="ws-chain-brief"><strong>Live permission not installed</strong><p>Your own wallet must be verified first. An example address cannot grant authority. Wallet setup, full fees and the exact spending policy need review before you sign; live valuation, accounting and the spending worker remain activation gates.</p></div>
+      <p>Passed 44 checks in an isolated local chain: wallet creation, spending quotas, rejected unsafe calls and owner revocation.</p>
+      <div className="ws-chain-brief"><strong>Live permission not turned on</strong><p>Your own wallet must be verified first. An example address cannot grant authority. Wallet setup, full fees and the exact spending policy need review before you sign; live valuation, accounting and the spending worker remain activation gates.</p></div>
       <div className="ws-chain-tools"><a className="ws-recheck" href="/guide#spending-permissions">Read the permission implementation <ArrowRight size={14}/></a><span>No signature, payment or spending grant is requested here.</span></div>
     </section>
     {active?.walletProfile&&<WalletProfileDetails profile={active.walletProfile}/>}
     {active?.route&&<RouteDetails route={active.route} prerequisites={active.prerequisites} simulation={active.routerSimulation}/>}
     {active?.settlementReview&&<SettlementDetails review={active.settlementReview}/>}
+    <details className="ws-next-steps"><summary>Advanced · price routes and background monitoring</summary><p>Route checks and read-only monitoring live here. Nothing here spends or authorizes spending.</p>
     <RoutePanel address={address} onSaved={receipt=>{setActive(receipt);setRuns(old=>[receipt,...old].slice(0,20));}}/>
-    <MonitorPanel address={address}/>
+    <MonitorPanel address={address}/></details>
   </section>;
 }

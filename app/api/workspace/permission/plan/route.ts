@@ -6,8 +6,8 @@ import { CHAIN, registry } from "@/lib/robinhood-chain";
 import { planFromMandate, planSummary } from "@/lib/permission-plan";
 import { reviewSetupFees, type SetupFeeEvidence } from "@/lib/setup-fees";
 
-// Compiles the owner's saved mandate into the exact onchain spending policy an install
-// would create, with the complete setup-fee review. Read-only: nothing is signed,
+// Compiles the owner's saved mandate into the exact onchain spending policy activation
+// would create, with the complete setup-fee review in dollars. Read-only: nothing is signed,
 // deployed or submitted from this route.
 
 // Component gas from the isolated contract lab; labelled fixture evidence, never a live quote.
@@ -73,7 +73,7 @@ export async function GET() {
       fees: { evidence, review },
     });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Install review unavailable." },
+    return Response.json({ error: error instanceof Error ? error.message : "Activation review unavailable." },
       { status: 502 });
   }
 }
