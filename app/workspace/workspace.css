@@ -124,6 +124,11 @@
 .ws-strategy-modes button,.ws-strategy-types button{background:#171614;color:#b3b2b0;border:1px solid #383735;border-radius:14px;padding:14px 20px;transition:background .18s ease-out,border-color .18s ease-out}
 .ws-strategy-modes button[aria-pressed=true],.ws-strategy-types button[aria-pressed=true]{background:#2e2d2b;border-color:#848381;color:#f2f1ef}
 .ws-strategy-types{margin:28px 0}.ws-strategy-types button{flex:1;min-width:180px;text-align:left}.ws-strategy-types small{display:block;margin-top:8px;line-height:1.5}.ws-strategy-group{flex:1 1 100%;display:grid;gap:10px}.ws-strategy-group-options{display:flex;gap:10px;flex-wrap:wrap}
+.ws-toast-wrap{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:90;width:min(500px,calc(100vw - 32px))}
+.ws-toast{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid #6e4a42;border-radius:14px;background:#241715f2;box-shadow:0 12px 40px #000b}
+.ws-toast p{margin:0!important;flex:1;color:#f0d9d2!important;font-size:.78rem;line-height:1.55;max-width:none!important}
+.ws-toast button{flex:none;border:1px solid #6e4a42;border-radius:9px;background:transparent;color:#e8c4bb;font-size:.7rem;font-weight:750;padding:7px 11px;cursor:pointer}
+.ws-toast button:hover{background:#3a2320}
 .ws-strategy-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin:24px 0}
 .ws-strategy-fields label,.ws-strategy-direction{display:flex;flex-direction:column;gap:10px;color:#d3d2d0;font-weight:600}
 .ws-strategy-fields input,.ws-strategy-fields select,.ws-strategy-direction textarea{width:100%;background:#131210;color:#f2f1ef;border:1px solid #484745;border-radius:16px;padding:18px;font:inherit;color-scheme:dark}

@@ -45,6 +45,30 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     if (!provider || busy) return;
     setBusy(true); setError(''); setLog([]); setNext(0); setModule('');
     try {
+      // Resume first: an earlier attempt may have left a wallet, a module, or a
+      // fully verified permission behind. Never rebuild what already exists.
+      try {
+        const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
+        const check = await checkResponse.json() as { safe?: string; modules?: string[]; activeModule?: string | null };
+        if (checkResponse.ok && check.activeModule) {
+          const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.activeModule)}&inspect=1`, { cache: 'no-store' });
+          const final = await finalResponse.json() as Phase & { error?: string };
+          if (finalResponse.ok && final.checks) {
+            setPhase(final);
+            setNext(final.steps?.length ?? 0);
+            say('Permission already active and verified onchain. Nothing more to sign.');
+            return;
+          }
+        } else if (checkResponse.ok && check.modules?.length === 1) {
+          const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.modules[0])}`, { cache: 'no-store' });
+          const phaseB = await phaseBResponse.json() as Phase & { error?: string };
+          if (phaseBResponse.ok && phaseB.steps) {
+            setPhase(phaseB); setNext(0); setModule(check.modules[0]);
+            say('Continuing with your existing wallet and module. Sign the remaining steps below.');
+            return;
+          }
+        }
+      } catch { /* A failed check simply falls through to a fresh build. */ }
       const response = await fetch('/api/workspace/permission/install', { cache: 'no-store' });
       const payload = await response.json() as Phase & { error?: string };
       if (!response.ok || !payload.steps) throw new Error(payload.error ?? 'Activation unavailable.');
@@ -84,6 +108,23 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       try {
         estimate = await provider.request({ method: 'eth_estimateGas', params: [{ from: address, to: step.to, data: step.data }] }) as string;
       } catch {
+        // A failing module creation usually means an earlier attempt already put
+        // one onchain. Pick it up and continue instead of failing here.
+        if (step.key === 'create_module') {
+          try {
+            const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
+            const check = await checkResponse.json() as { modules?: string[] };
+            if (checkResponse.ok && check.modules?.length === 1) {
+              const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.modules[0])}`, { cache: 'no-store' });
+              const phaseB = await phaseBResponse.json() as Phase & { error?: string };
+              if (phaseBResponse.ok && phaseB.steps) {
+                setPhase(phaseB); setNext(0); setModule(check.modules[0]);
+                say('A permission module from an earlier attempt is already onchain. Continuing with it instead.');
+                return;
+              }
+            }
+          } catch { /* Fall through to the plain message. */ }
+        }
         throw new Error('The network expects this step to fail right now, so nothing was sent. If you completed it before, press Restart activation to skip ahead; otherwise try again in a moment.');
       }
       if (!/^0x[0-9a-f]+$/i.test(estimate)) throw new Error('No gas estimate came back. Nothing was sent; try again in a moment.');
@@ -192,6 +233,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       {phase.checks.map((check) => <div key={check.label}><b>{check.ok ? 'PASS' : 'FAIL'} · {check.label}</b>
         <small>expected {check.expect} · observed {check.observed}</small></div>)}</div>}
     {log.length > 0 && <div className="ws-chain-brief"><strong>Activation log</strong>{log.map((line, index) => <p key={index}>{line}</p>)}</div>}
-    {error && <p className="ws-error" role="alert">{error}</p>}
+    {error && <div className="ws-toast-wrap" role="alert"><div className="ws-toast"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button></div></div>}
   </div>;
 }

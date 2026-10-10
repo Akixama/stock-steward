@@ -132,6 +132,6 @@ export default function RealOrderPanel({ provider, address }: {
       <div><b>Transaction recorded</b><small>{hash.slice(0, 18)}… · nothing is assumed until the receipt is verified</small></div>
       <button type="button" className="ws-action-primary" onClick={track} disabled={busy}>{busy ? 'Checking…' : 'Track receipt'}</button></div>}
     {outcome && <p className="ws-chain-brief" role="status">{outcome}</p>}
-    {error && <p className="ws-error" role="alert">{error}</p>}
+    {error && <div className="ws-toast-wrap" role="alert"><div className="ws-toast"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button></div></div>}
   </section>;
 }

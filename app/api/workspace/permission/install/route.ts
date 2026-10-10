@@ -8,6 +8,7 @@ import { chainTransport } from "@/lib/chain-transport";
 import { inspectRoute } from "@/lib/chain-route";
 import { planFromMandate } from "@/lib/permission-plan";
 import { buildInstall, installationReadChecks, revocationStep, type InstallOutput } from "@/lib/install-flow";
+import { checkPermissionState } from "@/app/api/workspace/orders/live/_shared";
 import { safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 
@@ -44,6 +45,11 @@ export async function GET(request: Request) {
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
     const url = new URL(request.url);
+    // Reports what an earlier activation left onchain so the panel can resume
+    // instead of re-sending steps that would always fail.
+    if (url.searchParams.get("check") === "1") {
+      return Response.json(await checkPermissionState(env.DB, user.userId));
+    }
     const moduleParam = url.searchParams.get("module");
     const mandate = await new D1DecisionLedger(env.DB).getMandate(user.userId);
     const ownership = await getOwnership(env.DB, user.userId);
