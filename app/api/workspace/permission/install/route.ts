@@ -8,7 +8,10 @@ import { chainTransport } from "@/lib/chain-transport";
 import { inspectRoute } from "@/lib/chain-route";
 import { planFromMandate } from "@/lib/permission-plan";
 import { buildInstall, installationReadChecks, revocationStep, type InstallOutput } from "@/lib/install-flow";
-import { checkPermissionState } from "@/app/api/workspace/orders/live/_shared";
+import { buildPolicyBase, checkPermissionState, locateSafe, rpcCall as liveRpcCall } from "@/app/api/workspace/orders/live/_shared";
+import { compileRolesPolicy } from "@/lib/roles-permission";
+import { verifyPolicyReadback } from "@/lib/live-order";
+import { saveActiveModule } from "@/db/active-modules";
 import { MULTISEND, safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 
@@ -165,5 +168,37 @@ export async function GET(request: Request) {
     return Response.json({ ...payload, checks, installed: checks.every((check) => check.ok) });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Activation unavailable." }, { status: 502 });
+  }
+}
+
+// Records the wallet's verified permission module so real orders can find it
+// without searching history. The address is never trusted: the exact policy is
+// rebuilt from the saved mandate and every check is re-proved live before the
+// record is kept. A foreign or stale module simply fails the readback.
+export async function POST(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return Response.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+  if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
+  try {
+    const { module } = await request.json() as { module?: string };
+    if (!module || !/^0x[0-9a-f]{40}$/i.test(module)) {
+      return Response.json({ error: "Invalid module address." }, { status: 400 });
+    }
+    const located = await locateSafe(env.DB, user.userId);
+    const built = await buildPolicyBase(located);
+    const call = (to: string, data: Hex, block: string) => liveRpcCall(to, data, block, built.transport);
+    const policy = { account: built.safe as Address, module: module as Address, ...built.base };
+    const compiled = compileRolesPolicy(policy);
+    const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
+    if (!readback.allOk) {
+      return Response.json({ error: "That module does not satisfy your saved limits." }, { status: 422 });
+    }
+    await saveActiveModule(env.DB, user.userId, built.mandate.version, built.safe, module);
+    return Response.json({ ok: true });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Module record unavailable." }, { status: 502 });
   }
 }

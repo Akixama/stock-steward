@@ -2,6 +2,7 @@ import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, t
 import { env } from "cloudflare:workers";
 import { D1DecisionLedger } from "@/db/ledger";
 import { getOwnership } from "@/db/wallet-ownership";
+import { getActiveModule } from "@/db/active-modules";
 import { listSpendEvidence } from "@/db/execution-attempts";
 import { CHAIN, registry } from "@/lib/robinhood-chain";
 import { chainTransport } from "@/lib/chain-transport";
@@ -11,7 +12,8 @@ import { validatePilotMandate } from "@/lib/pilot-policy";
 import { installSalts } from "@/lib/install-flow";
 import { safeFactoryAbi, safeSetupPlan, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
-import { findActivePolicyModule, type PolicyBase } from "@/lib/live-order";
+import { findActivePolicyModule, verifyPolicyReadback, type PolicyBase } from "@/lib/live-order";
+import { compileRolesPolicy } from "@/lib/roles-permission";
 import { ROLES_CONTRACTS } from "@/lib/roles-permission";
 
 export const CHAIN_RPC = "https://rpc.mainnet.chain.robinhood.com/";
@@ -113,12 +115,24 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
   return { ...located, plan, base };
 }
 
-// Finds the Steward permission among the Safe's enabled modules by running the
-// full onchain readback against each candidate. Foreign wallets and foreign
-// modules can never satisfy these checks.
+// Resolves the Steward permission for real orders. The recorded module comes
+// first: this deployment enables the module on its own registry, so the Safe's
+// module list stays empty and can never find it. The full readback below
+// re-proves every check against the current mandate, so a wrong or stale record
+// simply fails and the legacy module-list search runs as a fallback. Foreign
+// wallets and foreign modules can never satisfy these checks.
 export async function assembleActivePolicyFor(db: D1Database, userId: string) {
   const built = await buildPolicyBase(await locateSafe(db, userId));
   const call = (to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport);
+  try {
+    const recorded = await getActiveModule(db, userId, built.mandate.version);
+    if (recorded && /^0x[0-9a-f]{40}$/i.test(recorded.module)) {
+      const policy = { account: built.safe as Address, module: recorded.module as Address, ...built.base };
+      const compiled = compileRolesPolicy(policy);
+      const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
+      if (readback.allOk) return { ...built, policy, compiled };
+    }
+  } catch { /* A missing record or failed readback falls through below. */ }
   const found = await findActivePolicyModule(built.safe, built.base, call, "latest");
   if (!found) throw new Error("No active Steward permission on your wallet. Activate it first, then place orders.");
   return { ...built, policy: found.policy, compiled: found.compiled };

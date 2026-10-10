@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { WalletProvider } from '@/lib/browser-wallet';
+import { scanForOwnedModule } from '@/lib/module-scan';
 
 // Stage 3: one real order at a time, each prepared server-side, signed in the
 // owner's own wallet, and reconciled against exact onchain evidence. The server
@@ -9,7 +10,7 @@ import type { WalletProvider } from '@/lib/browser-wallet';
 const dollars = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 const tokens = (raw: string) => (Number(BigInt(raw)) / 1e18).toFixed(6);
 
-type Status = { permissionActive: false; blocked?: "activation" | "limits" | "wallet"; detail?: string } | {
+type Status = { permissionActive: false; blocked?: "activation" | "limits" | "wallet"; detail?: string; safe?: string; mandateVersion?: number } | {
   permissionActive: true; safe: string; symbols: string[];
   perTrade: string; daily: string; total: string;
   spentTodayCents: number; remainingTodayCents: number;
@@ -32,6 +33,28 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
   const [outcome, setOutcome] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  const recovered = useRef(false);
+
+  // One automatic recovery: an activated wallet whose module was never recorded
+  // is looked up through the wallet connection and recorded, then the status is
+  // read again. Runs once; the Refresh button re-arms it.
+  async function recover(safe: string) {
+    if (!provider || recovered.current) return;
+    recovered.current = true;
+    setNote('Looking up your permission through your wallet…');
+    try {
+      const found = await scanForOwnedModule(provider, safe);
+      if (found) {
+        await fetch('/api/workspace/permission/install', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ module: found }),
+        });
+      }
+    } catch { /* The locked card below already explains. */ }
+    setNote('');
+    await loadStatus();
+  }
 
   async function loadStatus() {
     try {
@@ -40,6 +63,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       if (!response.ok) throw new Error(payload.error ?? 'Order status unavailable.');
       setStatus(payload);
       if (payload.permissionActive && !symbol && payload.symbols.length) setSymbol(payload.symbols[0]);
+      if (!payload.permissionActive && payload.blocked === 'activation' && payload.safe) void recover(payload.safe);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Order status unavailable.');
     }
@@ -111,7 +135,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
     <div className="ws-account-head"><div><span className="ws-label">REAL ORDERS / PILOT</span>
       <h3>Buy for real, one order at a time.</h3>
       <p>You sign every order in your wallet. The server can never sign or spend.</p></div>
-      <button type="button" className="ws-recheck" onClick={loadStatus} disabled={busy}>Refresh</button></div>
+      <button type="button" className="ws-recheck" onClick={() => { recovered.current = false; void loadStatus(); }} disabled={busy}>Refresh</button></div>
     {status?.permissionActive && <p className="ws-chain-note">
       Spent today {dollars(status.spentTodayCents)} · {dollars(status.remainingTodayCents)} left of your daily limit · pilot caps {status.perTrade} a trade, {status.daily} a day, {status.total} total.</p>}
     {status?.permissionActive && <p className="ws-chain-note">
@@ -123,6 +147,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Open Mandate</button></div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">Turn on the permission above first. Real orders stay locked until activation is verified.</p>}
+    {note && <p className="ws-chain-note" role="status">{note}</p>}
     {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields">
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD<input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="1.00" /></label>

@@ -53,6 +53,17 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     throw new Error('Confirmation timed out. Do not re-send; check the transaction in your wallet and retry this step after it lands.');
   }
 
+  // Records a verified module server-side so orders can find it without
+  // searching history again. Silent: the wallet scan recovers if it fails.
+  async function recordModule(candidate: string) {
+    try {
+      await fetch('/api/workspace/permission/install', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module: candidate }),
+      });
+    } catch { /* Recovery scan covers a missed record. */ }
+  }
+
   // Reads one candidate's live state and continues with it when the readback
   // accepts it. Reports whether the flow was adopted (caller should stop).
   async function adoptModule(candidate: string): Promise<boolean> {
@@ -65,6 +76,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       if (inspect.installed) {
         setNext((inspect.steps ?? []).length);
         say('Permission already active and verified onchain. Nothing more to sign.');
+        void recordModule(candidate);
         return true;
       }
       setNext(0);
@@ -292,7 +304,8 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       } else if (isLast) {
         setNext(next + 1);
         setBusy(true);
-        const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent((phase.module ?? module))}&inspect=1`, { cache: 'no-store' });
+        const recorded = phase.module ?? module;
+        const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(recorded)}&inspect=1`, { cache: 'no-store' });
         const final = await finalResponse.json() as Phase & { error?: string };
         if (finalResponse.ok && final.checks) {
           setPhase(final);
@@ -300,6 +313,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           say(final.installed
             ? 'Permission turned on and verified onchain. The policy now enforces your limits.'
             : 'Finished, but the readback is incomplete. Treat it as unverified until every check passes.');
+          if (final.installed) void recordModule(recorded);
         }
         setBusy(false);
       } else {

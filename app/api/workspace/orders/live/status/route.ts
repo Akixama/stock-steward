@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { assembleActivePolicyFor, spendTodayCents } from "../_shared";
+import { assembleActivePolicyFor, locateSafe, spendTodayCents } from "../_shared";
 import { planSummary } from "@/lib/permission-plan";
 import { PILOT_MAX_DAILY_CENTS, PILOT_MAX_ORDER_CENTS } from "@/lib/pilot-policy";
 
@@ -27,13 +27,22 @@ export async function GET() {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
+    // The wallet whose module is missing, so the page can recover the record on
+    // its own. Absent when the wallet itself is unknown; the branches below
+    // already explain that case.
+    let wallet: { safe: string; mandateVersion: number } | null = null;
+    try {
+      const located = await locateSafe(env.DB, user.userId);
+      wallet = { safe: located.safe as string, mandateVersion: located.mandate.version };
+    } catch { /* Wallet unknown: the branches below already explain. */ }
+    const claimed = wallet ?? {};
     // A locked card the user can act on beats a dismissible error: limits and
     // wallet proof are fixed in Mandate and the activation section above.
     if (/active Steward permission/.test(message)) {
-      return Response.json({ permissionActive: false as const, blocked: "activation" as const });
+      return Response.json({ permissionActive: false as const, blocked: "activation" as const, ...claimed });
     }
     if (/Pilot|Save your limits|inconsistent/.test(message)) {
-      return Response.json({ permissionActive: false as const, blocked: "limits" as const, detail: message });
+      return Response.json({ permissionActive: false as const, blocked: "limits" as const, detail: message, ...claimed });
     }
     if (/Verify your wallet/.test(message)) {
       return Response.json({ permissionActive: false as const, blocked: "wallet" as const });
