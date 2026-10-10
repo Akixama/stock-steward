@@ -132,8 +132,10 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
   try {
     const signature = keccak256(toHex("ModuleProxyCreation(address,address)"));
     const masterTopic = `0x${"0".repeat(24)}${ROLES_CONTRACTS.roles.slice(2).toLowerCase()}`;
+    // NOTE: history scans run against the public endpoint, not the metered
+    // transport, which caps log ranges far below what a recovery scan needs.
     const scan = async (fromBlock: string, toBlock: string) => {
-      const response = await transport(CHAIN_RPC, {
+      const response = await fetch(CHAIN_RPC, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getLogs",
           params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic], fromBlock, toBlock }] }),
@@ -143,7 +145,7 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
       if (body.error || !Array.isArray(body.result)) throw new Error("Log scan unavailable.");
       return body.result;
     };
-    const head = await transport(CHAIN_RPC, {
+    const head = await fetch(CHAIN_RPC, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
       cache: "no-store", signal: AbortSignal.timeout(15000),
@@ -169,7 +171,7 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
       if (!proxies.length) continue;
       const batch = proxies.map((proxy, index) => ({ jsonrpc: "2.0", id: index + 1, method: "eth_call",
         params: [{ to: proxy, data: "0x8da5cb5b" }, "latest"] }));
-      const response = await transport(CHAIN_RPC, {
+      const response = await fetch(CHAIN_RPC, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify(batch), cache: "no-store", signal: AbortSignal.timeout(25000),
       });
