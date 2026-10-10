@@ -4,6 +4,13 @@ import { decodeEventLog } from 'viem';
 import { rolesFactoryAbi } from '@/lib/roles-permission';
 import type { WalletProvider } from '@/lib/browser-wallet';
 
+const FACTORY = '0x000000000000aDdB49795b0f9bA5BC298cDda236';
+const ROLES_MASTER = '0xf2964ce6161ce0e75964fe7927ce114cb0b283d5';
+// The factory creation signature, verified against real chain records. The
+// proxy and the master copy travel as indexed topics with empty data.
+// (Source of truth for the addresses: lib/roles-permission.ts.)
+const CREATION_SIG = '0x2150ada912bf189ed721c44211199e270903fc88008c2a1e1e889ef30fe67c5f';
+
 // The install driver: one owner-signed transaction at a time, in order, each verified
 // onchain before the next is offered. The wallet is the only signer; this component
 // never holds a key and never re-sends a transaction whose outcome is unknown.
@@ -44,6 +51,75 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     throw new Error('Confirmation timed out. Do not re-send; check the transaction in your wallet and retry this step after it lands.');
   }
 
+  // Reads one candidate's live state and continues with it when the readback
+  // accepts it. Reports whether the flow was adopted (caller should stop).
+  async function adoptModule(candidate: string): Promise<boolean> {
+    try {
+      const inspectResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(candidate)}&inspect=1`, { cache: 'no-store' });
+      const inspect = await inspectResponse.json() as Phase & { installed?: boolean; error?: string };
+      if (!inspectResponse.ok || !inspect.checks) return false;
+      setPhase({ ...inspect, steps: inspect.steps ?? [] });
+      setModule(candidate);
+      if (inspect.installed) {
+        setNext((inspect.steps ?? []).length);
+        say('Permission already active and verified onchain. Nothing more to sign.');
+        return true;
+      }
+      setNext(0);
+      say('Continuing with your existing wallet and module. One click signs the remaining steps in order.');
+      setChain(true);
+      return true;
+    } catch { return false; }
+  }
+
+  // Searches creation history through the wallet's own connection. The live
+  // site's server cannot run this search (its chain provider refuses history
+  // searches), so the browser asks directly. Read-only: nothing is sent.
+  async function scanLocally(safe: string): Promise<string | null> {
+    if (!provider) return null;
+    try {
+      const head = await provider.request({ method: 'eth_blockNumber', params: [] }) as string;
+      if (!/^0x[0-9a-f]+$/i.test(head)) return null;
+      const masterTopic = `0x${'0'.repeat(24)}${ROLES_MASTER.slice(2).toLowerCase()}`;
+      const safeTail = safe.slice(2).toLowerCase();
+      let cursor = BigInt(head);
+      let size = 50_000n;
+      let scanned = 0n;
+      while (scanned < 500_000n && cursor > 0n) {
+        const from = cursor - size > 0n ? cursor - size : 0n;
+        let logs: { topics?: string[] }[] | null = null;
+        try {
+          logs = await provider.request({ method: 'eth_getLogs',
+            params: [{ address: FACTORY, topics: [CREATION_SIG],
+              fromBlock: `0x${from.toString(16)}`, toBlock: `0x${cursor.toString(16)}` }] }) as { topics?: string[] }[];
+        } catch {
+          size = size / 2n;
+          if (size < 1_000n) return null;
+          continue;
+        }
+        if (Array.isArray(logs)) {
+          const proxies = [...new Set(logs
+            .filter((entry) => entry.topics?.[2]?.toLowerCase() === masterTopic)
+            .map((entry) => entry.topics?.[1])
+            .filter((topic): topic is string => typeof topic === 'string' && /^0x[0-9a-f]{64}$/i.test(topic))
+            .map((topic) => `0x${topic.slice(-40)}`))];
+          for (const proxy of proxies) {
+            try {
+              const owner = await provider.request({ method: 'eth_call',
+                params: [{ to: proxy, data: '0x8da5cb5b' }, 'latest'] }) as string;
+              if (typeof owner === 'string' && owner.toLowerCase().endsWith(safeTail)) return proxy;
+            } catch { /* Unreadable candidate; keep looking. */ }
+          }
+        }
+        scanned += cursor - from;
+        cursor = from;
+        size = 50_000n;
+        if (from === 0n) break;
+      }
+    } catch { /* Any wallet search failure simply reports nothing found. */ }
+    return null;
+  }
+
   async function begin() {
     if (!provider || busy) return;
     setBusy(true); setError(''); setLog([]); setNext(0); setModule('');
@@ -62,22 +138,14 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const candidate = checkResponse.ok
           ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
           : null;
-        if (candidate) {
-          const inspectResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(candidate)}&inspect=1`, { cache: 'no-store' });
-          const inspect = await inspectResponse.json() as Phase & { installed?: boolean; error?: string };
-          if (inspectResponse.ok && inspect.checks) {
-            setPhase({ ...inspect, steps: inspect.steps ?? [] });
-            setModule(candidate);
-            if (inspect.installed) {
-              setNext((inspect.steps ?? []).length);
-              say('Permission already active and verified onchain. Nothing more to sign.');
-              return;
-            }
-            setNext(0);
-            say('Continuing with your existing wallet and module. One click signs the remaining steps in order.');
-            setChain(true);
-            return;
-          }
+        if (candidate && await adoptModule(candidate)) return;
+        // The server search came back empty: its chain provider refuses history
+        // searches, so look through the wallet's own connection instead.
+        if (checkResponse.ok && check.safe) {
+          say('The server search came back empty, so checking through your wallet connection instead.');
+          const local = await scanLocally(check.safe);
+          if (local && await adoptModule(local)) return;
+          say('No leftover found in recent history. Building fresh below.');
         }
       } catch (checkCause) {
         say(`Prior onchain state could not be read (${checkCause instanceof Error ? checkCause.message : 'network unavailable'}). Building fresh below.`);
