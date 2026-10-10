@@ -48,3 +48,6 @@ next-env.d.ts
 /work/
 
 *.tsbuildinfo
+
+# local tooling
+.claude/
