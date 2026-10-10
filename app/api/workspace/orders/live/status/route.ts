@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
+import { decodeFunctionResult, encodeFunctionData, parseAbi, type Address } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { assembleActivePolicyFor, locateSafe, spendTodayCents } from "../_shared";
+import { assembleActivePolicyFor, locateSafe, rpcCall, spendTodayCents } from "../_shared";
+import { VENUE } from "@/lib/chain-route";
 import { planSummary } from "@/lib/permission-plan";
 import { PILOT_MAX_DAILY_CENTS, PILOT_MAX_ORDER_CENTS } from "@/lib/pilot-policy";
 
@@ -15,12 +17,23 @@ export async function GET() {
     const live = await assembleActivePolicyFor(env.DB, user.userId);
     const spent = await spendTodayCents(env.DB, user.userId, live.safe);
     const dailyCap = Math.min(live.mandate.maxDailyBuyCents, PILOT_MAX_DAILY_CENTS);
+    // One read-only balance check so the page can say whether the wallet is
+    // funded yet. A failed read leaves the card neutral instead of blocking.
+    let balanceCents: number | null = null;
+    try {
+      const balanceAbi = parseAbi(["function balanceOf(address) view returns (uint256)"]);
+      const raw = await rpcCall(VENUE.settlement,
+        encodeFunctionData({ abi: balanceAbi, functionName: "balanceOf", args: [live.safe as Address] }),
+        "latest", live.transport);
+      balanceCents = Number(BigInt(decodeFunctionResult({ abi: balanceAbi, functionName: "balanceOf", data: raw }) as bigint) / 10000n);
+    } catch { /* Balance unknown. */ }
     return Response.json({
       permissionActive: true,
       safe: live.safe,
       symbols: live.plan.outputs.map((output) => output.symbol),
       perTrade: dollars(Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS)),
       perTradeCents: Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS),
+      balanceCents,
       daily: dollars(dailyCap),
       total: planSummary(live.plan).total,
       spentTodayCents: spent,
