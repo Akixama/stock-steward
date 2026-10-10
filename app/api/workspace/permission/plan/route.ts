@@ -3,6 +3,7 @@ import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { D1DecisionLedger } from "@/db/ledger";
 import { getOwnership } from "@/db/wallet-ownership";
 import { CHAIN, registry } from "@/lib/robinhood-chain";
+import { chainTransport } from "@/lib/chain-transport";
 import { planFromMandate, planSummary } from "@/lib/permission-plan";
 import { reviewSetupFees, type SetupFeeEvidence } from "@/lib/setup-fees";
 import { validatePilotMandate } from "@/lib/pilot-policy";
@@ -17,29 +18,70 @@ const FIXTURE_GAS = {
   token_approvals: "150000", execution: "280000", revocation: "160000",
 } as const;
 
+async function ethPriceUsd(): Promise<number | null> {
+  const sources: (() => Promise<number | null>)[] = [
+    async () => {
+      const price = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
+        { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const data = await price.json() as { ethereum?: { usd?: number } };
+      return typeof data.ethereum?.usd === "number" && data.ethereum.usd > 0 ? data.ethereum.usd : null;
+    },
+    async () => {
+      const price = await fetch("https://api.coinbase.com/v2/prices/ETH-USD/spot",
+        { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const data = await price.json() as { data?: { amount?: string } };
+      const usd = Number(data.data?.amount);
+      return Number.isFinite(usd) && usd > 0 ? usd : null;
+    },
+    async () => {
+      const price = await fetch("https://api.kraken.com/0/public/Ticker?pair=ETHUSD",
+        { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const data = await price.json() as { result?: Record<string, { c?: [string] }> };
+      const first = Object.values(data.result ?? {})[0];
+      const usd = Number(first?.c?.[0]);
+      return Number.isFinite(usd) && usd > 0 ? usd : null;
+    },
+  ];
+  for (const source of sources) {
+    try {
+      const usd = await source();
+      if (usd !== null) return usd;
+    } catch { /* Try the next price source. */ }
+  }
+  return null;
+}
+
 async function feeEvidence(now: number): Promise<SetupFeeEvidence> {
   let maxFeePerGasWei = "0";
   let ethUpperMicroUsd = "0";
   let priceVerified = false;
+  const gasPayload = { jsonrpc: "2.0", id: 1, method: "eth_gasPrice", params: [] };
   try {
     const rpc = await fetch(CHAIN.rpc, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_gasPrice", params: [] }),
+      body: JSON.stringify(gasPayload),
       cache: "no-store",
     });
     const gasResult = await rpc.json() as { result?: string };
     if (gasResult.result) maxFeePerGasWei = BigInt(gasResult.result).toString();
-  } catch { /* An unreadable gas price leaves the review pending, never assumed. */ }
-  try {
-    const price = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-      { cache: "no-store", signal: AbortSignal.timeout(8000) });
-    const data = await price.json() as { ethereum?: { usd?: number } };
-    const usd = data.ethereum?.usd;
-    if (typeof usd === "number" && usd > 0) {
-      ethUpperMicroUsd = String(Math.ceil(usd * 1_000_000));
-      priceVerified = true;
-    }
-  } catch { /* Unverified prices keep the review pending. */ }
+  } catch { /* Fall through to the backup transport. */ }
+  if (maxFeePerGasWei === "0") {
+    try {
+      const transport = chainTransport(env.ALCHEMY_API_KEY);
+      const rpc = await transport(CHAIN.rpc, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(gasPayload),
+        cache: "no-store",
+      });
+      const gasResult = await rpc.json() as { result?: string };
+      if (gasResult.result) maxFeePerGasWei = BigInt(gasResult.result).toString();
+    } catch { /* An unreadable gas price leaves the review pending, never assumed. */ }
+  }
+  const usd = await ethPriceUsd();
+  if (usd !== null) {
+    ethUpperMicroUsd = String(Math.ceil(usd * 1_000_000));
+    priceVerified = true;
+  }
   return {
     observedAt: now, chainId: 4663, source: "isolated-fixture",
     maxFeePerGasWei, ethUpperMicroUsd, priceVerified,
