@@ -27,6 +27,7 @@ export async function GET() {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
+    console.error(`order_status_locked ${message.slice(0, 80)}`);
     // The wallet whose module is missing, so the page can recover the record on
     // its own. Absent when the wallet itself is unknown; the branches below
     // already explain that case.

@@ -126,11 +126,21 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
   const call = (to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport);
   try {
     const recorded = await getActiveModule(db, userId, built.mandate.version);
-    if (recorded && /^0x[0-9a-f]{40}$/i.test(recorded.module)) {
-      const policy = { account: built.safe as Address, module: recorded.module as Address, ...built.base };
-      const compiled = compileRolesPolicy(policy);
-      const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
-      if (readback.allOk) return { ...built, policy, compiled };
+    if (!recorded) {
+      console.error("resolve_active_none");
+    } else if (!/^0x[0-9a-f]{40}$/i.test(recorded.module)) {
+      console.error("resolve_active_malformed");
+    } else {
+      let compiled: ReturnType<typeof compileRolesPolicy> | null = null;
+      try {
+        const policy = { account: built.safe as Address, module: recorded.module as Address, ...built.base };
+        compiled = compileRolesPolicy(policy);
+        const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
+        console.error(`resolve_active_readback ${readback.checks.filter((check) => check.ok).length}/${readback.checks.length}`);
+        if (readback.allOk) return { ...built, policy, compiled };
+      } catch {
+        console.error(`resolve_active_error compiled=${compiled ? "yes" : "no"}`);
+      }
     }
   } catch { /* A missing record or failed readback falls through below. */ }
   const found = await findActivePolicyModule(built.safe, built.base, call, "latest");
