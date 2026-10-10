@@ -33,6 +33,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
   const [outcome, setOutcome] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const [note, setNote] = useState('');
   const recovered = useRef(false);
 
@@ -138,8 +139,10 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <button type="button" className="ws-recheck" onClick={() => { recovered.current = false; void loadStatus(); }} disabled={busy}>Refresh</button></div>
     {status?.permissionActive && <p className="ws-chain-note">
       Spent today {dollars(status.spentTodayCents)} · {dollars(status.remainingTodayCents)} left of your daily limit · pilot caps {status.perTrade} a trade, {status.daily} a day, {status.total} total.</p>}
-    {status?.permissionActive && <p className="ws-chain-note">
-      Fund this Steward wallet address with USDG before ordering: {status.safe} <button type="button" className="ws-recheck" disabled={busy} onClick={() => { try { void navigator.clipboard.writeText(status.safe); } catch { /* Clipboard unavailable. */ } }}>Copy address</button></p>}
+    {status?.permissionActive && <div className="ws-fund-card">
+      <span className="ws-label">FUND THIS WALLET</span>
+      <p>Send USDG here before ordering. Keep some ETH in your own wallet for gas.</p>
+      <div className="ws-fund-row"><code>{status.safe}</code><button type="button" disabled={busy} onClick={() => { try { void navigator.clipboard.writeText(status.safe); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* Clipboard unavailable. */ } }}>{copied ? 'Copied' : 'Copy'}</button></div></div>}
     {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan">
       <span>PILOT LIMITS</span>
       <strong>Your saved limits sit outside the pilot.</strong>

@@ -400,6 +400,17 @@
 .ws-autonomy-panel .ws-install-review .ws-order-fields select{width:100%;height:43px;padding:0 12px;border:1px solid #535250;border-radius:9px;outline:none;background:#131210;color:#f7f6f4;font-size:.88rem}
 .ws-autonomy-panel .ws-install-review .ws-order-fields button{grid-column:1/-1;height:47px;font-size:.82rem}
 @media(max-width:650px){.ws-autonomy-panel .ws-install-review .ws-order-fields{grid-template-columns:1fr}}
+.ws-chain-brief{border:1px solid #3a3937;border-left:2px solid #b8e62e;border-radius:14px;background:#161513}
+.ws-next-steps>summary{list-style:none;display:flex;align-items:center;gap:10px;font-size:.92rem}
+.ws-next-steps>summary::-webkit-details-marker{display:none}
+.ws-next-steps>summary::before{content:'›';color:#b8e62e;font-size:1.1rem;line-height:1;transition:transform .18s ease}
+.ws-next-steps[open]>summary::before{transform:rotate(90deg)}
+.ws-autonomy-panel .ws-install-review .ws-fund-card{margin-top:14px;padding:16px 18px;border:1px solid #b8e62e55;border-radius:14px;background:#14130f}
+.ws-autonomy-panel .ws-install-review .ws-fund-card p{color:#c4c3c1;font-size:.8rem;margin:8px 0 12px}
+.ws-fund-row{display:flex;gap:10px;align-items:center}
+.ws-fund-row code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;color:#f1f0ed;background:#0c0d0a;border:1px solid #35392d;border-radius:9px;padding:11px 12px}
+.ws-fund-row button{flex-shrink:0;height:43px;padding:0 16px;border:0;border-radius:9px;background:#f0efed;color:#1e1d1b;font-size:.75rem;font-weight:800;cursor:pointer}
+.ws-fund-row button:disabled{opacity:.45}
 .ws-bridge-dialog{width:min(620px,calc(100vw - 32px))}
 .ws-bridge-dialog .MuiBox-root{max-width:100%}
 .ws-bridge-routes{display:grid;gap:10px;margin:20px 0 6px}
