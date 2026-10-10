@@ -216,8 +216,10 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
 }
 
 // Reports what an earlier activation left onchain: the expected Safe, whether it
-// exists, every module on it, the fully verified one if there is one, and a
-// deployed-but-never-enabled leftover that re-creation could never replace.
+// exists, every module enabled on it, and a deployed-but-never-enabled leftover
+// that re-creation could never replace. Deliberately light (a handful of calls)
+// so it answers inside worker limits; the full readback that decides anything
+// runs later through the inspect route, never here.
 export async function checkPermissionState(db: D1Database, userId: string) {
   const located = await locateSafe(db, userId);
   let safeHasCode = false;
@@ -226,19 +228,10 @@ export async function checkPermissionState(db: D1Database, userId: string) {
     safeHasCode = (await getCode(located.safe, located.transport)) !== "0x";
     if (safeHasCode) modules = await listModules(located.safe, located.transport);
   } catch { /* Unreadable chain state simply reports nothing found. */ }
-  let activeModule: string | null = null;
-  if (modules.length) {
-    try {
-      const built = await buildPolicyBase(located);
-      const call = (to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport);
-      const found = await findActivePolicyModule(built.safe, built.base, call, "latest");
-      if (found) activeModule = found.policy.module;
-    } catch { /* Partial states report the modules without a match. */ }
-  }
-  const staleModule = !activeModule && safeHasCode
+  const staleModule = safeHasCode
     ? await findUnenabledModule(located.safe, located.transport)
     : null;
-  return { safe: located.safe, safeHasCode, modules, activeModule, staleModule };
+  return { safe: located.safe, safeHasCode, modules, staleModule };
 }
 
 export async function spendTodayCents(db: D1Database, userId: string, safe: string) {

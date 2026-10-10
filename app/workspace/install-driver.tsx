@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { decodeEventLog, parseAbi } from 'viem';
 import type { WalletProvider } from '@/lib/browser-wallet';
 
@@ -29,6 +29,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // One-click chaining: after Begin, each confirmed step automatically offers
+  // the next signature. Every transaction still pops its own wallet approval,
+  // and closing a popup or any failure pauses the chain at once.
+  const [chain, setChain] = useState(false);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -46,32 +50,33 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     setBusy(true); setError(''); setLog([]); setNext(0); setModule('');
     try {
       // Resume first: an earlier attempt may have left a wallet, a module, or a
-      // fully verified permission behind. Never rebuild what already exists.
+      // fully verified permission behind. The one candidate is inspected; a
+      // verified readback ends the flow, otherwise its steps continue below.
+      // Never rebuild what already exists.
       try {
-        const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
-        const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; activeModule?: string | null; staleModule?: string | null };
+        const checkResponse = await fetch('/api/workspace/permission/install?check=1',
+          { cache: 'no-store', signal: AbortSignal.timeout(25000) });
+        const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; staleModule?: string | null };
         if (checkResponse.ok) {
-          say(`Onchain state: Steward wallet ${check.safe ?? "unknown"} (${check.safeHasCode ? "exists" : "not created yet"}) · ${(check.modules ?? []).length} module(s) on it${check.activeModule ? " · permission VERIFIED" : ""}${!check.activeModule && check.staleModule ? " · leftover module found" : ""}.`);
+          say(`Onchain state: Steward wallet ${check.safe ?? "unknown"} (${check.safeHasCode ? "exists" : "not created yet"}) · ${(check.modules ?? []).length} module(s) on it${check.staleModule ? " · leftover module found" : ""}.`);
         }
-        if (checkResponse.ok && check.activeModule) {
-          const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.activeModule)}&inspect=1`, { cache: 'no-store' });
-          const final = await finalResponse.json() as Phase & { error?: string };
-          if (finalResponse.ok && final.checks) {
-            setPhase(final);
-            setNext(final.steps?.length ?? 0);
-            say('Permission already active and verified onchain. Nothing more to sign.');
-            return;
-          }
-        }
-        const resumeModule = checkResponse.ok
+        const candidate = checkResponse.ok
           ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
           : null;
-        if (resumeModule) {
-          const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(resumeModule)}`, { cache: 'no-store' });
-          const phaseB = await phaseBResponse.json() as Phase & { error?: string };
-          if (phaseBResponse.ok && phaseB.steps) {
-            setPhase(phaseB); setNext(0); setModule(resumeModule);
-            say('Continuing with your existing wallet and module. Sign the remaining steps below.');
+        if (candidate) {
+          const inspectResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(candidate)}&inspect=1`, { cache: 'no-store' });
+          const inspect = await inspectResponse.json() as Phase & { installed?: boolean; error?: string };
+          if (inspectResponse.ok && inspect.checks) {
+            setPhase({ ...inspect, steps: inspect.steps ?? [] });
+            setModule(candidate);
+            if (inspect.installed) {
+              setNext((inspect.steps ?? []).length);
+              say('Permission already active and verified onchain. Nothing more to sign.');
+              return;
+            }
+            setNext(0);
+            say('Continuing with your existing wallet and module. One click signs the remaining steps in order.');
+            setChain(true);
             return;
           }
         }
@@ -98,6 +103,8 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         setNext(1);
         say('Your Steward wallet already exists onchain, so its creation is skipped. Continue with the next step.');
       }
+      say('One click signs each step in order. Closing a wallet popup pauses.');
+      setChain(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Activation unavailable.');
     } finally { setBusy(false); }
@@ -134,20 +141,29 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           } catch { /* Fall through to the step-specific handling below. */ }
         }
         // A failing module creation usually means an earlier attempt already put
-        // one onchain. Pick it up and continue instead of failing here.
+        // one onchain. Inspect it: verified means done, otherwise its steps
+        // continue below. Either way nothing is rebuilt.
         if (step.key === 'create_module') {
           try {
-            const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
+            const checkResponse = await fetch('/api/workspace/permission/install?check=1',
+              { cache: 'no-store', signal: AbortSignal.timeout(25000) });
             const check = await checkResponse.json() as { modules?: string[]; staleModule?: string | null };
             const resumeModule = checkResponse.ok
               ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
               : null;
             if (resumeModule) {
-              const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(resumeModule)}`, { cache: 'no-store' });
-              const phaseB = await phaseBResponse.json() as Phase & { error?: string };
-              if (phaseBResponse.ok && phaseB.steps) {
-                setPhase(phaseB); setNext(0); setModule(resumeModule);
-                say('A permission module from an earlier attempt is already onchain. Continuing with it instead.');
+              const inspectResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(resumeModule)}&inspect=1`, { cache: 'no-store' });
+              const inspect = await inspectResponse.json() as Phase & { installed?: boolean; error?: string };
+              if (inspectResponse.ok && inspect.checks) {
+                setPhase({ ...inspect, steps: inspect.steps ?? [] });
+                setModule(resumeModule);
+                if (inspect.installed) {
+                  setNext((inspect.steps ?? []).length);
+                  say('Verified onchain: the permission is already fully active. Nothing more to sign.');
+                } else {
+                  setNext(0);
+                  say('A permission module from an earlier attempt is already onchain. Continuing with it instead.');
+                }
                 return;
               }
             }
@@ -208,6 +224,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const final = await finalResponse.json() as Phase & { error?: string };
         if (finalResponse.ok && final.checks) {
           setPhase(final);
+          setChain(false);
           say(final.installed
             ? 'Permission turned on and verified onchain. The policy now enforces your limits.'
             : 'Activation finished but the readback is incomplete. Treat the permission as not verified until every check passes.');
@@ -217,6 +234,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         setNext(next + 1);
       }
     } catch (cause) {
+      setChain(false);
       setError(cause instanceof Error ? cause.message : 'The step did not complete.');
       say('Stopped. No step is re-sent automatically.');
     } finally { setBusy(false); }
@@ -225,6 +243,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   async function killSwitch() {
     if (!provider || !phase?.revocation || busy) return;
     const step = phase.revocation;
+    setChain(false);
     setBusy(true); setError('');
     try {
       const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: address, to: step.to, data: step.data }] }) as string;
@@ -239,19 +258,26 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     } finally { setBusy(false); }
   }
 
+  // One-click chaining: whenever a next step waits and nothing is running,
+  // offer its signature at once. Failures and pauses switch chaining off.
+  useEffect(() => {
+    if (chain && !busy && phase?.steps?.[next]) void signCurrent();
+  }, [chain, busy, phase, next]);
+
   const current = phase?.steps?.[next];
   return <div className="ws-install-driver">
     <div className="ws-chain-tools">
-      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || !provider || !policyVersion || !feesOk}>
-        {phase ? 'Restart activation' : 'Turn on permission (you sign each step)'}
+      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !provider || !policyVersion || !feesOk}>
+        {phase ? 'Restart activation' : 'Turn on permission (one click signs each step)'}
       </button>
+      {chain && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause auto-signing</button>}
       <span>{!provider ? 'Connect and verify your wallet above first.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : 'Each step opens your wallet. Review and sign one at a time.'}</span>
     </div>
     {current && <div className="ws-order-plan">
       <span>STEP {next + 1} OF {phase!.steps.length}</span>
       <strong>{current.label}</strong>
       <p>{current.verify}</p>
-      <button type="button" className="ws-action-primary" onClick={signCurrent} disabled={busy}>
+      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
         {busy ? 'Working…' : `Sign: ${current.label}`}
       </button>
     </div>}
