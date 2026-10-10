@@ -173,22 +173,28 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       if (receipt.status !== '0x1') throw new Error(`Step reverted onchain: ${step.label}. Nothing further is offered.`);
       say(`Confirmed: ${step.verify}`);
       // The module address is the created proxy in the factory's creation event.
-      if (!module) {
+      // A local variable, not state: state updates do not apply inside this call,
+      // so reading `module` below would always see the old (empty) value.
+      let foundModule = module;
+      if (!foundModule) {
         for (const entry of receipt.logs) {
           try {
             const event = decodeEventLog({ abi: rolesFactoryAbi, data: entry.data as `0x${string}`, topics: entry.topics as [] });
-            if (event.eventName === 'ModuleProxyCreation') setModule(event.args.proxy as string);
+            if (event.eventName === 'ModuleProxyCreation') {
+              foundModule = event.args.proxy as string;
+              setModule(foundModule);
+            }
           } catch { /* Not the creation log. */ }
         }
       }
       const isLast = next === phase.steps.length - 1;
-      if (isLast && !module && !phase.module) {
+      if (isLast && !foundModule && !phase.module) {
         setNext(next + 1);
         say('Module creation event not found in the receipt; the next phase needs the module address.');
       } else if (isLast && phase.steps.length === 2) {
         // Phase A complete: fetch phase B from the server with the observed module.
         setBusy(true);
-        const found = module || '';
+        const found = foundModule || '';
         const nextResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(found)}`, { cache: 'no-store' });
         const phaseB = await nextResponse.json() as Phase & { error?: string };
         if (!nextResponse.ok || !phaseB.steps) throw new Error(phaseB.error ?? 'Phase 2 assembly unavailable.');
@@ -260,7 +266,8 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     {phase?.checks && <div className="ws-order-events"><span>ONCHAIN READBACK</span>
       {phase.checks.map((check) => <div key={check.label}><b>{check.ok ? 'PASS' : 'FAIL'} · {check.label}</b>
         <small>expected {check.expect} · observed {check.observed}</small></div>)}</div>}
-    {log.length > 0 && <div className="ws-chain-brief"><strong>Activation log</strong>{log.map((line, index) => <p key={index}>{line}</p>)}</div>}
+    {log.length > 0 && <div className="ws-chain-brief"><strong>Activation update</strong><p>{log[log.length - 1]}</p>
+      {log.length > 1 && <details><summary>Earlier updates ({log.length - 1})</summary>{log.slice(0, -1).map((line, index) => <p key={index}>{line}</p>)}</details>}</div>}
     {error && <div className="ws-toast-wrap" role="alert"><div className="ws-toast"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button></div></div>}
   </div>;
 }
