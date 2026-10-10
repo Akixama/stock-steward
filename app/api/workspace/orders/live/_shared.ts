@@ -130,15 +130,16 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
 // who its owner is.
 export async function findUnenabledModule(safe: string, transport: typeof fetch): Promise<string | null> {
   try {
-    const signature = keccak256(toHex("ModuleProxyCreation(address,address,address)"));
+    const signature = keccak256(toHex("ModuleProxyCreation(address,address)"));
     const masterTopic = `0x${"0".repeat(24)}${ROLES_CONTRACTS.roles.slice(2).toLowerCase()}`;
-    // Newest-first walk with adaptive windows: big fast windows where the
-    // endpoint allows them, shrinking where a provider caps log ranges. Stops
-    // at the first proxy owned by this Safe; attempts are days old at most.
+    // The factory event carries proxy and mastercopy as indexed topics with
+    // empty data. Filter by signature alone and narrow locally: some endpoints
+    // reject null topic wildcards, and only the mastercopy topic tells our
+    // modules apart from everyone else's.
     const readLogs = async (fetcher: (body: unknown) => Promise<{ result?: { topics?: string[] }[]; error?: unknown }>,
       from: bigint, to: bigint) => {
       const body = await fetcher({ jsonrpc: "2.0", id: 1, method: "eth_getLogs",
-        params: [{ address: ROLES_CONTRACTS.factory, topics: [signature, null, masterTopic],
+        params: [{ address: ROLES_CONTRACTS.factory, topics: [signature],
           fromBlock: `0x${from.toString(16)}`, toBlock: `0x${to.toString(16)}` }] });
       if (body.error || !Array.isArray(body.result)) throw new Error("Log scan unavailable.");
       return body.result;
@@ -156,6 +157,7 @@ export async function findUnenabledModule(safe: string, transport: typeof fetch)
       return null;
     };
     const proxiesOf = (logs: { topics?: string[] }[]) => [...new Set(logs
+      .filter((entry) => entry.topics?.[2]?.toLowerCase() === masterTopic)
       .map((entry) => entry.topics?.[1])
       .filter((topic): topic is string => typeof topic === "string" && /^0x[0-9a-f]{64}$/i.test(topic))
       .map((topic) => `0x${topic.slice(-40)}`))].slice(-300);

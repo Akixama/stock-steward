@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { decodeEventLog, parseAbi } from 'viem';
+import { decodeEventLog } from 'viem';
+import { rolesFactoryAbi } from '@/lib/roles-permission';
 import type { WalletProvider } from '@/lib/browser-wallet';
 
 // The install driver: one owner-signed transaction at a time, in order, each verified
@@ -17,8 +18,6 @@ type Phase = {
   installed?: boolean;
   limitations?: string[];
 };
-
-const rolesFactoryAbi = parseAbi(['event ModuleProxyCreation(address indexed proxy,address indexed masterCopy,address initializer)']);
 
 export default function InstallDriver({ provider, address, policyVersion, feesOk }: {
   provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean;
