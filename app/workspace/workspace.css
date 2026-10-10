@@ -368,6 +368,9 @@
 .ws-bridge-box small{display:block;margin-top:10px;color:#8f8e8c;line-height:1.6}
 @media(max-width:640px){.ws-bridge-teaser{flex-direction:column;align-items:stretch}.ws-bridge-box{padding:12px}}
 .ws-install-review{margin:22px 0;padding:22px;border:1px solid #3c3b39;border-radius:16px;background:#171614}
+/* Order cards line up with the fund card and form: the shared card class
+carries side margins for its other surfaces, which would inset it here. */
+.ws-install-review>.ws-order-plan{margin-left:0;margin-right:0}
 .ws-install-review h3{margin:6px 0 8px;font-size:1.55rem;letter-spacing:-.02em}
 .ws-install-body{margin-top:18px;display:grid;gap:14px}
 .ws-install-driver{margin-top:14px;display:grid;gap:12px}
