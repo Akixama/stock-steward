@@ -26,9 +26,18 @@ export async function GET() {
       remainingTodayCents: Math.max(0, dailyCap - spent),
     });
   } catch (error) {
-    if (error instanceof Error && /active Steward permission/.test(error.message)) {
-      return Response.json({ permissionActive: false as const });
+    const message = error instanceof Error ? error.message : "";
+    // A locked card the user can act on beats a dismissible error: limits and
+    // wallet proof are fixed in Mandate and the activation section above.
+    if (/active Steward permission/.test(message)) {
+      return Response.json({ permissionActive: false as const, blocked: "activation" as const });
     }
-    return Response.json({ error: error instanceof Error ? error.message : "Order status unavailable." }, { status: 502 });
+    if (/Pilot|Save your limits|inconsistent/.test(message)) {
+      return Response.json({ permissionActive: false as const, blocked: "limits" as const, detail: message });
+    }
+    if (/Verify your wallet/.test(message)) {
+      return Response.json({ permissionActive: false as const, blocked: "wallet" as const });
+    }
+    return Response.json({ error: message || "Order status unavailable." }, { status: 502 });
   }
 }

@@ -9,7 +9,7 @@ import type { WalletProvider } from '@/lib/browser-wallet';
 const dollars = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 const tokens = (raw: string) => (Number(BigInt(raw)) / 1e18).toFixed(6);
 
-type Status = { permissionActive: false } | {
+type Status = { permissionActive: false; blocked?: "activation" | "limits" | "wallet"; detail?: string } | {
   permissionActive: true; safe: string; symbols: string[];
   perTrade: string; daily: string; total: string;
   spentTodayCents: number; remainingTodayCents: number;
@@ -20,8 +20,8 @@ type Prepared = {
   symbol: string; amountCents: number; minimumOutputRaw: string; outputToken: string; expiresAt: string;
 };
 
-export default function RealOrderPanel({ provider, address }: {
-  provider: WalletProvider | null; address: string;
+export default function RealOrderPanel({ provider, address, onOpenMandate }: {
+  provider: WalletProvider | null; address: string; onOpenMandate: () => void;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [symbol, setSymbol] = useState('');
@@ -116,7 +116,13 @@ export default function RealOrderPanel({ provider, address }: {
       Spent today {dollars(status.spentTodayCents)} · {dollars(status.remainingTodayCents)} left of your daily limit · pilot caps {status.perTrade} a trade, {status.daily} a day, {status.total} total.</p>}
     {status?.permissionActive && <p className="ws-chain-note">
       Fund this Steward wallet address with USDG before ordering: {status.safe} <button type="button" className="ws-recheck" disabled={busy} onClick={() => { try { void navigator.clipboard.writeText(status.safe); } catch { /* Clipboard unavailable. */ } }}>Copy address</button></p>}
-    {status && !status.permissionActive && <p className="ws-chain-note">Turn on the permission above first. Real orders stay locked until activation is verified.</p>}
+    {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan">
+      <span>PILOT LIMITS</span>
+      <strong>Your saved limits sit outside the pilot.</strong>
+      <p>{status.detail ?? "The pilot allows $10 a trade, $50 a day and $100 total, with approval on every order."} Fix it in Mandate, save, then re-activate above.</p>
+      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Open Mandate</button></div>}
+    {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
+    {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">Turn on the permission above first. Real orders stay locked until activation is verified.</p>}
     {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields">
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD<input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="1.00" /></label>

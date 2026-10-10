@@ -52,7 +52,7 @@ export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;o
     </details>
     <div id="ws-ownership"><OwnershipPanel address={address} provider={walletProvider}/></div>
     <InstallReview provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
-    <RealOrderPanel provider={walletProvider} address={address} />
+    <RealOrderPanel provider={walletProvider} address={address} onOpenMandate={onOpenMandate} />
     <details className="ws-next-steps"><summary>How the limits reach the contracts</summary>
       <p>Passed 44 checks in an isolated local chain: wallet creation, spending quotas, rejected unsafe calls and owner revocation.</p>
       <div className="ws-chain-tools"><a className="ws-recheck" href="/guide#spending-permissions">Read the permission implementation <ArrowRight size={14}/></a><span>Nothing here signs or spends.</span></div>
