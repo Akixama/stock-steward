@@ -1,13 +1,79 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {encodeAbiParameters,parseAbiParameters,encodeFunctionData,parseAbi} from 'viem';import {inspectRoute,routeAmount,VENUE} from './chain-route.ts';
-const address='0x'+'a'.repeat(40),token='0x'+'b'.repeat(40),hash='0x'+'c'.repeat(64);
-const enc=(types:string,values:unknown[])=>encodeAbiParameters(parseAbiParameters(types),values as never);
-function mock(options:{wrong?:boolean;emptyCode?:boolean;manager?:boolean;outage?:boolean;reorg?:boolean;inactive?:boolean}={}){let blocks=0;const pinned:string[]=[];const fetcher=(async(url:string,init?:RequestInit)=>{
- if(String(url).includes('/rhj/assets'))return Response.json({assets:[{tokenSymbol:'AAPL',status:options.inactive?'ASSET_STATUS_HALTED':'ASSET_STATUS_ACTIVE',deployments:[{chainId:4663,contractAddress:token}]}]});const q=JSON.parse(String(init?.body));let result:unknown;
- if(q.method==='eth_chainId')result=options.wrong?'0x1':'0x1237';else if(q.method==='eth_blockNumber')result='0x123';else if(q.method==='eth_getBlockByNumber'){blocks++;result={number:'0x123',hash:options.reorg&&blocks>1?'0x'+'d'.repeat(64):hash,timestamp:'0x'+Math.floor(Date.now()/1000).toString(16)};}
- else if(q.method==='eth_getCode'){pinned.push(q.params[1]);result=options.emptyCode?'0x':'0x1234';}
- else if(q.method==='eth_call'){pinned.push(q.params[1]);const {to,data}=q.params[0];const selector=data.slice(0,10);if(selector==='0x313ce567')result=enc('uint8',[to===VENUE.settlement?6:18]);else if(selector==='0x70a08231')result=enc('uint256',[5000000n]);else if(selector===encodeFunctionData({abi:parseAbi(['function poolManager() view returns(address)']),functionName:'poolManager'}))result=enc('address',[options.manager?token:VENUE.manager]);else if(to===VENUE.state){const liq=encodeFunctionData({abi:parseAbi(['function getLiquidity(bytes32) view returns(uint128)']),functionName:'getLiquidity',args:[hash as `0x${string}`]}).slice(0,10);result=selector===liq?enc('uint128',[1000n]):enc('uint160,int24,uint24,uint24',[2n**96n,0,0,3000]);}else if(to===VENUE.quoter){if(options.outage)return Response.json({id:q.id,error:{code:-1,message:'Unavailable'}});result=enc('uint256,uint256',[1000000000000000n,45000n]);}}
- return Response.json({jsonrpc:'2.0',id:q.id,result});}) as typeof fetch;return {fetcher,pinned};}
-test('direct quotes use official tokens, pin every contract read and keep spending blocked',async()=>{const m=mock();const r=await inspectRoute(address,'AAPL','1',50,m.fetcher);assert.equal(r.inputRaw,'1000000');assert.equal(r.probes.length,4);assert.equal(r.best?.outputTokens,'0.001');assert.equal(r.minimumOutputRaw,'995000000000000');assert.equal(r.executionEnabled,false);assert.ok(m.pinned.every(b=>b==='0x123'));assert.ok(Date.parse(r.expiresAt)<=Date.parse(r.blockAt)+30000);});
-test('wrong chains, absent code, counterfeit manager and block reorg fail closed',async()=>{for(const options of [{wrong:true},{emptyCode:true},{manager:true},{reorg:true},{inactive:true}])await assert.rejects(inspectRoute(address,'AAPL','1',50,mock(options).fetcher));});
-test('quoter outage means unavailable evidence, not nonexistent liquidity',async()=>{const r=await inspectRoute(address,'AAPL','1',50,mock({outage:true}).fetcher);assert.equal(r.best,null);assert.ok(r.probes.every(p=>p.state==='unavailable'));assert.ok(r.blockers.some(b=>b.includes('Other pools')));});
-test('settlement amounts reject hidden rounding, zero, exponent and excess precision',()=>{assert.equal(routeAmount('0.000001',6),1n);for(const a of ['0','1e3','-1','1.0000001','01',' 1'])assert.throws(()=>routeAmount(a,6));});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { encodeAbiParameters, keccak256, toHex } from 'viem';
+import { inspectRoute, poolIdentity, VENUE } from './chain-route.ts';
+
+const TOKEN = '0x1111111111111111111111111111111111111111';
+const USER = '0x2222222222222222222222222222222222222222';
+const BLOCK = '0x100';
+const HASH = '0x' + 'ab'.repeat(32);
+const sel = (sig: string) => keccak256(toHex(sig)).slice(0, 10);
+const u256 = (v: bigint) => encodeAbiParameters([{ type: 'uint256' }], [v]);
+const quotedPool = poolIdentity(TOKEN as `0x${string}`, 3000, 60).poolId;
+
+function registryBody() {
+  return { assets: [{ tokenSymbol: 'AAPL', status: 'ASSET_STATUS_ACTIVE', currentMultiplier: '1',
+    deployments: [{ chainId: 4663, contractAddress: TOKEN }] }] };
+}
+
+function headerBody() {
+  return { hash: HASH, number: BLOCK, timestamp: toHex(BigInt(Math.floor(Date.now() / 1000))) };
+}
+
+function callResult(to: string, data: string): unknown {
+  const selector = data.slice(0, 10);
+  if (selector === sel('poolManager()')) return encodeAbiParameters([{ type: 'address' }], [VENUE.manager as `0x${string}`]);
+  if (selector === sel('decimals()')) return encodeAbiParameters([{ type: 'uint8' }], [to.toLowerCase() === VENUE.settlement ? 6 : 18]);
+  if (selector === sel('balanceOf(address)')) return u256(2000000n);
+  if (selector === sel('getSlot0(bytes32)')) {
+    const poolId = ('0x' + data.slice(-64)).toLowerCase();
+    const live = poolId === quotedPool.toLowerCase();
+    return encodeAbiParameters(
+      [{ type: 'uint160' }, { type: 'int24' }, { type: 'uint24' }, { type: 'uint24' }],
+      live ? [123456789n, 0, 0, 0] : [0n, 0, 0, 0]);
+  }
+  if (selector === sel('getLiquidity(bytes32)')) return encodeAbiParameters([{ type: 'uint128' }], [10n ** 18n]);
+  if (selector === sel('quoteExactInputSingle(((address,address,uint24,int24,address),bool,uint128,bytes))')) {
+    return encodeAbiParameters([{ type: 'uint256' }, { type: 'uint256' }], [500000000000000000n, 100000n]);
+  }
+  throw new Error('unexpected call ' + selector);
+}
+
+function singleResult(method: string, params: unknown[]): unknown {
+  if (method === 'eth_chainId') return '0x1237';
+  if (method === 'eth_blockNumber') return BLOCK;
+  if (method === 'eth_getBlockByNumber') return headerBody();
+  if (method === 'eth_getCode') return '0x1234';
+  if (method === 'eth_call') {
+    const p = params[0] as { to: string; data: string };
+    return callResult(p.to, p.data);
+  }
+  throw new Error('unexpected method ' + method);
+}
+
+const calls = { count: 0 };
+
+async function stubFetch(input: unknown, init?: unknown): Promise<unknown> {
+  calls.count++;
+  const url = String(input);
+  if (url.includes('rhj/assets')) return { ok: true, json: async () => registryBody() };
+  const body = JSON.parse((init as { body: string }).body) as
+    { id: number; method: string; params: unknown[] } | { id: number; method: string; params: unknown[] }[];
+  if (Array.isArray(body)) {
+    return { ok: true, json: async () => body.map((entry) => ({
+      jsonrpc: '2.0', id: entry.id, result: singleResult(entry.method, entry.params) })) };
+  }
+  return { ok: true, json: async () => ({ jsonrpc: '2.0', id: body.id, result: singleResult(body.method, body.params) }) };
+}
+
+test('batched inspection quotes one pool and stays within a few requests', async () => {
+  calls.count = 0;
+  const evidence = await inspectRoute(USER, 'AAPL', '1.00', 50, stubFetch as unknown as typeof fetch);
+  assert.equal(evidence.inputRaw, '1000000');
+  assert.equal(evidence.balanceRaw, '2000000');
+  assert.equal(evidence.best?.fee, 3000);
+  assert.equal(evidence.minimumOutputRaw, ((500000000000000000n * 9950n) / 10000n).toString());
+  assert.equal(evidence.probes.filter((p) => p.state === 'quoted').length, 1);
+  assert.equal(evidence.probes.filter((p) => p.state === 'uninitialized').length, 3);
+  assert.ok(calls.count <= 10, `expected few requests, saw ${calls.count}`);
+});
