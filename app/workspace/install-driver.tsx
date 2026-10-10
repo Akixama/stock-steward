@@ -49,7 +49,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       // fully verified permission behind. Never rebuild what already exists.
       try {
         const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
-        const check = await checkResponse.json() as { safe?: string; modules?: string[]; activeModule?: string | null; staleModule?: string | null };
+        const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; activeModule?: string | null; staleModule?: string | null };
+        if (checkResponse.ok) {
+          say(`Onchain state: Steward wallet ${check.safe ?? "unknown"} (${check.safeHasCode ? "exists" : "not created yet"}) · ${(check.modules ?? []).length} module(s) on it${check.activeModule ? " · permission VERIFIED" : ""}${!check.activeModule && check.staleModule ? " · leftover module found" : ""}.`);
+        }
         if (checkResponse.ok && check.activeModule) {
           const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.activeModule)}&inspect=1`, { cache: 'no-store' });
           const final = await finalResponse.json() as Phase & { error?: string };
