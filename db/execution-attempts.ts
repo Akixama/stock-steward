@@ -47,7 +47,7 @@ export async function settleAttempt(db:D1Database,owner:string,id:string,proof:{
 export type SpendEvidence={reservedRaw:string;filledCents:number;pendingCents:number;knownHashes:string[];confirmedHashes:string[]};
 export async function listSpendEvidence(db:D1Database,owner:string,address:string,now=new Date()):Promise<SpendEvidence|null>{
  if(!/^0x[0-9a-f]{40}$/i.test(address))return null;
- const rows=await db.prepare("SELECT intent_id,amount_cents,state,execution_day,plan_json,transaction_hash FROM execution_attempts WHERE owner_ref=? AND address=? LIMIT 501").bind(owner,address.toLowerCase()).all<{intent_id:string;amount_cents:number;state:string;execution_day:string;plan_json:string|null;transaction_hash:string|null}>();
+ const rows=await db.prepare("SELECT intent_digest,amount_cents,state,execution_day,plan_json,transaction_hash FROM execution_attempts WHERE owner_ref=? AND address=? LIMIT 501").bind(owner,address.toLowerCase()).all<{intent_digest:string;amount_cents:number;state:string;execution_day:string;plan_json:string|null;transaction_hash:string|null}>();
  if(rows.results.length>500)return null;
  const today=now.toISOString().slice(0,10);let reserved=0n,pending=0,filled=0;const knownHashes:string[]=[],confirmedHashes:string[]=[];
  for(const row of rows.results){
@@ -57,7 +57,7 @@ export async function listSpendEvidence(db:D1Database,owner:string,address:strin
   if(!['reserved','submitted','unknown'].includes(row.state))continue;
   pending+=row.amount_cents;
   try{const plan=JSON.parse(row.plan_json??'null') as AttemptPlan;
-   if(plan.intentDigest!==row.intent_id||plan.address.toLowerCase()!==address.toLowerCase()||!plan.route||!/^\d{1,78}$/.test(plan.route.inputRaw))return null;
+   if(plan.intentDigest!==row.intent_digest||plan.address.toLowerCase()!==address.toLowerCase()||!plan.route||!/^\d{1,78}$/.test(plan.route.inputRaw))return null;
    reserved+=BigInt(plan.route.inputRaw);
   }catch{return null;}
  }
