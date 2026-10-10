@@ -68,6 +68,10 @@ export async function POST(request: Request) {
       notice: "Review every figure, then sign in your wallet. The quote expires in seconds; never sign an expired order.",
     });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Order preparation unavailable." }, { status: 502 });
+    const message = error instanceof Error ? error.message : "";
+    if (/RPC transport unavailable|RPC call unavailable|Registry transport unavailable|Registry unavailable/.test(message)) {
+      return Response.json({ error: "The chain connection hiccuped. Press Prepare exact order again." }, { status: 502 });
+    }
+    return Response.json({ error: message || "Order preparation unavailable." }, { status: 502 });
   }
 }

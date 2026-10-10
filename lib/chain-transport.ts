@@ -7,16 +7,25 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
     const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
     const rpc=url===CHAIN.rpc;
     const target=rpc&&apiKey?`https://robinhood-mainnet.g.alchemy.com/v2/${apiKey}`:input;
-    try {
-      const response=await upstream(target,{...init,redirect:'manual'});
-      if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',status:response.status});
-      return response;
-    }catch(error){
-      const message=error instanceof Error?error.message:'Unknown transport exception';
-      const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
-      console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
-      throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
+    // One quiet retry on network failure: every call through here is a read, so
+    // repeating it is safe. Callers with their own timeout keep a single attempt.
+    const attempts=init?.signal?1:2;
+    for(let attempt=1;attempt<=attempts;attempt++){
+      try {
+        const response=await upstream(target,init?.signal
+          ? {...init,redirect:'manual'}
+          : {...init,redirect:'manual',signal:AbortSignal.timeout(15000)});
+        if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',status:response.status});
+        return response;
+      }catch(error){
+        const message=error instanceof Error?error.message:'Unknown transport exception';
+        const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
+        console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
+        if(attempt<attempts)await new Promise((resolve)=>setTimeout(resolve,500));
+        else throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
+      }
     }
+    throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
   }) as typeof fetch;
 }
 

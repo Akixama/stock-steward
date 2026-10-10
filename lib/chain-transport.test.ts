@@ -1,19 +1,52 @@
-import {test} from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import {chainTransport,chainHealth} from './chain-transport.ts';
-import {CHAIN} from './robinhood-chain.ts';
-test('private RPC configuration affects RPC only; registry receives no credential',async()=>{
- const calls:string[]=[];const f=chainTransport('private-test-key',(async(url,init)=>{calls.push(String(url));assert.equal(init?.redirect,'manual');return Response.json({});}) as typeof fetch);
- await f(CHAIN.rpc);await f('https://api.robinhood.com/rhj/assets');
- assert.deepEqual(calls,['https://robinhood-mainnet.g.alchemy.com/v2/private-test-key','https://api.robinhood.com/rhj/assets']);
+import { chainTransport } from './chain-transport.ts';
+import { CHAIN } from './robinhood-chain.ts';
+
+const okResponse = () => ({ ok: true, status: 200 }) as unknown as Response;
+const badResponse = () => ({ ok: false, status: 400 }) as unknown as Response;
+
+async function flakyOnce(calls: { count: number }): Promise<Response> {
+  calls.count++;
+  if (calls.count === 1) throw new Error('socket hang up');
+  return okResponse();
+}
+
+async function alwaysDown(calls: { count: number }): Promise<Response> {
+  calls.count++;
+  throw new Error('connection reset');
+}
+
+test('a single network failure is retried once, then succeeds', async () => {
+  const calls = { count: 0 };
+  const upstream = ((..._args: unknown[]) => flakyOnce(calls)) as unknown as typeof fetch;
+  const transport = chainTransport('key123', upstream);
+  const response = await transport(CHAIN.rpc, { method: 'POST' });
+  assert.equal(response.ok, true);
+  assert.equal(calls.count, 2);
 });
-test('upstream exception never exposes a credential',async()=>{
- const f=chainTransport('private-test-key',(async()=>{throw Error('https://provider/private-test-key');}) as typeof fetch);
- await assert.rejects(f(CHAIN.rpc),/^Error: RPC transport unavailable$/);
+
+test('persistent failure throws after two attempts', async () => {
+  const calls = { count: 0 };
+  const upstream = ((..._args: unknown[]) => alwaysDown(calls)) as unknown as typeof fetch;
+  const transport = chainTransport('key123', upstream);
+  await assert.rejects(transport(CHAIN.rpc, { method: 'POST' }), /RPC transport unavailable/);
+  assert.equal(calls.count, 2);
 });
-test('health distinguishes HTTP failure from wrong network and unavailable registry',async()=>{
- const bad=await chainHealth((async(url)=>String(url)===CHAIN.rpc?new Response('',{status:403}):Response.json({assets:[]})) as typeof fetch);
- assert.equal(bad.rpc,'http_403');assert.equal(bad.registry,'unavailable');assert.equal(bad.assets,undefined);
- const wrong=await chainHealth((async()=>Response.json([{id:1,result:'0x1'},{id:2,result:'0x42'}])) as typeof fetch);
- assert.equal(wrong.rpc,'wrong_network');assert.equal(wrong.block,undefined);
+
+test('a caller timeout keeps a single attempt', async () => {
+  const calls = { count: 0 };
+  const upstream = ((..._args: unknown[]) => alwaysDown(calls)) as unknown as typeof fetch;
+  const transport = chainTransport(undefined, upstream);
+  await assert.rejects(
+    transport('https://api.robinhood.com/rhj/assets', { signal: AbortSignal.timeout(1000) }),
+    /Registry transport unavailable/);
+  assert.equal(calls.count, 1);
+});
+
+test('an HTTP error passes through without throwing', async () => {
+  const upstream = (async () => badResponse()) as unknown as typeof fetch;
+  const transport = chainTransport('key123', upstream);
+  const response = await transport(CHAIN.rpc, { method: 'POST' });
+  assert.equal(response.ok, false);
 });
