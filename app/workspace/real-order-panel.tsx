@@ -148,7 +148,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">Turn on the permission above first. Real orders stay locked until activation is verified.</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
-    {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields">
+    {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields ws-order-fields">
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD<input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="1.00" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
