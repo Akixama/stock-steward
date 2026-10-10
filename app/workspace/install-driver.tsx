@@ -49,7 +49,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       // fully verified permission behind. Never rebuild what already exists.
       try {
         const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
-        const check = await checkResponse.json() as { safe?: string; modules?: string[]; activeModule?: string | null };
+        const check = await checkResponse.json() as { safe?: string; modules?: string[]; activeModule?: string | null; staleModule?: string | null };
         if (checkResponse.ok && check.activeModule) {
           const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.activeModule)}&inspect=1`, { cache: 'no-store' });
           const final = await finalResponse.json() as Phase & { error?: string };
@@ -59,11 +59,15 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
             say('Permission already active and verified onchain. Nothing more to sign.');
             return;
           }
-        } else if (checkResponse.ok && check.modules?.length === 1) {
-          const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.modules[0])}`, { cache: 'no-store' });
+        }
+        const resumeModule = checkResponse.ok
+          ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
+          : null;
+        if (resumeModule) {
+          const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(resumeModule)}`, { cache: 'no-store' });
           const phaseB = await phaseBResponse.json() as Phase & { error?: string };
           if (phaseBResponse.ok && phaseB.steps) {
-            setPhase(phaseB); setNext(0); setModule(check.modules[0]);
+            setPhase(phaseB); setNext(0); setModule(resumeModule);
             say('Continuing with your existing wallet and module. Sign the remaining steps below.');
             return;
           }
@@ -131,12 +135,15 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         if (step.key === 'create_module') {
           try {
             const checkResponse = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store' });
-            const check = await checkResponse.json() as { modules?: string[] };
-            if (checkResponse.ok && check.modules?.length === 1) {
-              const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(check.modules[0])}`, { cache: 'no-store' });
+            const check = await checkResponse.json() as { modules?: string[]; staleModule?: string | null };
+            const resumeModule = checkResponse.ok
+              ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
+              : null;
+            if (resumeModule) {
+              const phaseBResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(resumeModule)}`, { cache: 'no-store' });
               const phaseB = await phaseBResponse.json() as Phase & { error?: string };
               if (phaseBResponse.ok && phaseB.steps) {
-                setPhase(phaseB); setNext(0); setModule(check.modules[0]);
+                setPhase(phaseB); setNext(0); setModule(resumeModule);
                 say('A permission module from an earlier attempt is already onchain. Continuing with it instead.');
                 return;
               }
