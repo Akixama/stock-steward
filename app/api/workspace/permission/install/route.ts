@@ -106,9 +106,19 @@ export async function GET(request: Request) {
     }
     if (!/^0x[0-9a-f]{40}$/i.test(moduleParam)) return Response.json({ error: "Invalid module address." }, { status: 400 });
     const { steps, compiled, policy } = build.phaseB(moduleParam as Address);
+    // Idempotent resume: enabling an already-enabled module always reverts, so
+    // the enable step is omitted when the chain already shows membership. Every
+    // other step safely overwrites, so only this one needs the guard.
+    let liveSteps = steps;
+    try {
+      const membershipRaw = await rpcCall(moduleParam,
+        encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [owner] }), transport);
+      const enabled = decodeFunctionResult({ abi: getterAbi, functionName: "isModuleEnabled", data: membershipRaw });
+      if (enabled === true) liveSteps = steps.filter((step) => step.key !== "enable_module");
+    } catch { /* Unreadable membership keeps every step. */ }
     const payload = {
       safe: build.safe, module: moduleParam, roleKey: compiled.roleKey,
-      steps, revocation: revocationStep(compiled), limitations: compiled.limitations,
+      steps: liveSteps, revocation: revocationStep(compiled), limitations: compiled.limitations,
     };
     if (url.searchParams.get("inspect") !== "1") return Response.json(payload);
     const spec = installationReadChecks({ session: owner, compiled, policy });

@@ -68,7 +68,9 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
             return;
           }
         }
-      } catch { /* A failed check simply falls through to a fresh build. */ }
+      } catch (checkCause) {
+        say(`Prior onchain state could not be read (${checkCause instanceof Error ? checkCause.message : 'network unavailable'}). Building fresh below.`);
+      }
       const response = await fetch('/api/workspace/permission/install', { cache: 'no-store' });
       const payload = await response.json() as Phase & { error?: string };
       if (!response.ok || !payload.steps) throw new Error(payload.error ?? 'Activation unavailable.');
@@ -108,6 +110,22 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       try {
         estimate = await provider.request({ method: 'eth_estimateGas', params: [{ from: address, to: step.to, data: step.data }] }) as string;
       } catch {
+        // Estimation also fails when there is nothing left to do because an
+        // earlier attempt already applied everything. Verify onchain first.
+        if (phase.module) {
+          try {
+            const verifyResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(phase.module)}&inspect=1`, { cache: 'no-store' });
+            const verify = await verifyResponse.json() as Phase & { installed?: boolean; error?: string };
+            if (verifyResponse.ok && verify.checks) {
+              setPhase({ ...phase, checks: verify.checks, installed: verify.installed });
+              if (verify.installed) {
+                setNext(phase.steps.length);
+                say('Verified onchain: the permission is already fully active. Nothing more to sign.');
+                return;
+              }
+            }
+          } catch { /* Fall through to the step-specific handling below. */ }
+        }
         // A failing module creation usually means an earlier attempt already put
         // one onchain. Pick it up and continue instead of failing here.
         if (step.key === 'create_module') {
