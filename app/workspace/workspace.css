@@ -396,7 +396,8 @@
 .ws-path button small{display:block;color:#a9a8a4;font-size:.75rem;margin-top:4px}
 .ws-path button:hover{border-color:#b8e62e88}
 #ws-activation,#ws-real-orders{scroll-margin-top:90px}
-.ws-autonomy-panel .ws-install-review .ws-order-fields{grid-template-columns:1fr 1fr}
+.ws-autonomy-panel .ws-install-review .ws-order-fields{grid-template-columns:1fr 1fr;margin-top:18px}
+.ws-install-review>.ws-chain-note{margin-top:12px}
 .ws-autonomy-panel .ws-install-review .ws-order-fields select{width:100%;height:43px;padding:0 12px;border:1px solid #535250;border-radius:9px;outline:none;background:#131210;color:#f7f6f4;font-size:.88rem}
 .ws-autonomy-panel .ws-install-review .ws-order-fields button{grid-column:1/-1;height:47px;font-size:.82rem}
 @media(max-width:650px){.ws-autonomy-panel .ws-install-review .ws-order-fields{grid-template-columns:1fr}}

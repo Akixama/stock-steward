@@ -155,7 +155,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD<input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="1.00" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
-    {!provider && <p className="ws-chain-note">Connect and verify your wallet above to prepare orders.</p>}
+    {!provider && <p className="ws-chain-note">Next: connect your wallet above, then come back here to order. Refreshing the page disconnects it, so this step comes back every visit. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-autonomy-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>EXACT ORDER · SIGN WITHIN SECONDS</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>
