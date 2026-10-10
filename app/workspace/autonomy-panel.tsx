@@ -9,6 +9,7 @@ import RoutePanel,{RouteDetails} from './route-panel';
 import OwnershipPanel from './ownership-panel';
 import WalletSetup from './wallet-setup';
 import InstallReview from './install-review';
+import RealOrderPanel from './real-order-panel';
 import SettlementDetails from './settlement-details';
 import WalletProfileDetails from './wallet-profile-details';
 export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;onOpenMandate:()=>void}) {
@@ -49,6 +50,7 @@ export default function AutonomyPanel({mandate,onOpenMandate}:{mandate:Mandate;o
     {runs.length>0 && <details className="ws-chain-history"><summary>Saved checks · latest {runs.length}</summary>{runs.map(run=><div key={run.id}><span>{run.address.slice(0,6)}…{run.address.slice(-4)} · {new Date(run.createdAt).toLocaleString()} · {run.trigger==='scheduled'?'scheduled · ':''}blocked</span><button className="ws-recheck" onClick={()=>{setActive(run);setAddress(run.address);}}>Inspect</button></div>)}</details>}
     <div id="ws-ownership"><OwnershipPanel address={address} provider={walletProvider}/></div>
     <InstallReview provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
+    <RealOrderPanel provider={walletProvider} address={address} />
     <section className="ws-monitor" aria-labelledby="permission-contract-status">
       <span className="ws-label">SPENDING PERMISSIONS / IMPLEMENTATION</span>
       <h3 id="permission-contract-status">The limits reach the contracts.</h3>

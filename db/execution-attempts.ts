@@ -1,7 +1,7 @@
 import type {RolesPolicy} from '../lib/roles-permission.ts';
 import type {RouterCandidate} from '../lib/router-candidate.ts';
 import type {RouteEvidence} from '../lib/chain-route.ts';
-export type AttemptPlan={owner:string;address:string;intentDigest:string;mandateVersion:number;day:string;amountCents:number;dailyCapCents:number;candidate:RouterCandidate;route?:RouteEvidence;routerCodeHash?:string;permission?:{policy:RolesPolicy;creationTx:`0x${string}`}};
+export type AttemptPlan={owner:string;address:string;intentDigest:string;mandateVersion:number;day:string;amountCents:number;dailyCapCents:number;candidate:RouterCandidate;route?:RouteEvidence;routerCodeHash?:string;permission?:{policy:RolesPolicy;creationTx:`0x${string}`};livePolicy?:RolesPolicy};
 export type AttemptState='reserved'|'attempting'|'submitted'|'unknown'|'confirmed'|'reverted'|'released';
 export type Attempt={id:string;owner_ref:string;address:string;intent_digest:string;mandate_version:number;execution_day:string;amount_cents:number;state:AttemptState;plan_json:string;transaction_hash:string|null;created_at:string;updated_at:string};
 function valid(plan:AttemptPlan){if(!plan.owner||plan.owner.length>200||!/^0x[0-9a-f]{40}$/i.test(plan.address)||!/^0x[0-9a-f]{64}$/.test(plan.intentDigest)||plan.candidate.intentDigest!==plan.intentDigest||plan.candidate.from.toLowerCase()!==plan.address.toLowerCase()||!Number.isSafeInteger(plan.mandateVersion)||plan.mandateVersion<1||!/^\d{4}-\d{2}-\d{2}$/.test(plan.day)||!Number.isSafeInteger(plan.amountCents)||plan.amountCents<1||!Number.isSafeInteger(plan.dailyCapCents)||plan.dailyCapCents<plan.amountCents||plan.dailyCapCents>100000000)throw Error('Invalid attempt plan');}

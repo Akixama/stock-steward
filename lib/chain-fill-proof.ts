@@ -16,6 +16,11 @@ export async function reconcileRolesFill(route:RouteEvidence,version:number,tran
  const envelope=encodeRolesExecution(policy.module,plan.roleKey,call);
  return reconcileBoundFill(route,version,transactionHash,policy.routerCodeHash,fetcher,{from:policy.session,to:envelope.to,data:envelope.data,value:envelope.value,verify:async(block:Hex,blockHash:string)=>{const state=await inspectRolesInstallation(policy,creationTx,fetcher,block);return state.state==='verified_policy_state'&&state.blockHash===blockHash;}});
 }
+// Owner-signed orders reconcile through this wrapper: the exact envelope the wallet
+// signed is re-verified, including a caller-supplied historical permission check.
+export async function reconcileOwnerOrderFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,envelope:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>},fetcher:typeof fetch=fetch):Promise<FillProof>{
+ return reconcileBoundFill(route,version,transactionHash,expectedCodeHash,fetcher,envelope);
+}
 async function reconcileBoundFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,fetcher:typeof fetch,envelope?:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>}):Promise<FillProof>{
  if(!hash(transactionHash)||!hash(expectedCodeHash))throw Error('Invalid reconciliation identity');
  const candidate=routerCandidate(route,version),record:FillProof={hash:transactionHash.toLowerCase(),intentDigest:candidate.intentDigest,canonicalFinalized:false,outcome:'unknown',blockHash:null,actualInputRaw:null,actualOutputRaw:null,calldataHash:candidate.calldataHash,checkedAt:new Date().toISOString(),executionKind:envelope?'roles-module':'direct-router',delegatedAccountVerified:false,why:'Exact direct-router evidence is unavailable. No budget is released.'};
