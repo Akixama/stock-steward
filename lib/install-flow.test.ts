@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeFunctionData, keccak256, toHex, type Address, type Hex } from 'viem';
-import { buildInstall, installSalts, installationReadChecks, revocationStep, type InstallPolicyBase } from './install-flow.ts';
-import { SAFE_CONTRACTS, safeFactoryAbi, safeSetupPlan } from './safe-setup.ts';
+import { decodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from 'viem';
+import { buildInstall, encodeBatch, installSalts, installationReadChecks, revocationStep, type InstallPolicyBase } from './install-flow.ts';
+import { MULTISEND, SAFE_CONTRACTS, safeFactoryAbi, safeSetupPlan } from './safe-setup.ts';
 import { ROLES_CONTRACTS, rolesFactoryAbi, compileRolesPolicy } from './roles-permission.ts';
 
 const owner = '0xdc7f175bca1c29a77286a52c857e7fef12f3f662' as Address;
@@ -80,6 +80,76 @@ test('the compiler caps still bind the install: four outputs are refused', () =>
       { token: '0x5555555555555555555555555555555555555555', fee: 500, tickSpacing: 10, minimumOutputRaw: '1' },
     ] } });
   assert.throws(() => build.phaseB('0x3333333333333333333333333333333333333333' as Address));
+});
+
+const execAbi = parseAbi(['function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,bytes signatures)']);
+const multiAbi = parseAbi(['function multiSend(bytes transactions)']);
+
+function unpackBatch(batchedData: Hex): { op: number; to: string; data: string }[] {
+  const outer = decodeFunctionData({ abi: execAbi, data: batchedData });
+  const [batchTo, , batchData, operation] = outer.args as unknown as [string, bigint, Hex, number];
+  assert.equal(batchTo.toLowerCase(), MULTISEND.address.toLowerCase());
+  assert.equal(operation, 1);
+  const inner = decodeFunctionData({ abi: multiAbi, data: batchData });
+  assert.equal(inner.functionName, 'multiSend');
+  const blob = (inner.args[0] as string).slice(2);
+  const entries: { op: number; to: string; data: string }[] = [];
+  let at = 0;
+  while (at < blob.length) {
+    const op = parseInt(blob.slice(at, at + 2), 16); at += 2;
+    const to = '0x' + blob.slice(at, at + 40); at += 40;
+    const value = BigInt('0x' + blob.slice(at, at + 64)); at += 64;
+    const len = parseInt(blob.slice(at, at + 64), 16); at += 64;
+    const data = '0x' + blob.slice(at, at + len * 2); at += len * 2;
+    assert.equal(value, 0n);
+    entries.push({ op, to, data });
+  }
+  return entries;
+}
+
+function innerCallsOf(steps: { data: Hex }[]): { to: string; data: string }[] {
+  return steps.map((step) => {
+    const decoded = decodeFunctionData({ abi: execAbi, data: step.data });
+    const [to, , data, operation] = decoded.args as unknown as [string, bigint, Hex, number];
+    assert.equal(operation, 0);
+    return { to: to.toLowerCase(), data: data.toLowerCase() };
+  });
+}
+
+test('phase B packs every call into one audited batch transaction', () => {
+  const build = buildInstall({ owner, policyVersion: 1, policyBase, proxyCreationCode });
+  const module = '0x3333333333333333333333333333333333333333' as Address;
+  const { steps, batched } = build.phaseB(module);
+  assert.equal(batched.key, 'batch_all');
+  assert.equal(batched.to.toLowerCase(), build.safe.toLowerCase());
+  assert.ok(batched.data.startsWith('0x6a761202'));
+  const entries = unpackBatch(batched.data);
+  assert.equal(entries.length, 6);
+  assert.ok(entries.every((entry) => entry.op === 0));
+  // The batch carries exactly the step-by-step calls, in the same order.
+  assert.deepEqual(
+    entries.map((entry) => ({ to: entry.to.toLowerCase(), data: entry.data.toLowerCase() })),
+    innerCallsOf(steps));
+  // Deterministic: the same inputs always pack the same transaction.
+  assert.equal(build.phaseB(module).batched.data, batched.data);
+});
+
+test('a resumed phase B leaves the enable call out of both paths', () => {
+  const build = buildInstall({ owner, policyVersion: 1, policyBase, proxyCreationCode });
+  const module = '0x3333333333333333333333333333333333333333' as Address;
+  const { steps, batched } = build.phaseB(module, true);
+  assert.deepEqual(steps.map((step) => step.key),
+    ['scope_target', 'scope_function', 'daily_quota', 'total_quota', 'grant_role']);
+  const entries = unpackBatch(batched.data);
+  assert.equal(entries.length, 5);
+  assert.deepEqual(
+    entries.map((entry) => ({ to: entry.to.toLowerCase(), data: entry.data.toLowerCase() })),
+    innerCallsOf(steps));
+});
+
+test('batch packing refuses malformed calls', () => {
+  assert.throws(() => encodeBatch([{ to: 'bad' as Address, data: '0x1234' as Hex }]));
+  assert.throws(() => encodeBatch([{ to: owner, data: '0x123' as Hex }]));
 });
 
 test('readback checks cover admin control, membership and both quotas', () => {

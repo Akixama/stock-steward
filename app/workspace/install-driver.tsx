@@ -19,6 +19,7 @@ type Step = { key: string; label: string; to: string; data: string; verify: stri
 type Phase = {
   safe: string;
   steps: Step[];
+  batched?: Step;
   module?: string;
   revocation?: Step;
   checks?: { label: string; expect: string; observed: string; ok: boolean }[];
@@ -39,6 +40,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   // the next signature. Every transaction still pops its own wallet approval,
   // and closing a popup or any failure pauses the chain at once.
   const [chain, setChain] = useState(false);
+  const [skipBatch, setSkipBatch] = useState(false);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -122,7 +124,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
 
   async function begin() {
     if (!provider || busy) return;
-    setBusy(true); setError(''); setLog([]); setNext(0); setModule('');
+    setBusy(true); setError(''); setLog([]); setNext(0); setModule(''); setSkipBatch(false);
     try {
       // Resume first: an earlier attempt may have left a wallet, a module, or a
       // fully verified permission behind. The one candidate is inspected; a
@@ -179,7 +181,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
 
   async function signCurrent() {
     if (!provider || !phase || busy) return;
-    const step = phase.steps[next];
+    // The one-signature path: every remaining call rides in a single Safe
+    // transaction through the audited batch helper. Same calls, same readback.
+    const batchable = !!phase.batched && next === 0 && !skipBatch;
+    const step = batchable ? phase.batched! : phase.steps[next];
     if (!step) { setError('No step is waiting. Press Restart activation to check again.'); return; }
     setBusy(true); setError('');
     try {
@@ -270,7 +275,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           } catch { /* Not the creation log. */ }
         }
       }
-      const isLast = next === phase.steps.length - 1;
+      const isLast = batchable ? true : next === phase.steps.length - 1;
       if (isLast && !foundModule && !phase.module) {
         setNext(next + 1);
         say('Module creation event not found in the receipt; the next phase needs the module address.');
@@ -340,7 +345,17 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       {chain && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause auto-signing</button>}
       <span>{!provider ? 'Connect and verify your wallet above first.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : 'Each step opens your wallet. Review and sign one at a time.'}</span>
     </div>
-    {current && <div className="ws-order-plan">
+    {phase?.batched && next === 0 && !skipBatch ? <div className="ws-order-plan">
+      <span>ALL {phase!.steps.length} STEPS · ONE SIGNATURE</span>
+      <strong>{phase!.batched!.label}</strong>
+      <p>{phase!.batched!.verify} The same calls as signing each step separately, through the audited batch helper, verified afterwards by the readback below.</p>
+      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
+        {busy ? 'Working…' : `Sign once: run all ${phase!.steps.length} steps`}
+      </button>
+      <button type="button" className="ws-action-quiet" onClick={() => setSkipBatch(true)} disabled={busy}>
+        Sign each step separately instead
+      </button>
+    </div> : current && <div className="ws-order-plan">
       <span>STEP {next + 1} OF {phase!.steps.length}</span>
       <strong>{current.label}</strong>
       <p>{current.verify}</p>

@@ -9,7 +9,7 @@ import { inspectRoute } from "@/lib/chain-route";
 import { planFromMandate } from "@/lib/permission-plan";
 import { buildInstall, installationReadChecks, revocationStep, type InstallOutput } from "@/lib/install-flow";
 import { checkPermissionState } from "@/app/api/workspace/orders/live/_shared";
-import { safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
+import { MULTISEND, safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 
 // Assembles the exact owner-signed install transactions. The server never signs: every
@@ -105,20 +105,33 @@ export async function GET(request: Request) {
       });
     }
     if (!/^0x[0-9a-f]{40}$/i.test(moduleParam)) return Response.json({ error: "Invalid module address." }, { status: 400 });
-    const { steps, compiled, policy } = build.phaseB(moduleParam as Address);
     // Idempotent resume: enabling an already-enabled module always reverts, so
-    // the enable step is omitted when the chain already shows membership. Every
-    // other step safely overwrites, so only this one needs the guard.
-    let liveSteps = steps;
+    // the enable call is omitted when the chain already shows membership. Every
+    // other call safely overwrites, so only this one needs the guard.
+    let skipEnable = false;
     try {
       const membershipRaw = await rpcCall(moduleParam,
         encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [owner] }), transport);
-      const enabled = decodeFunctionResult({ abi: getterAbi, functionName: "isModuleEnabled", data: membershipRaw });
-      if (enabled === true) liveSteps = steps.filter((step) => step.key !== "enable_module");
+      skipEnable = decodeFunctionResult({ abi: getterAbi, functionName: "isModuleEnabled", data: membershipRaw }) === true;
     } catch { /* Unreadable membership keeps every step. */ }
+    const { steps: liveSteps, batched: fullBatch, compiled, policy } = build.phaseB(moduleParam as Address, skipEnable);
+    // The one-signature path is offered only while the audited batch helper at
+    // its canonical address still carries exactly the pinned code. Anything
+    // else falls back to the step-by-step path, never to a blind batch.
+    let batched: typeof fullBatch | undefined = fullBatch;
+    try {
+      const helperCode = await transport(CHAIN_RPC, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getCode", params: [MULTISEND.address, "latest"] }),
+        cache: "no-store",
+      }).then(async (response) => (await response.json() as { result?: string }).result);
+      if (!helperCode || helperCode === "0x" || keccak256(helperCode as Hex).toLowerCase() !== MULTISEND.runtimeHash.toLowerCase()) {
+        batched = undefined;
+      }
+    } catch { batched = undefined; }
     const payload = {
       safe: build.safe, module: moduleParam, roleKey: compiled.roleKey,
-      steps: liveSteps, revocation: revocationStep(compiled), limitations: compiled.limitations,
+      steps: liveSteps, batched, revocation: revocationStep(compiled), limitations: compiled.limitations,
     };
     if (url.searchParams.get("inspect") !== "1") return Response.json(payload);
     const spec = installationReadChecks({ session: owner, compiled, policy });

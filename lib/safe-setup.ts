@@ -1,5 +1,10 @@
 import {concat,encodeAbiParameters,encodeFunctionData,encodePacked,getContractAddress,keccak256,parseAbi,parseAbiParameters,type Address,type Hex} from 'viem';
 export const SAFE_CONTRACTS={singleton:'0x41675C099F32341bf84BFc5382aF534df5C7461a',factory:'0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67'} as const;
+// Audited batch helper (MultiSend v1.4.1, canonical deployment), verified live on
+// this chain before every use. It carries no permissions and holds nothing; it only
+// runs a list of plain calls inside one Safe transaction so several owner steps cost
+// a single signature. Hash pinned: the server refuses any other code at this address.
+export const MULTISEND={address:'0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526',runtimeHash:'0x0e4f7fc66550a322d1e7688e181b75e217e662a4f3f4d6a29b22bc61217c4b77'} as const;
 export const SAFE_RUNTIME_HASHES={singleton:'0x1fe2df852ba3299d6534ef416eefa406e56ced995bca886ab7a553e6d0c5e1c4',factory:'0x50c3cdc4074750a7a974204a716c999edd37482f907608d960b2b025ee0b3317',proxy:'0xd7d408ebcd99b2b70be43e20253d6d92a8ea8fab29bd3be7f55b10032331fb4c'} as const;
 export const safeSetupAbi=parseAbi(['function setup(address[] owners,uint256 threshold,address to,bytes data,address fallbackHandler,address paymentToken,uint256 payment,address payable paymentReceiver)']);
 export const safeFactoryAbi=parseAbi(['function proxyCreationCode() pure returns (bytes)','function createProxyWithNonce(address singleton,bytes initializer,uint256 saltNonce) returns (address proxy)','event ProxyCreation(address indexed proxy,address singleton)']);

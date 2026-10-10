@@ -1,5 +1,5 @@
-import { encodeFunctionData, keccak256, pad, parseAbi, toHex, type Address, type Hex } from "viem";
-import { safeSetupPlan } from "./safe-setup.ts";
+import { concat, encodeFunctionData, encodePacked, keccak256, pad, parseAbi, toHex, type Address, type Hex } from "viem";
+import { MULTISEND, safeSetupPlan } from "./safe-setup.ts";
 import { rolesDeploymentCall, compileRolesPolicy, type RolesPolicy } from "./roles-permission.ts";
 
 // The owner-signed install of the bounded spending permission. Every step is a plain
@@ -43,6 +43,24 @@ export function installSalts(owner: string, policyVersion: number): { safeSalt: 
   return { safeSalt: pad(base, { size: 32 }), moduleSalt: pad(keccak256(toHex(`${base}|module`)), { size: 32 }) };
 }
 
+const multiSendAbi = parseAbi(["function multiSend(bytes transactions)"]);
+
+// Packs plain calls exactly as the audited batch helper expects: operation,
+// target, value, data length, data — concatenated with no padding between calls.
+// Every call here is a plain call (never delegatecall); the single surrounding
+// Safe transaction is what the owner signs.
+export function encodeBatch(calls: { to: Address; data: Hex }[]): Hex {
+  for (const call of calls) {
+    if (!/^0x[0-9a-f]{40}$/i.test(call.to) || !/^0x(?:[0-9a-f]{2})*$/.test(call.data)) {
+      throw new Error("Invalid batch call.");
+    }
+  }
+  return encodeFunctionData({ abi: multiSendAbi, functionName: "multiSend",
+    args: [concat(calls.map((call) => encodePacked(
+      ["uint8", "address", "uint256", "uint256", "bytes"],
+      [0, call.to, 0n, BigInt((call.data.length - 2) / 2), call.data])))] });
+}
+
 /**
  * Builds the exact transaction sequence. Phase A creates the owner Safe and the Roles
  * module (fully precomputable). Phase B installs the policy once the module address is
@@ -59,9 +77,10 @@ export function buildInstall(input: {
   safe: Address;
   policyBase: InstallPolicyBase;
   stepsA: InstallStep[];
-  phaseB: (module: Address) => {
+  phaseB: (module: Address, skipEnable?: boolean) => {
     policy: RolesPolicy;
     steps: InstallStep[];
+    batched: InstallStep;
     compiled: ReturnType<typeof compileRolesPolicy>;
   };
 } {
@@ -87,7 +106,7 @@ export function buildInstall(input: {
       verify: "A ModuleProxyCreation event names the module that will enforce your limits.",
     },
   ];
-  const phaseB = (module: Address) => {
+  const phaseB = (module: Address, skipEnable = false) => {
     if (!/^0x[0-9a-f]{40}$/i.test(module)) throw new Error("Invalid module address.");
     const policy: RolesPolicy = {
       account: setup.account as Address, module,
@@ -108,17 +127,35 @@ export function buildInstall(input: {
       }),
       verify,
     });
+    const enableData = encodeFunctionData({ abi: safeAbi, functionName: "enableModule", args: [policy.module as Address] });
     const steps: InstallStep[] = [
-      wrap("enable_module", "Enable the permission module on your wallet", policy.module as Address,
-        encodeFunctionData({ abi: safeAbi, functionName: "enableModule", args: [policy.module as Address] }),
-        "Your wallet lists the module as enabled; nothing else is trusted."),
+      ...(skipEnable ? [] : [wrap("enable_module", "Enable the permission module on your wallet", policy.module as Address,
+        enableData,
+        "Your wallet lists the module as enabled; nothing else is trusted.")]),
       ...compiled.calls.map((call, index) => wrap(
         ["scope_target", "scope_function", "daily_quota", "total_quota", "grant_role"][index],
         ["Pin the approved trade target", "Pin the exact trade shape", "Set the daily quota", "Set the total quota", "Grant the bounded role"][index],
         call.to as Address, call.data as Hex,
         "Configuration recorded on the module; membership last, so a partial activation grants nothing.")),
     ];
-    return { policy, steps, compiled };
+    // The same calls as above, packed into one Safe transaction through the
+    // audited batch helper: one click, one signature. Re-enabling an already
+    // enabled module always reverts, so a resumed flow leaves it out — exactly
+    // like the step-by-step path.
+    const inners = [
+      ...(skipEnable ? [] : [{ to: policy.module as Address, data: enableData }]),
+      ...compiled.calls.map((call) => ({ to: call.to as Address, data: call.data as Hex })),
+    ];
+    const batched: InstallStep = {
+      key: "batch_all", label: `Run all ${inners.length} steps in one signature`,
+      to: policy.account as Address,
+      data: encodeFunctionData({
+        abi: safeAbi, functionName: "execTransaction",
+        args: [MULTISEND.address as Address, 0n, encodeBatch(inners), 1, 0n, 0n, 0n, ZERO, ZERO, ownerSignature],
+      }),
+      verify: "Every configuration lands in one transaction; the readback below verifies each one.",
+    };
+    return { policy, steps, batched, compiled };
   };
   return { safe: setup.account as Address, policyBase, stepsA, phaseB };
 }
