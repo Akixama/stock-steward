@@ -88,6 +88,10 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     if(enabled&&panel)motion.current=panel.animate([{opacity:.55,transform:'translateX('+(direction*22)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:340,easing:'cubic-bezier(.23,1,.32,1)'});
   }
 
+  function scrollToId(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function resetDraft() {
     setSymbols(mandate.allowedSymbols.join(", "));
     setMaxOrder(String(mandate.maxOrderCents / 100));
@@ -160,12 +164,16 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         {view === 'goal' && <GoalPanel onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">02B / PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Arm alerts for the stocks in your Mandate. Checking them never buys or sells anything.</p></div></div><AlertsPanel mandate={mandate}/></div>} 
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
-          <section className="ws-start-path" aria-labelledby="workspace-start-title"><div><span className="ws-label">NEW HERE?</span><h2 id="workspace-start-title">Start with a plan. Try it with fake money.</h2><p>No wallet connection or real funds needed for Practice.</p></div><div className="ws-start-steps"><button onClick={()=>navigate('goal')}><span>1</span><strong>Make a plan</strong><small>Your goal, timeframe and contributions</small></button><button onClick={()=>navigate('strategy')}><span>2</span><strong>Create strategy</strong><small>Tell AI your direction, then confirm</small></button><button onClick={()=>navigate('practice')}><span>3</span><strong>Try Practice</strong><small>Run, approve and skip the wait</small></button><button onClick={()=>navigate('trail')}><span>4</span><strong>Review Trail</strong><small>See every purchase and reason</small></button></div>
-          </section><div className="ws-status-strip" role="status">
+          <nav className="ws-path" aria-label="What to do next"><span className="ws-label">DO NEXT</span><ol>
+            <li><button type="button" onClick={() => navigate("mandate")}><b>1 · Set your limits</b><small>{mandate.version ? `Saved as v${mandate.version} — open Mandate to change` : "Pick stocks and caps in Mandate"}</small></button></li>
+            <li><button type="button" onClick={() => scrollToId("ws-activation")}><b>2 · Turn on the permission</b><small>One signature, then verified onchain</small></button></li>
+            <li><button type="button" onClick={() => scrollToId("ws-real-orders")}><b>3 · Fund and buy</b><small>Send USDG, then place a $1 order</small></button></li>
+          </ol></nav>
+          <div className="ws-status-strip" role="status">
             <div><span className="ws-label">MANDATE</span><strong>{mandate.version ? `v${mandate.version} saved · ${mandate.allowedSymbols.join(", ") || "no symbols"}` : "Not saved yet"}</strong></div>
             <div><span className="ws-label">MODE</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Automatic within limits" : "Ask me every time"}</strong></div>
             <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review activation in Autonomy"}</strong></div>
-          </div><div className="ws-page-head"><div><span className="ws-eyebrow">01 / THE CURRENT STATE</span><h1>Your money deserves<br /><em>an explanation.</em></h1><p>Your limits are yours to set. The connection and decision trail stay honest about what has actually happened.</p></div><OverviewMotion/></div>
+          </div><div className="ws-page-head"><div><span className="ws-eyebrow">OVERVIEW</span><h1>Your money,<br /><em>your rules.</em></h1><p>Set limits, turn on the permission, then buy. Practice first with fake money if you like.</p></div><OverviewMotion/></div>
           <div className="ws-overview-grid ws-wallet-overview">
             <section className="ws-mandate-preview">
               <div className="ws-panel-top"><span className="ws-label">YOUR BOUNDARIES</span><span className="ws-panel-index">SAVED LIMITS</span></div>

@@ -87,8 +87,8 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     try { preview = purchasePreview(snapshot, contract, amountCents, mandate); } catch { /* Invalid input shows no checks. */ }
   }
   return <section id="ws-chain-panel" className="ws-check-panel ws-chain-panel" aria-busy={busy}>
-    <div className="ws-account-head"><div><span className="ws-label">ROBINHOOD CHAIN / WALLET STEWARD</span><h2>Your wallet. In focus.</h2>
-      <p>Observe real holdings, inspect indicative prices and keep the evidence. No signature or trading permission is requested.</p></div>
+    <div className="ws-account-head"><div><span className="ws-label">WALLET & FUNDS</span><h2>Your wallet.</h2>
+      <p>Look at your balances and bring funds over. Watching never signs anything.</p></div>
       {connected?<button className="ws-recheck" onClick={()=>{clear();shareWalletSession(null);setNotice("Disconnected. Saved receipts remain; you can still watch any address.");}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setAddress(address);setNotice("Wallet connected. Observe & save reads its holdings at one block.");}}/>}</div>
     <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
       generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setNotice(null);

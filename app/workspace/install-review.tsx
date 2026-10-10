@@ -42,14 +42,14 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
   const needsLimits = /mandate|limits|symbol|token contract/i.test(error);
   const needsWallet = /ownership|verify your wallet/i.test(error);
   const step = needsLimits
-    ? { n: '1', title: 'Set your limits first', why: 'Activation puts your saved limits onchain — with nothing saved, there is nothing to turn on.', action: 'Open Mandate', go: onOpenMandate }
+    ? { n: '1', title: 'Set your limits first', why: 'There is nothing to turn on until your limits are saved.', action: 'Open Mandate', go: onOpenMandate }
     : needsWallet
-      ? { n: '2', title: 'Prove the wallet is yours', why: 'Connecting only shows an address; a free signature proves you control it. Activation needs that proof first.', action: 'Verify wallet', go: () => document.getElementById('ws-ownership')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+      ? { n: '2', title: 'Prove the wallet is yours', why: 'A free signature proves you control it. Activation needs that proof first.', action: 'Verify wallet', go: () => document.getElementById('ws-ownership')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
       : null;
-  return <section className="ws-install-review">
-    <div className="ws-account-head"><div><span className="ws-label">SPENDING PERMISSION / ACTIVATION REVIEW</span>
+  return <section className="ws-install-review" id="ws-activation">
+    <div className="ws-account-head"><div><span className="ws-label">PERMISSION / REVIEW</span>
       <h3>See exactly what would be turned on.</h3>
-      <p>Your saved limits become an onchain policy on your verified wallet. This review is read-only — nothing is signed, deployed or spent.</p></div>
+      <p>Your saved limits as an onchain policy. Reading only — nothing is signed here.</p></div>
       {plan && <button type="button" className="ws-recheck" onClick={load} disabled={busy}>{busy ? 'Compiling…' : 'Refresh review'}</button>}</div>
     {busy && !plan && <p className="ws-chain-note">Checking what is ready…</p>}
     {!busy && step && <div className="ws-install-gate">

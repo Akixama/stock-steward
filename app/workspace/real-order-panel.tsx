@@ -107,10 +107,10 @@ export default function RealOrderPanel({ provider, address }: {
     } finally { setBusy(false); }
   }
 
-  return <section className="ws-install-review" aria-busy={busy}>
+  return <section className="ws-install-review" id="ws-real-orders" aria-busy={busy}>
     <div className="ws-account-head"><div><span className="ws-label">REAL ORDERS / PILOT</span>
       <h3>Buy for real, one order at a time.</h3>
-      <p>Each order is prepared fresh, signed by you in your wallet, and verified onchain afterwards. The server can never sign or spend.</p></div>
+      <p>You sign every order in your wallet. The server can never sign or spend.</p></div>
       <button type="button" className="ws-recheck" onClick={loadStatus} disabled={busy}>Refresh</button></div>
     {status?.permissionActive && <p className="ws-chain-note">
       Spent today {dollars(status.spentTodayCents)} · {dollars(status.remainingTodayCents)} left of your daily limit · pilot caps {status.perTrade} a trade, {status.daily} a day, {status.total} total.</p>}

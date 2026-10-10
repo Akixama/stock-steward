@@ -144,7 +144,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         // The server search came back empty: its chain provider refuses history
         // searches, so look through the wallet's own connection instead.
         if (checkResponse.ok && check.safe) {
-          say('The server search came back empty, so checking through your wallet connection instead.');
+          say('Server found nothing. Checking through your wallet instead.');
           const local = await scanLocally(check.safe);
           if (local && await adoptModule(local)) return;
           say('No leftover found in recent history. Building fresh below.');
@@ -156,7 +156,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       const payload = await response.json() as Phase & { error?: string };
       if (!response.ok || !payload.steps) throw new Error(payload.error ?? 'Activation unavailable.');
       setPhase(payload);
-      say('Phase 1 of 2: create your owner-controlled wallet and the permission module.');
+      say('First: your wallet and the permission module.');
       // Pre-flight: the factory must answer, and an already-created wallet is
       // skipped, never re-sent (re-creating it would always fail onchain).
       const codeOf = async (target: string) => {
@@ -170,7 +170,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       const safeCode = await codeOf(payload.safe);
       if (safeCode && safeCode !== '0x' && payload.steps.length > 1) {
         setNext(1);
-        say('Your Steward wallet already exists onchain, so its creation is skipped. Continue with the next step.');
+        say('Wallet already exists. Continuing with the next step.');
       }
       say('One click signs each step in order. Closing a wallet popup pauses.');
       setChain(true);
@@ -234,14 +234,14 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
                   say('Verified onchain: the permission is already fully active. Nothing more to sign.');
                 } else {
                   setNext(0);
-                  say('A permission module from an earlier attempt is already onchain. Continuing with it instead.');
+                  say('Found your earlier module. Continuing with it.');
                 }
                 return;
               }
             }
           } catch { /* Fall through to the plain message. */ }
         }
-        throw new Error('The network expects this step to fail right now, so nothing was sent. If you completed it before, press Restart activation to skip ahead; otherwise try again in a moment.');
+        throw new Error('The network would reject this step, so nothing was sent. If you did it before, press Restart activation to skip ahead.');
       }
       if (!/^0x[0-9a-f]+$/i.test(estimate)) throw new Error('No gas estimate came back. Nothing was sent; try again in a moment.');
       try {
@@ -278,7 +278,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       const isLast = batchable ? true : next === phase.steps.length - 1;
       if (isLast && !foundModule && !phase.module) {
         setNext(next + 1);
-        say('Module creation event not found in the receipt; the next phase needs the module address.');
+        say('Module address not found in the receipt.');
       } else if (isLast && phase.steps.length === 2) {
         // Phase A complete: fetch phase B from the server with the observed module.
         setBusy(true);
@@ -287,7 +287,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const phaseB = await nextResponse.json() as Phase & { error?: string };
         if (!nextResponse.ok || !phaseB.steps) throw new Error(phaseB.error ?? 'Phase 2 assembly unavailable.');
         setPhase(phaseB); setNext(0);
-        say('Phase 2 of 2: enable the module and pin your exact limits into it.');
+        say('Now: switch the module on and pin your limits.');
         setBusy(false);
       } else if (isLast) {
         setNext(next + 1);
@@ -299,7 +299,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           setChain(false);
           say(final.installed
             ? 'Permission turned on and verified onchain. The policy now enforces your limits.'
-            : 'Activation finished but the readback is incomplete. Treat the permission as not verified until every check passes.');
+            : 'Finished, but the readback is incomplete. Treat it as unverified until every check passes.');
         }
         setBusy(false);
       } else {
@@ -348,7 +348,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     {phase?.batched && next === 0 && !skipBatch ? <div className="ws-order-plan">
       <span>ALL {phase!.steps.length} STEPS · ONE SIGNATURE</span>
       <strong>{phase!.batched!.label}</strong>
-      <p>{phase!.batched!.verify} The same calls as signing each step separately, through the audited batch helper, verified afterwards by the readback below.</p>
+      <p>{phase!.batched!.verify} Same calls as the separate steps, checked by the readback below.</p>
       <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
         {busy ? 'Working…' : `Sign once: run all ${phase!.steps.length} steps`}
       </button>
