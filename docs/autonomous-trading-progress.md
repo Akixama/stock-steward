@@ -1,15 +1,17 @@
-# Autonomous trading implementation — October 11, 2026
+# Autonomous trading implementation — October 13, 2026
 
 ## Release boundary
 
-Production unattended spending remains compiled off in `lib/autonomous-live.ts`. No environment variable or workspace action can override it. The existing owner-signed pilot is unchanged. The new background runner is SHADOW ONLY: it reads official prices, evaluates saved scheduled/threshold rules, and stores explanatory receipts. A triggered rule is not an authorized trade.
+Production unattended spending remains compiled off in `lib/autonomous-live.ts`. No environment variable or workspace action can override it. The existing owner-signed pilot is unchanged. The deployed background runner is SHADOW ONLY: it evaluates all 12 strategy types and stores explanatory receipts. A triggered rule is not an authorized trade.
+
+Current deployed worker: `b9d42ff4-3725-4339-ba8b-05861f87f465`. The production configuration enables AI drafting and read-only shadow evaluation only.
 
 ## Implemented this pass
 
 | Area | Implemented | Remaining release evidence |
 | --- | --- | --- |
 | Session execution | Offline signing of the exact zero-value Roles/Safe/router envelope, recovered signer verification, chain/nonce/fee checks, grant/mandate binding | Owner-approved separate session grant; production evidence adapter and verified key configuration |
-| Decisions | Official matching stock quotes; scheduled/threshold buy rules; fresh, unhalted evidence; mandate symbol/amount checks; opt-in shadow scheduling | Full live portfolio and fee evidence for execution; later sale/rebalance strategies |
+| Decisions | Bounded planning for all 12 buy, sell and portfolio-management strategy types; fresh evidence and mandate checks; opt-in shadow scheduling | Production provider credentials and operator evidence for every source, including authenticated news |
 | Reliability | Durable signed hash before broadcast; one account lock and one session nonce per intent; no automatic retry after uncertain broadcast; budget holds retained | Production adapter rehearsal and operator incident alerts |
 | Controls | Pause/resume/save revision fences; leases; stale results discarded; three-error circuit breaker; current-grant rechecks before signing/broadcast | Owner-controlled session activation and actual revocation rehearsal on deployed account |
 | Monitoring | Saved shadow receipts, per-check reasons, history and download; no keys or raw signed transactions exposed over HTTP | Operator alerts for future real autonomous submissions and final settlement |
@@ -25,11 +27,18 @@ Additive migrations: `0020_autonomous_shadow.sql`, `0021_autonomous_transaction_
 
 ## Remaining work before unattended funds
 
-1. Finish the session enrollment UI and verification lifecycle. The authenticated draft API generates a separate encrypted signer and unsigned owner-reviewed grant; full installed condition-tree verification and activation remain gated. Never request the owner's private key.
-2. Wire canonical account, complete portfolio, settlement-price bounds, eligibility and full execution-fee sources into the session preparation adapter. The existing indicative stock subtotal does not establish complete portfolio concentration.
-3. Rehearse the journal/account-lock settlement integration against exact Roles fill reconciliation, and add operator incident alerts. Unknown and hashless attempts must retain budget until conclusive evidence.
-4. Rehearse session installation, execution, pause, expiry, cancellation and revocation on the deployed account, with owner-approved wallet signatures. The existing owner-session pilot proof does not prove the separate session key.
-5. Obtain an independent security review, then a separately approved small funded autonomous trial. Release sign-off is still pending; do not claim six areas are finished or an audit has been performed.
+1. Obtain independent smart-contract, signer, execution and operational security review against the frozen source digest and permission package.
+2. Configure and verify production evidence providers, including authenticated market news, account eligibility, complete portfolio/history coverage and fee sources.
+3. Run the owner-approved funded lifecycle rehearsal: install the separate session grant, execute a tiny bounded order, pause, recover an uncertain receipt, expire, cancel and revoke.
+4. Configure the operator alert destination and prove incident delivery, acknowledgement and recovery in the production environment.
+5. Record the review, eligibility and rehearsal evidence, then make a separate owner-approved release that changes the compiled spending gate. The current deployment cannot turn itself on.
+
+## Current verification
+
+- 364 application and archived-adapter tests passed.
+- TypeScript, ESLint with zero errors, production build and full repository/history secret scan passed.
+- The isolated permission lab passed 44 scenarios against pinned runtimes and fixture assets. It used no live wallet and spent no real money.
+- All 19 deployed page, redirect and authentication checks passed after release.
 
 ## Signing references
 
