@@ -1,5 +1,5 @@
-import type { BrokerReader } from "./broker-boundary.ts";
-import type { BrokerSnapshot } from "./decision.ts";
+import type { BrokerReader } from "../../../lib/broker-boundary.ts";
+import type { BrokerSnapshot } from "../../../lib/decision.ts";
 import type { AlpacaConnection } from "./alpaca-connection.ts";
 import { alpacaGet } from "./alpaca-http.ts";
 

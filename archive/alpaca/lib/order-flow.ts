@@ -1,8 +1,8 @@
 import { alpacaOrderForReceipt, confirmExactApproval, prepareAlpacaApproval,
   type ApprovalPlan } from "./approval-plan.ts";
 import type { BrokerOrder } from "./alpaca-order.ts";
-import { evaluateBuy, type DecisionActor, type DecisionReceipt, type Mandate, type OrderEvent } from "./decision.ts";
-import type { BrokerReader } from "./broker-boundary.ts";
+import { evaluateBuy, type DecisionActor, type DecisionReceipt, type Mandate, type OrderEvent } from "../../../lib/decision.ts";
+import type { BrokerReader } from "../../../lib/broker-boundary.ts";
 
 export interface OrderLedger {
   getDecision(ownerRef: string, receiptId: string): Promise<DecisionReceipt | null>;

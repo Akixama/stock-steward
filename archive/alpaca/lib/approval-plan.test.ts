@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { confirmExactApproval, prepareAlpacaApproval } from "./approval-plan.ts";
-import { addOrderEvent, evaluateBuy, type BrokerSnapshot, type Mandate } from "./decision.ts";
+import { addOrderEvent, evaluateBuy, type BrokerSnapshot, type Mandate } from "../../../lib/decision.ts";
 
 const now = new Date("2026-09-24T12:00:00.000Z");
 const mandate: Mandate = {

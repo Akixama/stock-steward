@@ -45,6 +45,7 @@
     "node_modules",
     "examples",
     "outputs",
-    "permission-lab/node_modules"
+    "permission-lab/node_modules",
+    "archive/alpaca"
   ]
 }

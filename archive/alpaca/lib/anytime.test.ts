@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readAccountView, observeClosedBuy } from "./anytime.ts";
 import type { AlpacaConnection } from "./alpaca-connection.ts";
-import type { Mandate } from "./decision.ts";
+import type { Mandate } from "../../../lib/decision.ts";
 const connection: AlpacaConnection = { accountRef:"test-account", token:"test-token", environment:"paper", connectedAt:new Date().toISOString(), tradingScope:false };
 const mandate: Mandate = { version:1, allowedSymbols:["AAPL"], maxOrderCents:1000, maxDailyBuyCents:2000, maxPositionBps:2000, requireApproval:true };
 function mock(changes: { id?:string; cash?:string; timestamp?:string; open?:boolean } = {}): typeof fetch {

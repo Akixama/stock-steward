@@ -1,4 +1,4 @@
-import type { DecisionReceipt, Mandate } from "./decision.ts";
+import type { DecisionReceipt, Mandate } from "../../../lib/decision.ts";
 
 export type AlpacaBuyOrder = {
   symbol: string;

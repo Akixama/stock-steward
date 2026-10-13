@@ -1,5 +1,5 @@
 import type { AlpacaConnection } from "./alpaca-connection.ts";
-import type { Mandate, ProposedBuy } from "./decision.ts";
+import type { Mandate, ProposedBuy } from "../../../lib/decision.ts";
 import { alpacaGet } from "./alpaca-http.ts";
 
 export type AccountView = {

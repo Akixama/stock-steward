@@ -41,7 +41,7 @@ function RecordDetails({ record: initial }: { record: BrokerRecord }) {
   const [record, setRecord] = useState(initial);
   const [orderBusy, setOrderBusy] = useState(false);
   const [orderNote, setOrderNote] = useState<string | null>(null);
-  useEffect(() => { setRecord(initial); setOrderNote(null); }, [initial]);
+  useEffect(() => { const timer = setTimeout(() => { setRecord(initial); setOrderNote(null); }, 0); return () => clearTimeout(timer); }, [initial]);
   const partial = record.kind === "observation";
   const orderEvents = record.kind === "decision" ? record.orderEvents : [];
   const lastEvent = orderEvents.at(-1);

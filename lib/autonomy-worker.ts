@@ -1,3 +1,4 @@
+import {collectAutonomousIncidents} from '../db/autonomous-incidents.ts';
 import {D1DecisionLedger} from '../db/ledger.ts';
 import {tickPracticeSessions} from '../db/practice-sessions.ts';
 import {recoverExecutionAttempts} from './execution-recovery.ts';
@@ -10,8 +11,10 @@ import {enrichObservation} from './chain-analysis.ts';
 import {autonomyReadiness,readInfrastructure,attachHistoricalControl} from './autonomy.ts';
 import {listSpendEvidence} from '../db/execution-attempts.ts';
 import {liveAccountingSection,alchemyAccountingSources,grantGateSection} from './live-evidence.ts';
-import {tickAgentDecisions} from './agent-worker.ts';
-export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch){
+import {tickAutonomousShadow} from './autonomous-shadow-worker.ts';
+import {recoverSessionBroadcasts,settleSessionJournals} from '../db/autonomous-transactions.ts';
+import {recoverSessionRehearsals} from '../db/session-rehearsal-recovery.ts';
+export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch,shadowEnabled=false){
   const token=await claimWorker(db);if(!token)return {busy:true,observed:0,failed:0,reconciled:0};
   const summary={busy:false,observed:0,failed:0,canceled:0,reconciled:0,executionRecovered:0,executionSettled:0,executionUnresolved:0,practiceUpdated:0,practiceFailed:0,batchState:'completed',agent:{due:0,held:0,decided:0,submitted:0,unknown:0,aborted:0,skipped:0,failed:0}};
   try {
@@ -43,7 +46,12 @@ export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch){
       const next=await reconcileTransaction(previous.address,previous.hash,previous,fetcher);await refreshWatch(db,row.owner_ref,next,row.checked_at);summary.reconciled++;}
     const recovery=await recoverExecutionAttempts(db,fetcher);
     summary.executionRecovered=recovery.recovered;summary.executionSettled=recovery.settled;summary.executionUnresolved=recovery.unresolved;
-    summary.agent=await tickAgentDecisions(db);
+    // The retired Alpaca paper agent lives under archive/alpaca and is not part
+    // of the Robinhood Chain worker. Preserve the summary shape for old logs.
+    if(shadowEnabled){
+      try{await recoverSessionBroadcasts(db);await recoverSessionRehearsals(db);await settleSessionJournals(db);Object.assign(summary,{autonomousShadow:await tickAutonomousShadow(db,fetcher)});await collectAutonomousIncidents(db);}
+      catch{Object.assign(summary,{autonomousShadow:{failed:true,transactionsSent:0,executionEnabled:false}});}
+    }
     return summary;
   }catch(error){summary.batchState='error';throw error;}
   finally{await finishWorker(db,token,summary);}

@@ -1,7 +1,4 @@
-import { redirect } from "next/navigation";
-
-// The broker permission review left the product surface; /connect keeps working as a
-// waypoint so old links land in the workspace.
+import {RouteLink} from '@/components/route-transition';
 export default function ConnectPage() {
-  redirect("/workspace");
+  return <main style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:24,background:'#080a07',color:'#f2f3ef'}}><section style={{maxWidth:560,padding:32,border:'1px solid #343a2d',borderRadius:18,background:'#12150f'}}><span style={{fontSize:11,letterSpacing:'.12em',color:'#a7b695'}}>ARCHIVED CONNECTION</span><h1 style={{fontSize:34,margin:'12px 0'}}>Broker connection is not available.</h1><p style={{color:'#aab39f',lineHeight:1.65}}>Stock Steward now uses the Robinhood Chain wallet flow. Practice works without a wallet, and every released real purchase requires your wallet approval.</p><RouteLink href="/workspace" style={{display:'inline-flex',marginTop:18,padding:'12px 16px',borderRadius:9,background:'#b0d92b',color:'#11160a',fontWeight:700}}>Open workspace</RouteLink></section></main>;
 }

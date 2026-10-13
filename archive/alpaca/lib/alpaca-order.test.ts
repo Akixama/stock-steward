@@ -3,7 +3,7 @@ import test from "node:test";
 import { AlpacaOrderGateway } from "./alpaca-order.ts";
 import type { AlpacaConnection } from "./alpaca-connection.ts";
 import { prepareAlpacaApproval } from "./approval-plan.ts";
-import { evaluateBuy, type BrokerSnapshot, type Mandate } from "./decision.ts";
+import { evaluateBuy, type BrokerSnapshot, type Mandate } from "../../../lib/decision.ts";
 
 const now = new Date("2026-09-25T12:00:00.000Z");
 const mandate: Mandate = { version: 1, allowedSymbols: ["AAPL"], maxOrderCents: 10_000,

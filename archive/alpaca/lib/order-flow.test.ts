@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { addOrderEvent, evaluateBuy, type BrokerSnapshot, type DecisionReceipt,
-  type Mandate, type OrderEvent } from "./decision.ts";
+  type Mandate, type OrderEvent } from "../../../lib/decision.ts";
 import { approveAndSubmit, reconcileOrder, refreshOpenOrders,
   type OrderGateway, type OrderLedger } from "./order-flow.ts";
 import type { BrokerOrder } from "./alpaca-order.ts";
-import type { BrokerReader } from "./broker-boundary.ts";
+import type { BrokerReader } from "../../../lib/broker-boundary.ts";
 
 const now = new Date();
 const mandate: Mandate = { version: 1, allowedSymbols: ["AAPL"], maxOrderCents: 10_000,
