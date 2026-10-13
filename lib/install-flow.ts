@@ -1,6 +1,15 @@
 import { concat, encodeFunctionData, encodePacked, keccak256, pad, parseAbi, toHex, type Address, type Hex } from "viem";
 import { MULTISEND, safeSetupPlan } from "./safe-setup.ts";
 import { rolesDeploymentCall, compileRolesPolicy, type RolesPolicy } from "./roles-permission.ts";
+import { EXECUTION_CONTRACTS } from "./autonomy.ts";
+import { VENUE } from "./chain-route.ts";
+
+// The chain's Permit2 helper moves the input tokens during a swap. The Safe
+// approves it directly (owner-signed setup, like everything here) — the bounded
+// role itself never gains any approval power.
+export const PERMIT2 = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address;
+const ercApproveAbi = parseAbi(["function approve(address spender,uint256 amount) returns (bool)"]);
+const permitApproveAbi = parseAbi(["function approve(address token,address spender,uint160 amount,uint48 expiration)"]);
 
 // The owner-signed install of the bounded spending permission. Every step is a plain
 // transaction the owner's own wallet sends; the server computes calldata and verifies
@@ -128,23 +137,51 @@ export function buildInstall(input: {
       verify,
     });
     const enableData = encodeFunctionData({ abi: safeAbi, functionName: "enableModule", args: [policy.module as Address] });
+    // Swap funding: the trade router pulls the exact input through the chain's
+    // Permit2 helper, so the Safe approves that path directly, bounded by the
+    // same total as the quotas and expiring with the window. Without these two
+    // calls every order reverts before it starts; with them the role's exact
+    // orders are the only thing that can ever move funds through the router.
+    const capDollars = `$${(Number(BigInt(policyBase.totalRaw) / 10000n) / 100).toFixed(2)}`;
+    const expiryDay = new Date(policyBase.expiresAt * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const fundSwap = {
+      to: VENUE.settlement as Address,
+      data: encodeFunctionData({ abi: ercApproveAbi, functionName: "approve", args: [PERMIT2, BigInt(policyBase.totalRaw)] }) as Hex,
+    };
+    const permitRouter = {
+      to: PERMIT2,
+      data: encodeFunctionData({ abi: permitApproveAbi, functionName: "approve",
+        args: [VENUE.settlement as Address, EXECUTION_CONTRACTS.router as Address, BigInt(policyBase.totalRaw), policyBase.expiresAt] }) as Hex,
+    };
+    const scopeSteps = compiled.calls.slice(0, 4).map((call, index) => wrap(
+      ["scope_target", "scope_function", "daily_quota", "total_quota"][index],
+      ["Pin the approved trade target", "Pin the exact trade shape", "Set the daily quota", "Set the total quota"][index],
+      call.to as Address, call.data as Hex,
+      "Configuration recorded on the module; membership last, so a partial activation grants nothing."));
+    const grantStep = wrap("grant_role", "Grant the bounded role",
+      compiled.calls[4].to as Address, compiled.calls[4].data as Hex,
+      "Configuration recorded on the module; membership last, so a partial activation grants nothing.");
+    const fundSteps = [
+      wrap("approve_swapper", `Let the swap helper move up to ${capDollars} of your USDG`, fundSwap.to, fundSwap.data,
+        "Capped at your total limit; the helper can only pull for your exact approved orders."),
+      wrap("permit_router", `Let the trade router use it through the helper until ${expiryDay}`, permitRouter.to, permitRouter.data,
+        "Expires with your permission window; useless without the bounded role."),
+    ];
     const steps: InstallStep[] = [
-      ...(skipEnable ? [] : [wrap("enable_module", "Enable the permission module on your wallet", policy.module as Address,
+      ...(skipEnable ? [] : [wrap("enable_module", "Enable the permission module on your wallet", policy.account as Address,
         enableData,
         "Your wallet lists the module as enabled; nothing else is trusted.")]),
-      ...compiled.calls.map((call, index) => wrap(
-        ["scope_target", "scope_function", "daily_quota", "total_quota", "grant_role"][index],
-        ["Pin the approved trade target", "Pin the exact trade shape", "Set the daily quota", "Set the total quota", "Grant the bounded role"][index],
-        call.to as Address, call.data as Hex,
-        "Configuration recorded on the module; membership last, so a partial activation grants nothing.")),
+      ...scopeSteps, ...fundSteps, grantStep,
     ];
     // The same calls as above, packed into one Safe transaction through the
     // audited batch helper: one click, one signature. Re-enabling an already
     // enabled module always reverts, so a resumed flow leaves it out — exactly
     // like the step-by-step path.
     const inners = [
-      ...(skipEnable ? [] : [{ to: policy.module as Address, data: enableData }]),
-      ...compiled.calls.map((call) => ({ to: call.to as Address, data: call.data as Hex })),
+      ...(skipEnable ? [] : [{ to: policy.account as Address, data: enableData }]),
+      ...compiled.calls.slice(0, 4).map((call) => ({ to: call.to as Address, data: call.data as Hex })),
+      fundSwap, permitRouter,
+      { to: compiled.calls[4].to as Address, data: compiled.calls[4].data as Hex },
     ];
     const batched: InstallStep = {
       key: "batch_all", label: `Run all ${inners.length} steps in one signature`,
@@ -181,10 +218,13 @@ export function installationReadChecks(input: {
 }
 
 /** The exact owner revocation transaction; calling it removes the bounded role at once. */
-export function revocationStep(compiled: ReturnType<typeof compileRolesPolicy>): InstallStep {
+export function revocationStep(compiled: ReturnType<typeof compileRolesPolicy>, account: Address, owner: Address): InstallStep {
+  const signature = (pad(owner, { size: 32 }) + "0".repeat(64) + "01") as Hex;
   return {
     key: "revoke", label: "Revoke the bounded role (owner action)",
-    to: compiled.revocation.to as Address, data: compiled.revocation.data as Hex,
+    to: account,
+    data: encodeFunctionData({ abi: safeAbi, functionName: "execTransaction",
+      args: [compiled.revocation.to as Address, 0n, compiled.revocation.data as Hex, 0, 0n, 0n, 0n, ZERO, ZERO, signature] }),
     verify: "The session can no longer execute any approved call after this lands.",
   };
 }

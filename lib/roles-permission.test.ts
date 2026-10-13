@@ -21,3 +21,13 @@ test('deployment sets account as owner/avatar/target; approved call does not man
  assert.equal(approvedRouterCall(p,p.outputs[0].token,p.expiresAt-1).submissionEnabled,false);
  assert.throws(()=>approvedRouterCall(p,p.outputs[0].token,p.expiresAt));assert.throws(()=>approvedRouterCall(p,p.session,p.expiresAt-1));
 });
+
+test('sale permission is explicit, fixed size, and bound into the compiled role',()=>{
+ const sale={...p.outputs[0],inputRaw:'1000000000000000',minimumOutputRaw:'1000'};
+ const policy={...p,sales:[sale]};
+ assert.throws(()=>approvedRouterCall(p,sale.token,p.expiresAt-1,'sell'));
+ const compiled=compileRolesPolicy(policy);
+ assert.notDeepEqual(compiled.conditions,compileRolesPolicy(p).conditions);
+ assert.notEqual(approvedRouterCall(policy,sale.token,p.expiresAt-1,'sell').data,approvedRouterCall(policy,sale.token,p.expiresAt-1,'buy').data);
+ for(const sales of [[{...sale,inputRaw:'0'}],[{...sale,minimumOutputRaw:'0'}],[sale,sale],[{...sale,token:p.session}]])assert.throws(()=>compileRolesPolicy({...p,sales}));
+});

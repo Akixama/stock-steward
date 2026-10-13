@@ -5,6 +5,7 @@
 // this module testable outside the Workers runtime; production callers omit it.
 const encode = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const decode = (value: string) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+const signerContext = (owner: string, address: string) => new TextEncoder().encode(JSON.stringify(['stock-steward-signer-v2', owner, address.toLowerCase()]));
 
 async function encryptionKey(keyOverride?: string): Promise<CryptoKey> {
   let raw = keyOverride;
@@ -22,11 +23,11 @@ export const sessionSignerRef = (ownerRef: string, address: string): string =>
 export async function saveSessionSigner(db: D1Database, ownerRef: string, address: string, material: string, keyOverride?: string): Promise<SessionSignerRef> {
   if (!ownerRef || ownerRef.length > 200 || !/^0x[0-9a-f]{40}$/i.test(address) || !material || material.length > 512) throw Error('Invalid session signer record.');
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await encryptionKey(keyOverride), new TextEncoder().encode(material));
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: signerContext(ownerRef, address) }, await encryptionKey(keyOverride), new TextEncoder().encode(material));
   await db.prepare(`INSERT INTO session_signers (owner_ref, address, signer_iv, signer_ciphertext, created_at)
     VALUES (?, ?, ?, ?, ?) ON CONFLICT(owner_ref, address) DO UPDATE SET signer_iv = excluded.signer_iv,
     signer_ciphertext = excluded.signer_ciphertext, created_at = excluded.created_at`)
-    .bind(ownerRef, address.toLowerCase(), encode(iv), encode(new Uint8Array(ciphertext)), new Date().toISOString()).run();
+    .bind(ownerRef, address.toLowerCase(), encode(iv), 'v2:' + encode(new Uint8Array(ciphertext)), new Date().toISOString()).run();
   return { address: address.toLowerCase(), ciphertextRef: sessionSignerRef(ownerRef, address) };
 }
 
@@ -43,7 +44,8 @@ export async function loadSessionSignerMaterial(db: D1Database, ownerRef: string
     .bind(ownerRef, address.toLowerCase()).first<{ signer_iv: string; signer_ciphertext: string }>();
   if (!row) return null;
   try {
-    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decode(row.signer_iv) }, await encryptionKey(keyOverride), decode(row.signer_ciphertext));
+    if (!row.signer_ciphertext.startsWith('v2:')) return null;
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: decode(row.signer_iv), additionalData: signerContext(ownerRef, address) }, await encryptionKey(keyOverride), decode(row.signer_ciphertext.slice(3)));
     return new TextDecoder().decode(plain);
   } catch { return null; }
 }

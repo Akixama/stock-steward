@@ -1,3 +1,4 @@
+import { withRoleMembership } from "@/lib/role-membership";
 import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from "viem";
 import { env } from "cloudflare:workers";
 import { D1DecisionLedger } from "@/db/ledger";
@@ -77,14 +78,16 @@ export async function locateSafe(db: D1Database, userId: string) {
 
 // Compiles the exact onchain spending policy the mandate describes, with live
 // pool prices for every output. Read-only: nothing is signed or sent.
-export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateSafe>>) {
+export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateSafe>>, lockedOutputs?: PolicyBase['outputs'], installedWindow?: {startsAt:number;expiresAt:number}) {
   const { owner, safe, mandate, transport } = located;
   const pilot = validatePilotMandate(mandate);
   if (!pilot.ok) throw new Error(pilot.error);
-  const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store" });
+  const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+  if (!registryResponse.ok) throw new Error('Registry unavailable');
   const tokens = registry(await registryResponse.json());
   const plan = planFromMandate(mandate, owner, tokens.map((token) => ({ symbol: token.symbol, token: token.contract })));
   if ("error" in plan) throw new Error(plan.error);
+  if (installedWindow) plan.expiresAt = installedWindow.expiresAt * 1000;
 
   const routerCode = await transport(CHAIN_RPC, {
     method: "POST", headers: { "content-type": "application/json" },
@@ -98,6 +101,8 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
   const perTradeAmount = (Number(BigInt(plan.perTradeRaw)) / 1_000_000).toFixed(2);
   const outputs: PolicyBase["outputs"] = [];
   for (const output of plan.outputs) {
+    const locked = lockedOutputs?.find(line => line.token.toLowerCase() === output.token.toLowerCase());
+    if (locked) { outputs.push(locked); continue; }
     const route = await inspectRoute(safe, output.symbol, perTradeAmount, 50, transport);
     if (!route.best || !route.minimumOutputRaw) {
       throw new Error(`No live pool quote for ${output.symbol}; orders stay locked until every output quotes.`);
@@ -116,16 +121,18 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
 }
 
 // Resolves the Steward permission for real orders. The recorded module comes
-// first: this deployment enables the module on its own registry, so the Safe's
-// module list stays empty and can never find it. The full readback below
+// first, then independently checks authorization on the Safe. The readback below
 // re-proves every check against the current mandate, so a wrong or stale record
 // simply fails and the legacy module-list search runs as a fallback. Foreign
 // wallets and foreign modules can never satisfy these checks.
 export async function assembleActivePolicyFor(db: D1Database, userId: string) {
-  const built = await buildPolicyBase(await locateSafe(db, userId));
-  const call = (to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport);
+  const located = await locateSafe(db, userId);
+  const saved = await getActiveModule(db, userId, located.mandate.version);
+  const built = await buildPolicyBase(located, saved?.outputs?.map(line => ({ ...line, token: line.token as Address })), saved ?? undefined);
+  if (Date.now() >= built.base.expiresAt * 1000) throw new Error('Your permission window ended. Save a new mandate version and activate it before placing another order.');
+  const call = withRoleMembership((to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport), built.transport);
   try {
-    const recorded = await getActiveModule(db, userId, built.mandate.version);
+    const recorded = saved;
     if (!recorded) {
       console.error("resolve_active_none");
     } else if (!/^0x[0-9a-f]{40}$/i.test(recorded.module)) {
@@ -133,11 +140,12 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
     } else {
       let compiled: ReturnType<typeof compileRolesPolicy> | null = null;
       try {
-        const policy = { account: built.safe as Address, module: recorded.module as Address, ...built.base };
+        const policy = { account: built.safe as Address, module: recorded.module as Address, ...built.base,
+          outputs: recorded.outputs?.map(output => ({ ...output, token: output.token as Address })) ?? built.base.outputs };
         compiled = compileRolesPolicy(policy);
         const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
         console.error(`resolve_active_readback ${readback.checks.filter((check) => check.ok).length}/${readback.checks.length}`);
-        if (readback.allOk) return { ...built, policy, compiled };
+        if (readback.allOk) return { ...built, policy, compiled, recordedOutputs: recorded.outputs };
       } catch {
         console.error(`resolve_active_error compiled=${compiled ? "yes" : "no"}`);
       }
@@ -145,7 +153,8 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
   } catch { /* A missing record or failed readback falls through below. */ }
   const found = await findActivePolicyModule(built.safe, built.base, call, "latest");
   if (!found) throw new Error("No active Steward permission on your wallet. Activate it first, then place orders.");
-  return { ...built, policy: found.policy, compiled: found.compiled };
+  const reread = await getActiveModule(db, userId, built.mandate.version).catch(() => null);
+  return { ...built, policy: found.policy, compiled: found.compiled, recordedOutputs: reread?.outputs ?? null };
 }
 
 // A module deployed but never enabled never appears in the Safe's module list,
@@ -282,9 +291,24 @@ export async function checkPermissionState(db: D1Database, userId: string) {
     safeHasCode = (await getCode(located.safe, located.transport)) !== "0x";
     if (safeHasCode) modules = await listModules(located.safe, located.transport);
   } catch { /* Unreadable chain state simply reports nothing found. */ }
-  const staleModule = safeHasCode
-    ? await findUnenabledModule(located.safe, located.transport)
-    : null;
+  // Resume a recorded deployment before searching historical logs. A module
+  // can exist without being enabled on the Safe after an interrupted install.
+  // The record is only a discovery hint; prove its admin and execution target.
+  let staleModule: string | null = null;
+  if (safeHasCode) {
+    const recorded = await getActiveModule(db, userId, located.mandate.version).catch(() => null);
+    if (recorded?.safe.toLowerCase() === located.safe.toLowerCase()) {
+      try {
+        const abi = parseAbi(["function owner() view returns (address)", "function avatar() view returns (address)", "function target() view returns (address)"]);
+        for (const name of ["owner", "avatar", "target"] as const) {
+          const raw = await rpcCall(recorded.module, encodeFunctionData({ abi, functionName: name }), "latest", located.transport);
+          if (String(decodeFunctionResult({ abi, functionName: name, data: raw })).toLowerCase() !== located.safe.toLowerCase()) throw new Error("Module mismatch");
+        }
+        staleModule = recorded.module;
+      } catch { /* Unproven records never become candidates. */ }
+    }
+    if (!staleModule) staleModule = await findUnenabledModule(located.safe, located.transport);
+  }
   return { safe: located.safe, safeHasCode, modules, staleModule };
 }
 

@@ -2,3 +2,17 @@ import test from 'node:test';import assert from 'node:assert/strict';import {dec
 const route=()=>{const token=('0x'+'3'.repeat(40)) as Hex;return {id:'route',chainId:4663,address:'0x'+'1'.repeat(40),settlement:VENUE.settlement,token,inputRaw:'1000000',minimumOutputRaw:'123',best:{state:'quoted',outputRaw:'150',fee:3000,tickSpacing:60,poolId:poolIdentity(token,3000,60).poolId},block:'0x12',blockHash:'0x'+'a'.repeat(64),expiresAt:new Date(Date.now()+25000).toISOString()} as RouteEvidence;};
 test('candidate encodes one exact-input swap with capped settlement and owner payout',()=>{const r=route(),c=routerCandidate(r,1);assert.equal(c.submissionEnabled,false);assert.equal(validateRouterCandidate(r,1,c),true);const decoded=decodeFunctionData({abi:parseAbi(['function execute(bytes,bytes[],uint256) payable']),data:c.data});const [commands,inputs]=decoded.args;assert.equal(commands,'0x10');assert.equal(inputs.length,1);const [actions,params]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),inputs[0]);assert.equal(actions,'0x060c0f');assert.equal(params.length,3);const [token,max]=decodeAbiParameters(parseAbiParameters('address,uint256'),params[1]);assert.equal(token.toLowerCase(),VENUE.settlement);assert.equal(max,1000000n);const [output,min]=decodeAbiParameters(parseAbiParameters('address,uint256'),params[2]);assert.equal(output.toLowerCase(),r.token);assert.equal(min,123n);});
 test('exact byte validation rejects arbitrary calls, sender, target, value and changed intent',()=>{const r=route(),c=routerCandidate(r,1);for(const change of [{data:(c.data+'00') as Hex},{data:('0x00000000'+c.data.slice(10)) as Hex},{from:('0x'+'4'.repeat(40)) as Hex},{to:('0x'+'4'.repeat(40)) as Hex},{value:'0x1'}])assert.equal(validateRouterCandidate(r,1,{...c,...change}),false);assert.equal(validateRouterCandidate({...r,inputRaw:'2'},1,c),false);assert.throws(()=>routerCandidate({...r,best:{...r.best!,poolId:'0x'+'b'.repeat(64)}},1));assert.throws(()=>routerCandidate({...r,minimumOutputRaw:'151'},1));});
+
+
+test('sale settles only the held stock and pays USDG; changing direction invalidates the candidate',()=>{
+ const r={...route(),side:'sell' as const,inputRaw:'1000000000000000',minimumOutputRaw:'100',best:{...route().best!,outputRaw:'120'}};
+ const c=routerCandidate(r,1);
+ const decoded=decodeFunctionData({abi:parseAbi(['function execute(bytes,bytes[],uint256) payable']),data:c.data});
+ const [,params]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),decoded.args[1][0]);
+ const [input,cap]=decodeAbiParameters(parseAbiParameters('address,uint256'),params[1]);
+ const [output,floor]=decodeAbiParameters(parseAbiParameters('address,uint256'),params[2]);
+ assert.equal(input.toLowerCase(),r.token.toLowerCase());assert.equal(cap,1000000000000000n);
+ assert.equal(output.toLowerCase(),VENUE.settlement.toLowerCase());assert.equal(floor,100n);
+ assert.equal(validateRouterCandidate(r,1,c),true);
+ assert.equal(validateRouterCandidate({...r,side:'buy'},1,c),false);
+});

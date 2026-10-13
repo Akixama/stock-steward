@@ -21,12 +21,28 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
         const message=error instanceof Error?error.message:'Unknown transport exception';
         const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
         console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
+        if(/subrequest|too many requests|limit exceeded/i.test(message))throw new Error('Chain read limit reached. Retry later.');
         if(attempt<attempts)await new Promise((resolve)=>setTimeout(resolve,500));
         else throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
       }
     }
     throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
   }) as typeof fetch;
+}
+
+// Public nodes serve canonical headers/receipts, but may prune historical state.
+// Keep archive reads on the configured private provider; never substitute latest
+// state for transaction-block evidence.
+export function receiptTransport(apiKey?:string,upstream:typeof fetch=fetch):typeof fetch {
+ const archive=chainTransport(apiKey,upstream);
+ return (async(input:RequestInfo|URL,init?:RequestInit)=>{
+  const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
+  if(url===CHAIN.rpc&&typeof init?.body==='string'){
+   const query=JSON.parse(init.body) as {method?:string};
+   if(['eth_call','eth_getCode','eth_getStorageAt'].includes(query.method??''))return archive(input,init);
+  }
+  return upstream(input,init);
+ }) as typeof fetch;
 }
 
 export async function chainHealth(fetcher:typeof fetch=fetch){

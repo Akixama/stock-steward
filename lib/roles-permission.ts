@@ -24,7 +24,7 @@ export function rolesDeploymentCall(account:Address,salt:Hex){
  const initializer=encodeFunctionData({abi:rolesAbi,functionName:'setUp',args:[encodeAbiParameters(parseAbiParameters('address,address,address'),[account,account,account])]});
  return {to:ROLES_CONTRACTS.factory,data:encodeFunctionData({abi:rolesFactoryAbi,functionName:'deployModule',args:[ROLES_CONTRACTS.roles,initializer,BigInt(salt)]}),value:'0x0' as const,installationEnabled:false as const};
 }
-export type RolesPolicy={account:Address;module:Address;session:Address;grantId:Hex;routerCodeHash:Hex;startsAt:number;expiresAt:number;inputRaw:string;dailyRaw:string;totalRaw:string;outputs:{token:Address;fee:number;tickSpacing:number;minimumOutputRaw:string}[]};
+export type RolesPolicy={account:Address;module:Address;session:Address;grantId:Hex;routerCodeHash:Hex;startsAt:number;expiresAt:number;inputRaw:string;dailyRaw:string;totalRaw:string;outputs:{token:Address;fee:number;tickSpacing:number;minimumOutputRaw:string}[];sales?:{token:Address;fee:number;tickSpacing:number;inputRaw:string;minimumOutputRaw:string}[]};
 type Node={paramType:number;operator:number;compValue:Hex;children:Node[]};
 export type ConditionFlat={parent:number;paramType:number;operator:number;compValue:Hex};
 const node=(paramType:number,operator:number,compValue:Hex='0x',children:Node[]=[]):Node=>({paramType,operator,compValue,children});
@@ -37,14 +37,16 @@ function flatten(root:Node){const rows:ConditionFlat[]=[];const queue:{parent:nu
 const address=(s:string)=>/^0x[0-9a-f]{40}$/i.test(s)&&!/^0x0{40}$/i.test(s);
 const raw=(s:string)=>/^\d{1,39}$/.test(s)&&BigInt(s)>0n&&BigInt(s)<=2n**128n-1n;
 export function compileRolesPolicy(p:RolesPolicy){
- if(![p.account,p.module,p.session].every(address)||new Set([p.account,p.module,p.session].map(x=>x.toLowerCase())).size!==3||!/^0x[0-9a-f]{64}$/i.test(p.grantId)||/^0x0{64}$/i.test(p.grantId)||!/^0x[0-9a-f]{64}$/i.test(p.routerCodeHash)||/^0x0{64}$/i.test(p.routerCodeHash)||!Number.isSafeInteger(p.startsAt)||p.startsAt<1||p.startsAt%86400!==0||!Number.isSafeInteger(p.expiresAt)||p.expiresAt<=p.startsAt||p.expiresAt-p.startsAt>172800||![p.inputRaw,p.dailyRaw,p.totalRaw].every(raw)||BigInt(p.inputRaw)>BigInt(p.dailyRaw)||BigInt(p.inputRaw)>BigInt(p.totalRaw)||!p.outputs.length||p.outputs.length>3||p.outputs.some(o=>!address(o.token)||o.token.toLowerCase()===VENUE.settlement||!raw(o.minimumOutputRaw)||![[100,1],[500,10],[3000,60],[10000,200]].some(([f,t])=>f===o.fee&&t===o.tickSpacing))||new Set(p.outputs.map(o=>o.token.toLowerCase())).size!==p.outputs.length)throw Error('Invalid bounded Roles policy');
+ if(![p.account,p.module,p.session].every(address)||new Set([p.account,p.module,p.session].map(x=>x.toLowerCase())).size!==3||!/^0x[0-9a-f]{64}$/i.test(p.grantId)||/^0x0{64}$/i.test(p.grantId)||!/^0x[0-9a-f]{64}$/i.test(p.routerCodeHash)||/^0x0{64}$/i.test(p.routerCodeHash)||!Number.isSafeInteger(p.startsAt)||p.startsAt<1||p.startsAt%86400!==0||!Number.isSafeInteger(p.expiresAt)||p.expiresAt<=p.startsAt||p.expiresAt-p.startsAt>172800||![p.inputRaw,p.dailyRaw,p.totalRaw].every(raw)||BigInt(p.inputRaw)>BigInt(p.dailyRaw)||BigInt(p.inputRaw)>BigInt(p.totalRaw)||!p.outputs.length||p.outputs.length>6||p.outputs.some(o=>!address(o.token)||o.token.toLowerCase()===VENUE.settlement||!raw(o.minimumOutputRaw)||![[100,1],[500,10],[3000,60],[10000,200]].some(([f,t])=>f===o.fee&&t===o.tickSpacing))||new Set(p.outputs.map(o=>o.token.toLowerCase())).size!==p.outputs.length)throw Error('Invalid bounded Roles policy');
+ if(p.sales&&(p.sales.length>6||new Set(p.sales.map(s=>s.token.toLowerCase())).size!==p.sales.length||p.sales.some(s=>!p.outputs.some(o=>o.token.toLowerCase()===s.token.toLowerCase())||!raw(s.inputRaw)||!raw(s.minimumOutputRaw)||![[100,1],[500,10],[3000,60],[10000,200]].some(([f,t])=>f===s.fee&&t===s.tickSpacing))))throw Error('Invalid bounded sale policy');
  const roleKey=keccak256(encodeAbiParameters(parseAbiParameters('string,uint256,address,address,address,bytes32'),['stock-steward-role-v1',4663n,p.account,p.module,p.session,p.grantId]));
  const dailyKey=keccak256(encodeAbiParameters(parseAbiParameters('bytes32,string'),[roleKey,'daily']));
  const totalKey=keccak256(encodeAbiParameters(parseAbiParameters('bytes32,string'),[roleKey,'total']));
- const branches=p.outputs.map(o=>{
+ const legs=[...p.outputs.map(o=>({token:o.token,side:'buy' as const})),...(p.sales??[]).map(o=>({token:o.token,side:'sell' as const}))];
+ const branches=legs.map(o=>{
   // Heterogeneous swap/settle/take structs cannot share an Array ABI type tree.
   // Pin their entire encoded bytes, keeping a uniform Dynamic array element type.
-  const data=approvedRouterCall(p,o.token,p.expiresAt-1).data;
+  const data=approvedRouterCall(p,o.token,p.expiresAt-1,o.side).data;
   const decoded=decodeFunctionData({abi:parseAbi(['function execute(bytes,bytes[],uint256) payable']),data});
   const [,params]=decodeAbiParameters(parseAbiParameters('bytes,bytes[]'),decoded.args[1][0]);
   // Matches enforces exactly one router input and exactly three action params.
@@ -61,11 +63,12 @@ export function compileRolesPolicy(p:RolesPolicy){
   {to:p.module,data:encodeFunctionData({abi:rolesAbi,functionName:'assignRoles',args:[p.session,[roleKey],[true]]})},
  ];
  const revocation={to:p.module,data:encodeFunctionData({abi:rolesAbi,functionName:'assignRoles',args:[p.session,[roleKey],[false]]})};
- return {schema:'stock-steward-roles-v1' as const,chainId:4663,roleKey,dailyKey,totalKey,conditions,calls,revocation,policyHash:keccak256(toHex(JSON.stringify(p))),executionEnabled:false as const,installationEnabled:false as const,limitations:['Fixed-size raw USDG buys; quotas round down to whole buys. No dollar or portfolio guarantees.','Exact owner-set output floor encoded in each swap; no oracle-backed slippage guarantee.','Compatible avatar, clean module permissions and owner-controlled setup must be independently verified.','No root access, token approvals, native transfers, delegatecall or account-admin access in this policy.']};
+ return {schema:'stock-steward-roles-v1' as const,chainId:4663,roleKey,dailyKey,totalKey,conditions,calls,revocation,policyHash:keccak256(toHex(JSON.stringify(p))),executionEnabled:false as const,installationEnabled:false as const,limitations:[p.sales?.length?'Fixed raw token inputs for buys and sales; one shared trade-call quota. Live dollar and portfolio checks remain required.':'Fixed-size raw USDG buys; quotas round down to whole buys. No dollar or portfolio guarantees.','Exact owner-set output floor encoded in each swap; no oracle-backed slippage guarantee.','Compatible avatar, clean module permissions and owner-controlled setup must be independently verified.','No root access, token approvals, native transfers, delegatecall or account-admin access in this policy.']};
 }
-export function approvedRouterCall(p:RolesPolicy,token:Address,deadline:number){
- const output=p.outputs.find(o=>o.token.toLowerCase()===token.toLowerCase());if(!output||!Number.isSafeInteger(deadline)||deadline>=p.expiresAt||deadline<=p.startsAt)throw Error('Call outside approved policy');
- const route={id:p.grantId,chainId:4663,address:p.account,settlement:VENUE.settlement,token,inputRaw:p.inputRaw,minimumOutputRaw:output.minimumOutputRaw,best:{state:'quoted',outputRaw:output.minimumOutputRaw,fee:output.fee,tickSpacing:output.tickSpacing,poolId:poolIdentity(token,output.fee,output.tickSpacing).poolId},expiresAt:new Date(deadline*1000).toISOString(),blockHash:'0x'+'0'.repeat(64)} as RouteEvidence;
+export function approvedRouterCall(p:RolesPolicy,token:Address,deadline:number,side:'buy'|'sell'='buy'){
+ if(!['buy','sell'].includes(side))throw Error('Unsupported policy trade side.');
+ const output=(side==='buy'?p.outputs:p.sales??[]).find(o=>o.token.toLowerCase()===token.toLowerCase());if(!output||!Number.isSafeInteger(deadline)||deadline>=p.expiresAt||deadline<=p.startsAt)throw Error('Call outside approved policy');
+ const route={...(side==='sell'?{side}:{}),id:p.grantId,chainId:4663,address:p.account,settlement:VENUE.settlement,token,inputRaw:side==='sell'?(output as NonNullable<RolesPolicy['sales']>[number]).inputRaw:p.inputRaw,minimumOutputRaw:output.minimumOutputRaw,best:{state:'quoted',outputRaw:output.minimumOutputRaw,fee:output.fee,tickSpacing:output.tickSpacing,poolId:poolIdentity(token,output.fee,output.tickSpacing).poolId},expiresAt:new Date(deadline*1000).toISOString(),blockHash:'0x'+'0'.repeat(64)} as RouteEvidence;
  // Encodes only the owner-selected configuration. Synthetic fields are not quote evidence.
  const encoded=routerCandidate(route,null);
  return {from:encoded.from,to:encoded.to,data:encoded.data,value:encoded.value,ownerPolicyEncoding:true as const,submissionEnabled:false as const};

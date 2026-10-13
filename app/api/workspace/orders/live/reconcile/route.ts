@@ -1,3 +1,4 @@
+import { withRoleMembership } from "@/lib/role-membership";
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getAttempt, settleAttempt, type AttemptPlan } from "@/db/execution-attempts";
@@ -7,6 +8,8 @@ import { verifyPolicyReadback, type ReadbackCall } from "@/lib/live-order";
 import { compileRolesPolicy, type RolesPolicy } from "@/lib/roles-permission";
 import type { Hex } from "viem";
 import { rpcCall } from "../_shared";
+import { receiptTransport } from "@/lib/chain-transport";
+import { savedOrderReceipt } from "@/lib/saved-order-receipt";
 
 // Verifies the exact onchain evidence for a submitted order and settles its receipt:
 // a verified fill, a reverted transaction, or unknown (check again later). Proof
@@ -29,6 +32,10 @@ export async function POST(request: Request) {
     if (!attempt?.transaction_hash) {
       return Response.json({ error: "No submitted transaction for this order yet." }, { status: 409 });
     }
+    // A finalized proof already accepted by the server is durable. An RPC
+    // outage during a later refresh must not downgrade it to pending.
+    const saved = savedOrderReceipt(attempt);
+    if (saved) return Response.json(saved);
     const plan = JSON.parse(attempt.plan_json) as AttemptPlan;
     if (!plan.route || !plan.livePolicy || plan.intentDigest !== intentDigest) {
       return Response.json({ error: "Stored preparation is incomplete; the order stays unsettled." }, { status: 502 });
@@ -36,9 +43,9 @@ export async function POST(request: Request) {
     const policy = plan.livePolicy as RolesPolicy;
     const compiled = compileRolesPolicy(policy);
     const operation = rolesOperation(plan.route, attempt.mandate_version, policy);
-    const transport = fetch;
+    const transport = receiptTransport(env.ALCHEMY_API_KEY);
     const verify = async (block: Hex) => {
-      const call: ReadbackCall = (to, data, blockTag) => rpcCall(to, data, blockTag || block, transport);
+      const call: ReadbackCall = withRoleMembership((to, data, blockTag) => rpcCall(to, data, blockTag || block, transport), transport);
       const readback = await verifyPolicyReadback(policy, compiled, call, block);
       return readback.allOk;
     };
@@ -53,6 +60,9 @@ export async function POST(request: Request) {
     }, new Date());
     return Response.json({
       outcome: proof.outcome,
+      confirmedFill: proof.confirmedFill === true,
+      transactionSucceeded: proof.transactionSucceeded === true,
+      awaitingFinality: proof.awaitingFinality === true,
       hash: proof.hash,
       paidUsdg: proof.actualInputRaw === null ? null : `$${(Number(BigInt(proof.actualInputRaw)) / 1_000_000).toFixed(2)}`,
       receivedNote: proof.actualOutputRaw === null ? null : "Stock tokens arrived in your Steward wallet. Exact amounts are in the evidence.",
@@ -60,7 +70,11 @@ export async function POST(request: Request) {
         ? "Exact calldata and bounded token transfers verified in a finalized block."
         : proof.outcome === "reverted"
           ? "The transaction reverted onchain. No stock arrived; network fees may still have been spent. Your daily budget is released."
-          : "Not yet provable. Wait a little and track again; nothing is assumed either way.",
+          : proof.confirmedFill ? "Buy confirmed: exact transaction, permission and token transfers checked. Chain finality is tracked separately; do not repeat this order." : proof.awaitingFinality
+            ? "Waiting for the chain's finalized checkpoint. Final receipt verification is pending; do not buy again or add funds for this order."
+            : proof.transactionSucceeded
+              ? "The transaction succeeded, but a required historical chain read is unavailable. Your token balances are shown above. No additional payment is needed; Steward will retry."
+              : "Receipt evidence is not fully verified yet. No additional payment is needed; check again later.",
     });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Reconciliation unavailable." }, { status: 502 });

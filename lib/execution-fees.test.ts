@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {feeCeiling} from './execution-fees.ts';
+const now=Date.now(),price={upperMicroUsd:'2000000000',lowerMicroUsd:'1990000000',priceAt:new Date(now).toISOString(),source:'fixture ETH/USD'};
+test('posting gas is included once and all USD costs round up',()=>{const f=feeCeiling(100000n,30000n,90000n,1000000000n,0n,price,now);assert.equal(f.gas,120000n);assert.equal(f.maximumGasCostWei,240000000000000n);assert.equal(f.maximumMicroUsd,480000n);assert.equal(feeCeiling(1n,0n,1n,1n,0n,price,now).maximumMicroUsd,1n);});
+test('larger corroborating estimate controls ceiling',()=>{assert.equal(feeCeiling(100n,30n,200n,1n,1n,price,now).gas,240n);});
+test('invalid posting component, stale prices and excessive gas cannot quote fees',()=>{assert.throws(()=>feeCeiling(100n,101n,100n,1n,0n,price,now));assert.throws(()=>feeCeiling(100n,1n,100n,1n,0n,{...price,priceAt:new Date(now-31000).toISOString()},now));assert.throws(()=>feeCeiling(10000000n,1n,10000000n,1n,0n,price,now));});

@@ -1,3 +1,4 @@
+import { withRoleMembership } from "@/lib/role-membership";
 import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
@@ -7,13 +8,15 @@ import { registry } from "@/lib/robinhood-chain";
 import { chainTransport } from "@/lib/chain-transport";
 import { inspectRoute } from "@/lib/chain-route";
 import { planFromMandate } from "@/lib/permission-plan";
-import { buildInstall, installationReadChecks, revocationStep, type InstallOutput } from "@/lib/install-flow";
+import { buildInstall, PERMIT2, revocationStep, type InstallOutput } from "@/lib/install-flow";
 import { buildPolicyBase, checkPermissionState, locateSafe, rpcCall as liveRpcCall } from "@/app/api/workspace/orders/live/_shared";
 import { compileRolesPolicy } from "@/lib/roles-permission";
 import { verifyPolicyReadback } from "@/lib/live-order";
-import { saveActiveModule } from "@/db/active-modules";
+import { getActiveModule, moduleRecordContext, saveActiveModule } from "@/db/active-modules";
+import { VENUE } from "@/lib/chain-route";
 import { MULTISEND, safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
+import { installedOutputs } from "@/lib/installed-outputs";
 
 // Assembles the exact owner-signed install transactions. The server never signs: every
 // step is sent by the owner's own wallet and every effect is read back before the next.
@@ -30,6 +33,25 @@ const getterAbi = parseAbi([
   "function isModuleEnabled(address) view returns (bool)",
   "function allowances(bytes32) view returns (uint256,uint256,uint256,uint256,uint256)",
 ]);
+const ercAllowanceAbi = parseAbi(["function allowance(address owner,address spender) view returns (uint256)"]);
+const permitAllowanceAbi = parseAbi(["function allowance(address owner,address token,address spender) view returns (uint160 amount,uint48 expiration,uint48 nonce)"]);
+
+// Swap funding is part of an installed permission: the trade router pulls the
+// exact input through the Permit2 helper, and both bounded approvals are set
+// during activation. Without them every order reverts before it starts.
+async function fundingReady(account: string, inputRaw: string, transport: typeof fetch): Promise<boolean> {
+  try {
+    const ercRaw = await rpcCall(VENUE.settlement,
+      encodeFunctionData({ abi: ercAllowanceAbi, functionName: "allowance", args: [account as Address, PERMIT2] }), transport);
+    const permitRaw = await rpcCall(PERMIT2,
+      encodeFunctionData({ abi: permitAllowanceAbi, functionName: "allowance",
+        args: [account as Address, VENUE.settlement as Address, EXECUTION_CONTRACTS.router as Address] }), transport);
+    const ercAllow = decodeFunctionResult({ abi: ercAllowanceAbi, functionName: "allowance", data: ercRaw }) as bigint;
+    const decoded = decodeFunctionResult({ abi: permitAllowanceAbi, functionName: "allowance", data: permitRaw }) as unknown as readonly [unknown, unknown, unknown];
+    return ercAllow >= BigInt(inputRaw) && BigInt(String(decoded[0])) >= BigInt(inputRaw)
+      && Number(decoded[1]) * 1000 > Date.now() + 60000;
+  } catch { return false; }
+}
 
 async function rpcCall(to: string, data: Hex, transport: typeof fetch): Promise<Hex> {
   const response = await transport(CHAIN_RPC, {
@@ -61,13 +83,18 @@ export async function GET(request: Request) {
 
     const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store" });
     const tokens = registry(await registryResponse.json());
-    const plan = planFromMandate(mandate, owner, tokens.map((token) => ({ symbol: token.symbol, token: token.contract })));
+    const inspecting = url.searchParams.get("inspect") === "1";
+    const existing = inspecting && mandate ? await getActiveModule(env.DB, user.userId, mandate.version) : null;
+    const saved = existing?.module.toLowerCase() === moduleParam?.toLowerCase() ? existing : null;
+    const plan = planFromMandate(mandate, owner, tokens.map((token) => ({ symbol: token.symbol, token: token.contract })), saved ? new Date(saved.startsAt * 1000) : new Date());
     if ("error" in plan) return Response.json({ error: plan.error }, { status: 422 });
 
     // Live economic evidence per output: the quoting tier and its slippage floor.
     const transport = chainTransport(env.ALCHEMY_API_KEY);
     const outputs: InstallOutput[] = [];
     for (const output of plan.outputs) {
+      const stored = saved?.outputs?.find(item => item.token.toLowerCase() === output.token.toLowerCase());
+      if (stored) { outputs.push({ ...stored, token: stored.token as Address }); continue; }
       const amount = (Number(BigInt(plan.perTradeRaw)) / 1_000_000).toFixed(2);
       const route = await inspectRoute(owner, output.symbol, amount, 50, transport);
       if (!route.best || !route.minimumOutputRaw) {
@@ -113,8 +140,8 @@ export async function GET(request: Request) {
     // other call safely overwrites, so only this one needs the guard.
     let skipEnable = false;
     try {
-      const membershipRaw = await rpcCall(moduleParam,
-        encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [owner] }), transport);
+      const membershipRaw = await rpcCall(build.safe,
+        encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [moduleParam as Address] }), transport);
       skipEnable = decodeFunctionResult({ abi: getterAbi, functionName: "isModuleEnabled", data: membershipRaw }) === true;
     } catch { /* Unreadable membership keeps every step. */ }
     const { steps: liveSteps, batched: fullBatch, compiled, policy } = build.phaseB(moduleParam as Address, skipEnable);
@@ -134,38 +161,18 @@ export async function GET(request: Request) {
     } catch { batched = undefined; }
     const payload = {
       safe: build.safe, module: moduleParam, roleKey: compiled.roleKey,
-      steps: liveSteps, batched, revocation: revocationStep(compiled), limitations: compiled.limitations,
+      steps: liveSteps, batched, revocation: revocationStep(compiled, policy.account, policy.session), limitations: compiled.limitations,
+      // The exact prices these steps lock in. The wallet posts them back when
+      // recording, so orders can carry them verbatim; the onchain conditions
+      // pin these install-time bytes and would reject any fresh quote.
+      outputs: policy.outputs,
     };
     if (url.searchParams.get("inspect") !== "1") return Response.json(payload);
-    const spec = installationReadChecks({ session: owner, compiled, policy });
-    const checks = [];
-    for (const check of spec) {
-      let observed: string = "unreadable";
-      let ok = false;
-      try {
-        let data: Hex;
-        if (check.functionName === "allowances") {
-          data = encodeFunctionData({ abi: getterAbi, functionName: "allowances", args: [check.args[0] as Hex] });
-        } else if (check.functionName === "isModuleEnabled") {
-          data = encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [check.args[0] as Address] });
-        } else {
-          data = encodeFunctionData({ abi: getterAbi, functionName: check.functionName, args: [] });
-        }
-        const raw = await rpcCall(moduleParam, data, transport);
-        if (check.functionName === "allowances") {
-          const values = decodeFunctionResult({ abi: getterAbi, functionName: "allowances", data: raw });
-          observed = values.map(String).join("/");
-          const [budget] = check.expect.split(" ");
-          ok = values[1].toString() === budget;
-        } else {
-          const value = decodeFunctionResult({ abi: getterAbi, functionName: check.functionName, data: raw });
-          observed = String(value);
-          ok = check.expect.toLowerCase() === observed.toLowerCase();
-        }
-      } catch { /* An unreadable check fails closed. */ }
-      checks.push({ ...check, observed, ok });
-    }
-    return Response.json({ ...payload, checks, installed: checks.every((check) => check.ok) });
+    const { checks } = await verifyPolicyReadback(policy, compiled,
+      withRoleMembership((to, data) => rpcCall(to, data, transport), transport), "latest");
+    const funded = await fundingReady(build.safe as string, policy.inputRaw, transport);
+    checks.push({ label: "Swap funding approvals", expect: "ready", observed: funded ? "ready" : "missing or unreadable", ok: funded });
+    return Response.json({ ...payload, checks, installed: checks.every((check) => check.ok) && funded });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Activation unavailable." }, { status: 502 });
   }
@@ -183,20 +190,46 @@ export async function POST(request: Request) {
   }
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
-    const { module } = await request.json() as { module?: string };
+    const { module, outputs } = await request.json() as { module?: string; outputs?: unknown };
     if (!module || !/^0x[0-9a-f]{40}$/i.test(module)) {
       return Response.json({ error: "Invalid module address." }, { status: 400 });
     }
     const located = await locateSafe(env.DB, user.userId);
-    const built = await buildPolicyBase(located);
-    const call = (to: string, data: Hex, block: string) => liveRpcCall(to, data, block, built.transport);
+    const current = await getActiveModule(env.DB, user.userId, located.mandate.version).catch(() => null);
+    const context = moduleRecordContext(current, module, outputs);
+    if (outputs !== undefined && context.outputs === null) {
+      return Response.json({ error: "Install-time prices are missing or malformed. Refresh the permission check." }, { status: 422 });
+    }
+    const built = await buildPolicyBase(located, context.outputs?.map(line => ({ ...line, token: line.token as Address })), context.window);
+    const call = withRoleMembership((to: string, data: Hex, block: string) => liveRpcCall(to, data, block, built.transport), built.transport);
     const policy = { account: built.safe as Address, module: module as Address, ...built.base };
     const compiled = compileRolesPolicy(policy);
     const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
     if (!readback.allOk) {
-      return Response.json({ error: "That module does not satisfy your saved limits." }, { status: 422 });
+      return Response.json({ error: `Permission verification failed: ${readback.checks.filter(check => !check.ok).map(check => check.label).join(", ")}. Refresh the permission check before signing again.` }, { status: 422 });
     }
-    await saveActiveModule(env.DB, user.userId, built.mandate.version, built.safe, module);
+    // Recorded outputs must be the install-time prices from the steps response:
+    // the onchain conditions pin those exact bytes. An absent list keeps any
+    // earlier record for the same module; anything malformed is refused.
+    let locked = context.outputs;
+    if (!locked && outputs === undefined) {
+      const read = async (method: string, params: unknown[]) => {
+        const fetcher = method === "eth_getLogs" ? fetch : built.transport;
+        const response = await fetcher(CHAIN_RPC, { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(10000) });
+        const body = await response.json() as { result?: unknown; error?: unknown };
+        if (!response.ok || body.error || body.result === undefined) throw new Error("Installed scope history unavailable");
+        return body.result;
+      };
+      const head = BigInt(String(await read("eth_blockNumber", [])));
+      const logs = await read("eth_getLogs", [{ address: module, fromBlock: toHex(head > 10000n ? head - 10000n : 0n), toBlock: toHex(head) }]);
+      if (!Array.isArray(logs) || logs.length > 1000) throw new Error("Installed scope history unavailable");
+      locked = installedOutputs(policy, logs);
+    }
+    if (outputs !== undefined && locked === null) {
+      return Response.json({ error: "Locked prices missing or malformed. Re-run activation so they are recorded." }, { status: 422 });
+    }
+    await saveActiveModule(env.DB, user.userId, built.mandate.version, built.safe, module, locked, new Date(), { startsAt: built.base.startsAt, expiresAt: built.base.expiresAt });
     return Response.json({ ok: true });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Module record unavailable." }, { status: 502 });

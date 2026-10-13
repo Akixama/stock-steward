@@ -76,7 +76,7 @@ export function alchemyAccountingSources(rpc:typeof fetch,web:typeof fetch):Acco
      const g=(await r.json() as Record<string,{usd?:number;last_updated_at?:number}>)['global-dollar'];
      const spot=Number(g?.usd);
      if(!Number.isFinite(spot)||spot<=0||Math.abs(Date.now()/1000-Number(g?.last_updated_at))>600)return null;
-     return {upperMicroUsd:String(Math.ceil(spot*1.005*1e6)),lowerMicroUsd:String(Math.floor(spot*0.995*1e6)),priceAt:new Date().toISOString(),source:'CoinGecko global-dollar spot with a +/-0.5% bound band'};
+     return {upperMicroUsd:String(Math.ceil(spot*1.005*1e6)),lowerMicroUsd:String(Math.floor(spot*0.995*1e6)),priceAt:new Date(Number(g.last_updated_at)*1000).toISOString(),source:'CoinGecko global-dollar spot with a +/-0.5% bound band'};
     }
     if(symbol==='ETH'){
      const r=await web('https://api.binance.com/api/v3/ticker/24hr?symbol=ETHUSDT',{signal:AbortSignal.timeout(10000)});

@@ -1,3 +1,5 @@
+import {addReviewedSales} from '../lib/session-sale-draft.ts';
+import {withRoleMembership} from '../lib/role-membership.ts';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {reserveAttempt,beginAttempt,recordSubmission,settleAttempt,getAttempt} from '../db/execution-attempts.ts';
@@ -11,7 +13,9 @@ import {EXECUTION_CONTRACTS} from '../lib/autonomy.ts';import {VENUE,poolIdentit
 import {simulateRolesOperation} from '../lib/roles-operation.ts';
 import {reconcileRolesFill} from '../lib/chain-fill-proof.ts';
 import {inspectRolesInstallation} from '../lib/roles-installation.ts';
-import {safeSetupPlan,safeFactoryAbi,SAFE_CONTRACTS,SAFE_RUNTIME_HASHES} from '../lib/safe-setup.ts';
+import {inspectSessionRetirement} from '../lib/session-retirement.ts';
+import {draftSessionRenewal} from '../lib/session-renewal.ts';import {bindPolicyLease} from '../lib/policy-lease.ts';
+import {MULTISEND,safeSetupPlan,safeFactoryAbi,SAFE_CONTRACTS,SAFE_RUNTIME_HASHES} from '../lib/safe-setup.ts';
 
 // Isolated in-memory EVM. No RPC forwarding, mainnet transaction or real wallet key.
 const snapshot=JSON.parse(await readFile(new URL('../outputs/permission-runtime.json',import.meta.url),'utf8'));
@@ -40,6 +44,9 @@ const deploy=async(abi,bytecode,args=[])=>{const r=await receipt(await wallet.de
 const write=async(address,abi,functionName,args=[],account=owner)=>tx(address,encodeFunctionData({abi,functionName,args}),account);
 const read=async(address,abi,functionName,args=[])=>publicClient.readContract({address,abi,functionName,args});
 try{
+ const batchRuntime=JSON.parse(await readFile(new URL('../outputs/multisend-runtime.json',import.meta.url),'utf8'));
+ assert.equal(batchRuntime.address,MULTISEND.address);assert.equal(keccak256(batchRuntime.code),MULTISEND.runtimeHash);
+ await provider.request({method:'evm_setAccountCode',params:[MULTISEND.address,batchRuntime.code]});
  for(const record of Object.values(snapshot.contracts))await provider.request({method:'evm_setAccountCode',params:[record.address,record.code]});
  for(const [name,record] of Object.entries(snapshot.safeContracts)){assert.equal(keccak256(record.code),SAFE_RUNTIME_HASHES[name]);await provider.request({method:'evm_setAccountCode',params:[record.address,record.code]});}
  const creationCode=await read(SAFE_CONTRACTS.factory,safeFactoryAbi,'proxyCreationCode');
@@ -53,6 +60,8 @@ try{
  const deployment=rolesDeploymentCall(safe,'0x'+'9'.repeat(64));
  const moduleCreation=await ownerCall(deployment.to,deployment.data);
  const log=moduleCreation.logs.find(l=>l.address.toLowerCase()===ROLES_CONTRACTS.factory.toLowerCase());assert.ok(log);
+ // This standalone ESM lab uses a contract address, not the CommonJS module object.
+ // eslint-disable-next-line @next/next/no-assign-module-variable
  const module=decodeEventLog({abi:rolesFactoryAbi,data:log.data,topics:log.topics}).args.proxy;
  const enableData=encodeFunctionData({abi:safeArtifact.abi,functionName:'enableModule',args:[module]});const enableReceipt=await ownerCall(safe,enableData);let installGas=enableReceipt.gasUsed,approvalGas=0n,executedData='0x';const installDatas=[enableData],approvalDatas=[];
  assert.equal((await read(module,rolesAbi,'owner')).toLowerCase(),safe.toLowerCase());
@@ -66,14 +75,29 @@ try{
  const policy={account:safe,module,session,grantId:'0x'+'1'.repeat(64),routerCodeHash:actualRouter?snapshot.swapContracts.router.codeHash:keccak256('0x'+artifacts.FixtureRouter.evm.deployedBytecode.object),startsAt,expiresAt:startsAt+2*86400,inputRaw:'1000000',dailyRaw:'2000000',totalRaw:'3000000',outputs:[{token,fee:3000,tickSpacing:60,minimumOutputRaw:'123'},{token:token2,fee:500,tickSpacing:10,minimumOutputRaw:'456'}]};
  const plan=compileRolesPolicy(policy);assert.equal(plan.installationEnabled,false);
  for(const call of plan.calls){try{await publicClient.call({account:safe,to:call.to,data:call.data});}catch(e){console.error('Configuration rejected',call.data.slice(0,10),e.walk?.(x=>typeof x.data==='string')?.data??e.shortMessage);throw Error('Permission configuration failed');}installDatas.push(call.data);installGas+=(await ownerCall(call.to,call.data)).gasUsed;}
- const localFetch=async(_url,init)=>{const {id,method,params}=JSON.parse(init.body);assert.ok(['eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getCode','eth_getStorageAt','eth_call','eth_getTransactionReceipt','eth_getLogs','eth_estimateGas','eth_getTransactionByHash'].includes(method));try{return Response.json({jsonrpc:'2.0',id,result:await provider.request({method,params})});}catch{return Response.json({jsonrpc:'2.0',id,error:{code:-32000,message:'Local read unavailable'}});}};
+ const localFetch=async(_url,init)=>{const {id,method,params}=JSON.parse(init.body);assert.ok(['eth_chainId','eth_blockNumber','eth_getBlockByNumber','eth_getCode','eth_getStorageAt','eth_call','eth_getTransactionReceipt','eth_getLogs','eth_estimateGas','eth_getTransactionByHash'].includes(method));try{return Response.json({jsonrpc:'2.0',id,result:await provider.request({method,params})});}catch(error){return Response.json({jsonrpc:'2.0',id,error:{code:-32000,message:'Local read unavailable',data:typeof error.data==='string'?error.data:error.data?.result}});}};
  const installed=await inspectRolesInstallation(policy,moduleCreation.transactionHash,localFetch);
  assert.equal(installed.state,'verified_policy_state',installed.why);assert.equal(installed.executionEnabled,false);assert.equal(installed.walletOwnershipVerified,false);scenarios++;
+ const membershipCall=withRoleMembership(async()=>{throw Error('unused');},localFetch);
+ assert.equal(await membershipCall.membership(policy,plan.roleKey,'latest'),true);scenarios++;
+ const revokeSnapshot=await provider.request({method:'evm_snapshot',params:[]});
+ await assert.rejects(inspectSessionRetirement(owner,policy,localFetch,Number((await publicClient.getBlock()).timestamp)*1000),/Remove the old session role/);scenarios++;
+ await ownerCall(plan.revocation.to,plan.revocation.data);
+ assert.equal(await read(module,parseAbi(['function isModuleEnabled(address) view returns (bool)']),'isModuleEnabled',[session]),true);
+ assert.equal(await membershipCall.membership(policy,plan.roleKey,'latest'),false);scenarios++;
+ const removed=await inspectSessionRetirement(owner,policy,localFetch,Number((await publicClient.getBlock()).timestamp)*1000);assert.equal(removed.member,false);assert.equal(removed.session,session.toLowerCase());scenarios++;
+ const renewAt=new Date(Number((await publicClient.getBlock()).timestamp)*1000),renewSnapshot={owner,version:1,policyJson:JSON.stringify({version:1,allowedSymbols:['AAPL','MSFT'],maxOrderCents:100,maxDailyBuyCents:200})};
+ const renewal=draftSessionRenewal(renewSnapshot,{address:outsider,ciphertextRef:'LOCAL FIXTURE KEY'},policy,bindPolicyLease(renewSnapshot,{address:session,ciphertextRef:'OLD LOCAL FIXTURE KEY'},policy,renewAt.toISOString()),removed,[{symbol:'AAPL',token},{symbol:'MSFT',token:token2}],renewAt);
+ for(const call of renewal.calls)await ownerCall(call.to,call.data);
+ const renewed=await inspectRolesInstallation(renewal.policy,moduleCreation.transactionHash,localFetch);assert.equal(renewed.state,'verified_policy_state',renewed.why);scenarios++;
+ assert.equal(await membershipCall.membership(policy,plan.roleKey,'latest'),false);scenarios++;
+ await provider.request({method:'evm_revert',params:[revokeSnapshot]});
  const snapshotState=await provider.request({method:'evm_snapshot',params:[]});
  async function rejectStateChange(change){const saved=await provider.request({method:'evm_snapshot',params:[]});await change();const checked=await inspectRolesInstallation(policy,moduleCreation.transactionHash,localFetch);assert.equal(checked.state,'blocked');assert.equal(checked.executionEnabled,false);scenarios++;assert.equal(await provider.request({method:'evm_revert',params:[saved]}),true);}
  await rejectStateChange(()=>ownerCall(module,encodeFunctionData({abi:rolesAbi,functionName:'allowTarget',args:[plan.roleKey,EXECUTION_CONTRACTS.router,0]})));
  await rejectStateChange(()=>ownerCall(module,encodeFunctionData({abi:rolesAbi,functionName:'allowFunction',args:[plan.roleKey,EXECUTION_CONTRACTS.router,'0x3593564c',0]})));
  await rejectStateChange(()=>ownerCall(module,encodeFunctionData({abi:rolesAbi,functionName:'assignRoles',args:[session,['0x'+'f'.repeat(64)],[true]]})));
+ await rejectStateChange(()=>ownerCall(module,encodeFunctionData({abi:rolesAbi,functionName:'assignRoles',args:[outsider,[plan.roleKey],[true]]})));
  await rejectStateChange(()=>ownerCall(module,encodeFunctionData({abi:rolesAbi,functionName:'setAllowance',args:[plan.dailyKey,3n,3n,3n,86400n,BigInt(startsAt)]})));
  await rejectStateChange(()=>ownerCall(plan.revocation.to,plan.revocation.data));
  await rejectStateChange(()=>ownerCall(safe,encodeFunctionData({abi:safeArtifact.abi,functionName:'enableModule',args:[session]})));
@@ -91,6 +115,25 @@ try{
   for(const currency of [VENUE.settlement,token,token2])await write(currency,artifacts.FixtureToken.abi,'mint',[lp,10n**18n]);
   for(const output of policy.outputs){const {key}=poolIdentity(output.token,output.fee,output.tickSpacing);await write(VENUE.manager,managerAbi,'initialize',[key,2n**96n]);await write(lp,artifacts.FixtureLiquidityProvider.abi,'add',[key,-2*output.tickSpacing,2*output.tickSpacing]);}
  }else await ownerCall(VENUE.settlement,encodeFunctionData({abi:artifacts.FixtureToken.abi,functionName:'approve',args:[EXECUTION_CONTRACTS.router,10000000n]}));
+ if(actualRouter){
+  const atomicSnapshot=await provider.request({method:'evm_snapshot',params:[]});
+  let at=new Date(Number((await publicClient.getBlock()).timestamp)*1000);
+  const mandate={owner,version:1,policyJson:JSON.stringify({version:1,allowedSymbols:['AAPL','MSFT'],maxOrderCents:100,maxDailyBuyCents:200})};
+  const signer={address:outsider,ciphertextRef:'PUBLIC LOCAL FIXTURE ONLY'};
+  await ownerCall(plan.revocation.to,plan.revocation.data);
+  const retired=await inspectSessionRetirement(owner,policy,localFetch,Number((await publicClient.getBlock()).timestamp)*1000);
+  at=new Date(retired.observedAt);
+  const draft=draftSessionRenewal(mandate,signer,policy,bindPolicyLease(mandate,{address:session,ciphertextRef:'OLD PUBLIC LOCAL FIXTURE'},policy,at.toISOString()),retired,[{symbol:'AAPL',token},{symbol:'MSFT',token:token2}],at);
+  const expanded=addReviewedSales(draft,[{...policy.outputs[0],inputRaw:'1000000',minimumOutputRaw:'123'}],mandate,signer,at);
+  await tx(expanded.to,expanded.data);
+  const installed=await inspectRolesInstallation(expanded.policy,moduleCreation.transactionHash,localFetch);
+  assert.equal(installed.state,'verified_policy_state',installed.why);scenarios++;
+  assert.equal(await membershipCall.membership(policy,plan.roleKey,'latest'),false);scenarios++;
+  const approved=await read(EXECUTION_CONTRACTS.permit2,parseAbi(['function allowance(address owner,address token,address spender) view returns(uint160 amount,uint48 expiration,uint48 nonce)']),'allowance',[safe,token,EXECUTION_CONTRACTS.router]);
+  assert.equal(approved[0],BigInt(expanded.policy.totalRaw)/BigInt(expanded.policy.inputRaw)*1000000n);
+  assert.equal(Number(approved[1]),expanded.policy.expiresAt);scenarios++;
+  assert.equal(await provider.request({method:'evm_revert',params:[atomicSnapshot]}),true);
+ }
  const budget=async key=>(await read(module,rolesAbi,'allowances',[key]))[3];
  const makeCall=async(t=token)=>approvedRouterCall(policy,t,Number((await publicClient.getBlock()).timestamp)+25);
  const execute=async(c,who=session)=>{const envelope=encodeRolesExecution(module,plan.roleKey,c);executedData=envelope.data;try{await publicClient.call({account:who,to:envelope.to,data:envelope.data});}catch(e){console.error('Execution rejected',e.walk?.(x=>typeof x.data==='string')?.data??e.shortMessage);throw Error('Expected bounded execution failed');}return tx(envelope.to,envelope.data,who);};
@@ -132,6 +175,35 @@ try{
   await writeFile(new URL('../outputs/setup-fee-gas.json',import.meta.url),JSON.stringify({capturedAt:new Date(time).toISOString(),environment:'Isolated Cancun EVM with pinned canonical mainnet runtimes and actual Universal Router.',policyShape:'Two approved outputs, fixed-size USDG buys, daily quota 2 buys and total quota 3 buys.',components:measuredComponents},null,2));
   const fee=reviewSetupFees({source:'isolated-fixture',chainId:4663,observedAt:time,priceVerified:true,ethUpperMicroUsd:'3000000000',maxFeePerGasWei:'1000000000',components:[['wallet_creation',safeCreation.gasUsed],['module_creation',moduleCreation.gasUsed],['permission_installation',installGas],['token_approvals',approvalGas],['execution',completed.gasUsed],['revocation',revoked.gasUsed]].map(([name,gas])=>({name,gas:gas.toString(),dataFeeWei:'0',providerFeeWei:'0'}))},2000,time);
   assert.equal(fee.state,'within_cap');assert.equal(fee.liveQuote,false);assert.equal(fee.executionEnabled,false);scenarios++;
+  assert.equal(await provider.request({method:'evm_revert',params:[saved]}),true);
+ }
+ if(actualRouter){
+  const saved=await provider.request({method:'evm_snapshot',params:[]});
+  const salePolicy={...policy,sales:[{...policy.outputs[0],inputRaw:'1000000',minimumOutputRaw:'123'}]};
+  const salePlan=compileRolesPolicy(salePolicy);
+  await ownerCall(plan.revocation.to,plan.revocation.data);
+  for(const call of salePlan.calls)await ownerCall(call.to,call.data);
+  await write(token,artifacts.FixtureToken.abi,'mint',[safe,2000000n]);
+  await ownerCall(token,encodeFunctionData({abi:artifacts.FixtureToken.abi,functionName:'approve',args:[EXECUTION_CONTRACTS.permit2,1000000n]}));
+  await ownerCall(EXECUTION_CONTRACTS.permit2,encodeFunctionData({abi:permit2Abi,functionName:'approve',args:[token,EXECUTION_CONTRACTS.router,1000000n,startsAt+3*86400]}));
+  const header=await publicClient.getBlock(),time=Number(header.timestamp)*1000;
+  const route={id:crypto.randomUUID(),side:'sell',chainId:4663,address:safe,symbol:'FIXTURE',token,settlement:VENUE.settlement,input:'0.000000000001',inputRaw:'1000000',settlementDecimals:6,block:toHex(header.number),blockHash:header.hash,blockAt:new Date(time).toISOString(),observedAt:new Date(time).toISOString(),expiresAt:new Date(time+25000).toISOString(),balanceRaw:'2000000',slippageBps:50,probes:[],best:{fee:3000,tickSpacing:60,poolId:poolIdentity(token,3000,60).poolId,state:'quoted',outputRaw:'123',reason:'Isolated sale fixture'},minimumOutputRaw:'123',executionEnabled:false,coverage:'Isolated fixture',blockers:[]};
+  const sale=approvedRouterCall(salePolicy,token,Math.floor(Date.parse(route.expiresAt)/1000),'sell');
+  const envelope=encodeRolesExecution(module,salePlan.roleKey,sale);
+  await assert.rejects(()=>publicClient.call({account:outsider,to:envelope.to,data:envelope.data}));scenarios++;
+  const altered=routerCandidate({...route,inputRaw:'1000001'},1);
+  const alteredEnvelope=encodeRolesExecution(module,salePlan.roleKey,altered);
+  await assert.rejects(()=>publicClient.call({account:session,to:alteredEnvelope.to,data:alteredEnvelope.data}));scenarios++;
+  const beforeCash=await read(VENUE.settlement,artifacts.FixtureToken.abi,'balanceOf',[safe]);
+  const beforeStock=await read(token,artifacts.FixtureToken.abi,'balanceOf',[safe]);
+  const completed=await tx(envelope.to,envelope.data,session);
+  assert.equal(beforeStock-await read(token,artifacts.FixtureToken.abi,'balanceOf',[safe]),1000000n);
+  assert.ok(await read(VENUE.settlement,artifacts.FixtureToken.abi,'balanceOf',[safe])>=beforeCash+123n);
+  assert.equal(await read(VENUE.settlement,artifacts.FixtureToken.abi,'balanceOf',[session]),0n);scenarios++;
+  const proof=await reconcileRolesFill(route,1,completed.transactionHash,salePolicy,moduleCreation.transactionHash,localFetch);
+  assert.equal(proof.outcome,'verified_fill',JSON.stringify(proof));assert.equal(proof.actualInputRaw,'1000000');scenarios++;
+  await ownerCall(salePlan.revocation.to,salePlan.revocation.data);
+  await assert.rejects(()=>publicClient.call({account:session,to:envelope.to,data:envelope.data}));scenarios++;
   assert.equal(await provider.request({method:'evm_revert',params:[saved]}),true);
  }
  const outer=parseAbi(['function execute(bytes commands,bytes[] inputs,uint256 deadline) payable']);
@@ -181,4 +253,3 @@ try{
  const result={scenarios,permissionRuntimeSource:'Robinhood mainnet bytecode snapshot',block:snapshot.block,safeVersion:'1.4.1 canonical singleton and factory runtime',environment:'isolated local EVM',router:actualRouter?'mainnet Universal Router, Permit2 and PoolManager runtime; local fixture pools':'test double, not a real Uniswap swap',assets:'local fixtures only',liveWalletCompatible:false,mainnetGrantInstalled:false,mainnetExecutionEnabled:false,realMoneySpent:false};
  await mkdir(new URL('../outputs/',import.meta.url),{recursive:true});await writeFile(new URL(actualRouter?'../outputs/permission-swap-lab-result.json':'../outputs/permission-lab-result.json',import.meta.url),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
 }finally{await provider.disconnect();}
-

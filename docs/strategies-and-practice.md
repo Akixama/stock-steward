@@ -31,7 +31,7 @@ The Practice portfolio view shows cash, positions, current allocation, target al
 
 The configured server-side Cloudflare Workers AI proposes a structured draft. It can ask for missing numbers or reject unsupported directions. Users need no model download. The service enforces 50 attempts site-wide and 10 per user per UTC day with a 15-second cooldown. Applying a draft does not confirm it, authorize Practice or make a trade. The user can set the fields directly when AI is unavailable.
 
-The Live selector remains inactive. Practice permission cannot authorize real funds. Actual custody, permissions, live economic valuation, settlement, fees, compliance and guarded order execution require separate implementation and verification.
+Practice permission cannot authorize real funds. The separate Overview purchase pilot requires verified wallet ownership, reviewed permission setup and an owner signature for each exact order. Practice strategies do not run unattended real-money trades.
 
 ## Owner test path
 

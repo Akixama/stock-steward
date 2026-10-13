@@ -50,3 +50,5 @@ test('an HTTP error passes through without throwing', async () => {
   const response = await transport(CHAIN.rpc, { method: 'POST' });
   assert.equal(response.ok, false);
 });
+test('worker subrequest limits are not retried',async()=>{let calls=0;const upstream=(async()=>{calls++;throw Error('Too many subrequests.');}) as typeof fetch;await assert.rejects(chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST'}),/read limit/);assert.equal(calls,1);});
+test('receipt headers stay public while historical state goes to the configured archive provider',async()=>{const {receiptTransport}=await import('./chain-transport.ts');const urls:string[]=[];const transport=receiptTransport('key123',(async(url)=>{urls.push(String(url));return Response.json({result:'0x'});}) as typeof fetch);for(const method of ['eth_getTransactionReceipt','eth_getBlockByNumber','eth_getCode','eth_call'])await transport(CHAIN.rpc,{method:'POST',body:JSON.stringify({method})});assert.deepEqual(urls,[CHAIN.rpc,CHAIN.rpc,'https://robinhood-mainnet.g.alchemy.com/v2/key123','https://robinhood-mainnet.g.alchemy.com/v2/key123']);});

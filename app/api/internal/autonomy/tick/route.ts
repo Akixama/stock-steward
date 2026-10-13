@@ -1,6 +1,7 @@
 import {chainTransport,chainHealth} from '@/lib/chain-transport';
 import {env} from 'cloudflare:workers';
 import {workerTick} from '@/lib/autonomy-worker';
+import {dispatchOperatorAlerts} from '@/lib/operator-alerts';
 const headers={'Cache-Control':'no-store'};
 export async function POST(request:Request){
   const expected=env.STEWARD_WORKER_KEY;
@@ -12,6 +13,10 @@ export async function POST(request:Request){
   const aa=new Uint8Array(a),bb=new Uint8Array(b);let mismatch=0;for(let i=0;i<aa.length;i++)mismatch|=aa[i]^bb[i];
   if(mismatch)return Response.json({error:'Unauthorized.'},{status:401,headers});
   if(new URL(request.url).searchParams.get("health")==="1"){const key=new URL(request.url).searchParams.get("provider")==="public"?undefined:env.ALCHEMY_API_KEY;return Response.json({health:await chainHealth(chainTransport(key)),provider:key?"alchemy":"public",spendingEnabled:false},{headers});}
-  try{return Response.json({summary:await workerTick(env.DB,chainTransport(env.ALCHEMY_API_KEY)),spendingEnabled:false},{headers});}
-  catch{return Response.json({error:'Worker failed. No transaction was submitted.'},{status:503,headers});}
+  try{const summary=await workerTick(env.DB,chainTransport(env.ALCHEMY_API_KEY),env.STEWARD_AUTONOMOUS_SHADOW_ENABLED==='true');
+    // Delivery failure must not re-run decisions or misreport a purchase. This
+    // connector remains disabled until an operator configures an approved URL.
+    let alerts;try{alerts=await dispatchOperatorAlerts(env.DB,{enabled:env.STEWARD_OPERATOR_ALERTS_ENABLED==='true',url:env.STEWARD_OPERATOR_ALERT_URL??'',secret:env.STEWARD_OPERATOR_ALERT_SECRET??''});}catch{alerts={configured:true,unavailable:true};}
+    return Response.json({summary,alerts,spendingEnabled:false},{headers});}
+  catch{return Response.json({error:'Runner did not complete. Check purchase receipts before taking action; no order was retried.'},{status:503,headers});}
 }

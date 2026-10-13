@@ -66,15 +66,15 @@ async function main() {
   const moduleReceipt = await publicClient.waitForTransactionReceipt({ hash: moduleHash });
   const moduleLog = moduleReceipt.logs.map(l => { try { return decodeEventLog({ abi: rolesFactoryAbi, data: l.data, topics: l.topics }); } catch { return null; } }).find(e => e?.eventName === 'ModuleProxyCreation');
   if (!moduleLog) throw Error('Module creation event missing');
-  const module = moduleLog.args.proxy;
-  record('module_created', true, module);
+  const rolesModule = moduleLog.args.proxy;
+  record('module_created', true, rolesModule);
 
   // 3. Rehearsal policy: fixed-size USDG buys, two output tokens, tight caps and expiry.
   const session = privateKeyToAccount(generatePrivateKey()).address;
   const nowSec = Math.floor(Date.now() / 1000);
   const startsAt = nowSec - (nowSec % 86400);
   const policy = {
-    account: safe, module, session, grantId: keccak256(toHex('stock-steward-testnet-rehearsal-grant')),
+    account: safe, module: rolesModule, session, grantId: keccak256(toHex('stock-steward-testnet-rehearsal-grant')),
     routerCodeHash: keccak256(toHex('stock-steward-testnet-rehearsal-router')),
     startsAt, expiresAt: startsAt + 2 * 86400,
     inputRaw: '1000000', dailyRaw: '2000000', totalRaw: '3000000',
@@ -103,7 +103,7 @@ async function main() {
     if (receipt.status !== 'success' || receipt.logs.length === 0) throw Error('Owner call had no effect');
     return receipt;
   };
-  await ownerCall(safe, encodeFunctionData({ abi: safeAbi, functionName: 'enableModule', args: [module] }));
+  await ownerCall(safe, encodeFunctionData({ abi: safeAbi, functionName: 'enableModule', args: [rolesModule] }));
   for (const call of compiled.calls) await ownerCall(call.to, call.data);
   record('policy_installed', true, compiled.roleKey);
 
@@ -112,7 +112,7 @@ async function main() {
   // checks directly on testnet: module admin, session membership, quota configuration.
   const getterAbi = parseAbi(['function owner() view returns (address)', 'function avatar() view returns (address)', 'function target() view returns (address)', 'function isModuleEnabled(address) view returns (bool)', 'function allowances(bytes32) view returns (uint256,uint256,uint256,uint256,uint256)']);
   const readGetter = async (functionName, args = []) => {
-    const raw = await publicClient.call({ to: module, data: encodeFunctionData({ abi: getterAbi, functionName, args }) });
+    const raw = await publicClient.call({ to: rolesModule, data: encodeFunctionData({ abi: getterAbi, functionName, args }) });
     return decodeFunctionResult({ abi: getterAbi, functionName, data: raw.data });
   };
   const inspectInstallation = async () => {
@@ -133,7 +133,7 @@ async function main() {
   const proposal = approvedRouterCall(policy, policy.outputs[0].token, policy.expiresAt - 1);
   const envelopeData = (to, data, roleKey, value = 0n) => encodeFunctionData({ abi: rolesAbi, functionName: 'execTransactionWithRole', args: [to, value, data, 0, roleKey, true] });
   const sim = async (from, data) => {
-    try { await publicClient.call({ account: from, to: module, data }); return true; } catch { return false; }
+    try { await publicClient.call({ account: from, to: rolesModule, data }); return true; } catch { return false; }
   };
   const approved = envelopeData(proposal.to, proposal.data, compiled.roleKey);
   record('positive_call_passes_conditions', await sim(session, approved), 'router leg hollow on testnet: the call target has no code here');
@@ -154,7 +154,7 @@ async function main() {
 
   const summary = {
     chainId: CHAIN_ID, block: await publicClient.getBlockNumber().then(n => n.toString()),
-    wallet: safe, module, roleKey: compiled.roleKey, session,
+    wallet: safe, module: rolesModule, roleKey: compiled.roleKey, session,
     steps, deploymentRehearsalRun: true, swapLeg: 'not rehearsed: Universal Router absent on testnet (covered by permission-lab --actual-router)',
     spendingEnabled: false, executionEnabled: false, transactionSent: true,
   };

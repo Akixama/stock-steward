@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { encodeFunctionData, decodeFunctionData, parseAbi, type Hex } from 'viem';
+import { remainingInstallData } from './remaining-install.ts';
+const exec = parseAbi(['function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,bytes signatures) returns (bool success)']);
+const multi = parseAbi(['function multiSend(bytes transactions)']);
+const address = '0x1111111111111111111111111111111111111111';
+const wrap = (data: Hex, operation = 0) => encodeFunctionData({ abi: exec, functionName: 'execTransaction', args: [address, 0n, data, operation, 0n, 0n, 0n, address, address, '0xab'] });
+test('resuming batches only unconfirmed calls and preserves owner approval envelope', () => {
+  const batch = wrap(encodeFunctionData({ abi: multi, functionName: 'multiSend', args: ['0x'] }), 1);
+  const result = remainingInstallData(batch, [wrap('0xaaaa'), wrap('0xbbbb'), wrap('0xcccc')], 2);
+  const decoded = decodeFunctionData({ abi: exec, data: result });
+  assert.equal(decoded.args[0], address);
+  assert.equal(decoded.args[3], 1);
+  assert.equal(decoded.args[9], '0xab');
+  const packed = decodeFunctionData({ abi: multi, data: decoded.args[2] }).args[0];
+  assert.ok(packed.endsWith('cccc'));
+  assert.equal(packed.length, 2 + (1 + 20 + 32 + 32 + 2) * 2);
+  assert.throws(() => remainingInstallData(batch, [wrap('0xaaaa')], 1));
+  assert.throws(() => remainingInstallData(batch, [wrap('0xaaaa', 1)], 0));
+});

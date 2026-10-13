@@ -62,7 +62,7 @@ test('the live section reports assembled evidence with per-target context',async
  assert.equal(section.executionEnabled,false);assert.equal(section.assembled,true);assert.deepEqual(section.gaps,[]);
  assert.equal(section.ledgerSource,'owner-ledger');
  assert.equal(section.targets.length,1);
- assert.deepEqual(section.targets[0],{symbol:'AAPL',gaps:[],portfolioTotalMicroUsd:'339025000',positionMicroUsd:'334000000',externalBuysTodayCents:0});
+ assert.deepEqual(section.targets[0],{symbol:'AAPL',gaps:[],portfolioTotalMicroUsd:'338975000',positionMicroUsd:'334000000',externalBuysTodayCents:0});
  const missing=await liveAccountingSection(ADDR,mandate(),null,sources,now);
  assert.equal(missing.assembled,false);assert.equal(missing.ledgerSource,'unavailable');assert.ok(missing.gaps.length>0);
  const noMandate=await liveAccountingSection(ADDR,null,ledger(),sources,now);
@@ -82,3 +82,4 @@ test('the grant gate reports the true lifecycle state',()=>{
  const revoked=grantGateSection([{...lease,state:'revoked'}],snapshot,now);
  assert.equal(revoked.activeGrants,0);
 });
+test('cached settlement prices retain the source timestamp instead of becoming fresh when fetched',async()=>{const stale=Math.floor(Date.now()/1000)-120;const sources=alchemyAccountingSources(fixtureFetchers().rpc,async()=>Response.json({'global-dollar':{usd:1,last_updated_at:stale}}));const price=await sources.priceBound('USDG');assert.equal(price?.priceAt,new Date(stale*1000).toISOString());const report=await liveAccountingSection(ADDR,mandate(),ledger(),sources,Date.now());assert.equal(report.assembled,false);});

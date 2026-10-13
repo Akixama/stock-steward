@@ -13,9 +13,9 @@ export function routerCandidate(route:RouteEvidence,version:number|null):RouterC
  if(![[100,1],[500,10],[3000,60],[10000,200]].some(([fee,spacing])=>fee===route.best!.fee&&spacing===route.best!.tickSpacing))throw Error('Unsupported pool key.');
  const {key,poolId,zeroForOne}=poolIdentity(route.token as Hex,route.best.fee,route.best.tickSpacing);if(poolId!==route.best.poolId)throw Error('Pool identity mismatch.');
  const input=encodeAbiParameters(parseAbiParameters('bytes actions,bytes[] params'),['0x060c0f',[
- encodeAbiParameters(swap,[{poolKey:key,zeroForOne,amountIn:BigInt(route.inputRaw),amountOutMinimum:BigInt(route.minimumOutputRaw!),minHopPriceX36:0n,hookData:'0x'}]),
- encodeAbiParameters(currencyAmount,[route.settlement as Hex,BigInt(route.inputRaw)]),
- encodeAbiParameters(currencyAmount,[route.token as Hex,BigInt(route.minimumOutputRaw!)]),
+ encodeAbiParameters(swap,[{poolKey:key,zeroForOne:route.side==='sell'?!zeroForOne:zeroForOne,amountIn:BigInt(route.inputRaw),amountOutMinimum:BigInt(route.minimumOutputRaw!),minHopPriceX36:0n,hookData:'0x'}]),
+ encodeAbiParameters(currencyAmount,[intent.inputToken as Hex,BigInt(route.inputRaw)]),
+ encodeAbiParameters(currencyAmount,[intent.outputToken as Hex,BigInt(route.minimumOutputRaw!)]),
  ]]);
  // SETTLE_ALL uses the initiating account as payer; TAKE_ALL returns output to that same account.
  const data=encodeFunctionData({abi,functionName:'execute',args:['0x10',[input],BigInt(Math.floor(Date.parse(route.expiresAt)/1000))]});

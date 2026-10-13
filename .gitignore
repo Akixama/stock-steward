@@ -41,6 +41,7 @@ yarn-error.log*
 next-env.d.ts
 /dist/
 /.wrangler/
+/.tmp/
 # Checkout-local tool state; never publish.
 /.openai/
 /.sites-runtime/
@@ -62,3 +63,19 @@ next-env.d.ts
 /audit-*.txt
 /outputs-audit-*.txt
 /deploy-*-result.txt
+
+# Local investigation and recovery notes; retained on the workstation only.
+/CODEX-HANDOFF.md
+/outputs-recovered.json
+/repair-installed-output.sql
+/scripts/audit-advisory-details.mjs
+/scripts/audit-existing-purchase.mjs
+/scripts/audit-final-summary.mjs
+/scripts/audit-ledger-read.mjs
+/scripts/audit-pin-archive-patch.mjs
+/scripts/audit-ui-cleanup.mjs
+/scripts/audit-whitespace.mjs
+/scripts/check-*.mjs
+/scripts/sim-*.mjs
+/scripts/trace-*.mjs
+/scripts/update-current-release-copy.mjs

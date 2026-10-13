@@ -1,4 +1,4 @@
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { uniqueIndex, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const mandates = sqliteTable("mandates", {
   ownerRef: text("owner_ref").notNull(),
@@ -95,7 +95,7 @@ export const chainTransactionWatches = sqliteTable('chain_transaction_watches', 
   recordJson:text('record_json').notNull(),createdAt:text('created_at').notNull(),checkedAt:text('checked_at').notNull(),
 }, table=>[index('chain_transaction_watches_owner_checked_idx').on(table.ownerRef,table.checkedAt)]);
 export const activeModules = sqliteTable('active_modules', {
- ownerRef:text('owner_ref').notNull(),mandateVersion:integer('mandate_version').notNull(),safe:text('safe').notNull(),module:text('module').notNull(),verifiedAt:text('verified_at').notNull(),
+ ownerRef:text('owner_ref').notNull(),mandateVersion:integer('mandate_version').notNull(),safe:text('safe').notNull(),module:text('module').notNull(),verifiedAt:text('verified_at').notNull(),outputs:text('outputs'),startsAt:integer('starts_at'),expiresAt:integer('expires_at'),
 }, table=>[primaryKey({columns:[table.ownerRef,table.mandateVersion]})]);
 export const walletOwnership = sqliteTable('wallet_ownership', {
  ownerRef:text('owner_ref').primaryKey(),address:text('address').notNull(),challengeId:text('challenge_id').notNull(),message:text('message').notNull(),
@@ -111,3 +111,27 @@ export const practiceSessions=sqliteTable('practice_sessions',{ownerRef:text('ow
 export const goalPlans=sqliteTable('goal_plans',{ownerRef:text('owner_ref').primaryKey(),revision:integer('revision').notNull(),planJson:text('plan_json').notNull(),updatedAt:text('updated_at').notNull()});
 export const priceAlerts=sqliteTable('price_alerts',{id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),symbol:text('symbol').notNull(),direction:text('direction').notNull(),priceCents:integer('price_cents').notNull(),createdAt:text('created_at').notNull(),status:text('status').notNull().default('active'),triggeredAt:text('triggered_at'),observedPriceCents:integer('observed_price_cents')},t=>[index('idx_price_alerts_owner').on(t.ownerRef,t.status)]);
 export const agentPlans=sqliteTable('agent_plans',{ownerRef:text('owner_ref').primaryKey(),symbol:text('symbol').notNull(),amountCents:integer('amount_cents').notNull(),submitOnPaper:integer('submit_on_paper').notNull().default(0),enabled:integer('enabled').notNull().default(1),day:text('day').notNull().default(''),decisionsToday:integer('decisions_today').notNull().default(0),lastDecisionAt:text('last_decision_at'),lastReceiptId:text('last_receipt_id'),updatedAt:text('updated_at').notNull()});
+
+export const autonomousShadowPlans=sqliteTable('autonomous_shadow_plans',{
+ ownerRef:text('owner_ref').primaryKey(),revision:integer('revision').notNull(),ruleJson:text('rule_json').notNull(),enabled:integer('enabled').notNull().default(0),nextDueAt:text('next_due_at').notNull(),leaseToken:text('lease_token'),leaseUntil:text('lease_until'),failures:integer('failures').notNull().default(0),updatedAt:text('updated_at').notNull(),
+},t=>[index('autonomous_shadow_due').on(t.enabled,t.nextDueAt)]);
+export const autonomousShadowRuns=sqliteTable('autonomous_shadow_runs',{
+ id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),revision:integer('revision').notNull(),dueAt:text('due_at').notNull(),claimToken:text('claim_token').notNull(),state:text('state').notNull(),decisionJson:text('decision_json'),createdAt:text('created_at').notNull(),completedAt:text('completed_at'),
+},t=>[index('autonomous_shadow_history').on(t.ownerRef,t.createdAt),uniqueIndex('autonomous_shadow_slot').on(t.ownerRef,t.revision,t.dueAt)]);
+export const autonomousTransactionJournal=sqliteTable('autonomous_transaction_journal',{
+ intentId:text('intent_id').primaryKey(),ownerRef:text('owner_ref').notNull(),sessionAddress:text('session_address').notNull(),nonce:integer('nonce').notNull(),transactionHash:text('transaction_hash').notNull().unique(),rawTransaction:text('raw_transaction').notNull(),settledState:text('settled_state'),state:text('state').notNull(),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull(),
+},t=>[uniqueIndex('autonomous_session_nonce').on(t.sessionAddress,t.nonce)]);
+export const autonomousAccountLocks=sqliteTable('autonomous_account_locks',{
+ accountAddress:text('account_address').primaryKey(),ownerRef:text('owner_ref').notNull(),intentId:text('intent_id').notNull().unique(),createdAt:text('created_at').notNull(),
+});
+
+export const autonomousSessionGrants=sqliteTable('autonomous_session_grants',{
+ ownerRef:text('owner_ref').primaryKey(),id:text('id').notNull().unique(),state:text('state').notNull(),sessionAddress:text('session_address').notNull(),mandateVersion:integer('mandate_version').notNull(),policyJson:text('policy_json').notNull(),leaseJson:text('lease_json').notNull(),transactionJson:text('transaction_json').notNull(),creationTransaction:text('creation_transaction'),grantTransaction:text('grant_transaction'),verifiedAt:text('verified_at'),createdAt:text('created_at').notNull(),
+});
+
+export const autonomousIncidents=sqliteTable('autonomous_incidents',{id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),kind:text('kind').notNull(),subjectId:text('subject_id').notNull(),severity:text('severity').notNull(),message:text('message').notNull(),createdAt:text('created_at').notNull(),acknowledgedAt:text('acknowledged_at')},t=>[uniqueIndex('autonomous_incident_subject').on(t.ownerRef,t.kind,t.subjectId),index('autonomous_incidents_owner').on(t.ownerRef,t.createdAt)]);
+export const autonomousFeeConsents=sqliteTable('autonomous_fee_consents',{ownerRef:text('owner_ref').notNull(),grantId:text('grant_id').notNull(),consentJson:text('consent_json').notNull(),signature:text('signature').notNull(),issuedAt:text('issued_at').notNull(),createdAt:text('created_at').notNull()},t=>[primaryKey({columns:[t.ownerRef,t.grantId]})]);
+export const autonomousReleaseEvidence=sqliteTable('autonomous_release_evidence',{ownerRef:text('owner_ref').notNull(),grantId:text('grant_id').notNull(),kind:text('kind').notNull(),evidenceJson:text('evidence_json').notNull(),signature:text('signature').notNull(),createdAt:text('created_at').notNull()},t=>[primaryKey({columns:[t.ownerRef,t.grantId,t.kind]})]);
+export const autonomousActivation=sqliteTable('autonomous_activation',{ownerRef:text('owner_ref').notNull(),grantId:text('grant_id').notNull(),state:text('state').notNull(),consentJson:text('consent_json').notNull(),signature:text('signature').notNull(),issuedAt:text('issued_at').notNull(),updatedAt:text('updated_at').notNull()},t=>[primaryKey({columns:[t.ownerRef,t.grantId]})]);
+export const autonomousRehearsalIntents=sqliteTable('autonomous_rehearsal_intents',{id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),planRevision:integer('plan_revision').notNull(),preparationJson:text('preparation_json').notNull(),message:text('message').notNull(),expiresAt:text('expires_at').notNull(),state:text('state').notNull(),transactionHash:text('transaction_hash'),createdAt:text('created_at').notNull(),updatedAt:text('updated_at').notNull()},t=>[index('autonomous_rehearsal_owner').on(t.ownerRef,t.createdAt)]);
+export const autonomousSessionArchive=sqliteTable('autonomous_session_archive',{id:text('id').primaryKey(),ownerRef:text('owner_ref').notNull(),accountAddress:text('account_address').notNull(),grantJson:text('grant_json').notNull(),retirementJson:text('retirement_json').notNull(),retiredAt:text('retired_at').notNull()},t=>[index('autonomous_session_archive_owner').on(t.ownerRef,t.retiredAt)]);

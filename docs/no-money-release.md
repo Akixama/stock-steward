@@ -28,4 +28,4 @@ The lab needs the ignored permission-runtime snapshot captured by the documented
 
 ## Boundaries
 
-Practice is a server-persisted simulation, not a testnet blockchain wallet. No real key, signature, token allowance or funds are used. AI suggestions are drafts; unsupported selling, news triggers or arbitrary instructions cannot execute. Hosted live activation has no submission capability. Mainnet evidence and funded owner approvals remain separate; see execution-preparation.md.
+Practice is a server-persisted simulation, not a testnet blockchain wallet. No real key, signature, token allowance or funds are used. AI suggestions are drafts; supported Practice sales and news rules require reviewed fields and existing fake holdings where relevant. Arbitrary instructions cannot execute. The separate onchain pilot supports owner-approved purchases; Practice permission never grants real spending authority. Mainnet evidence and funded owner approvals remain separate; see execution-preparation.md.
