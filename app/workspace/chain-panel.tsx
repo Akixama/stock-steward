@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import WalletConnect from './wallet-connect';
-import { useWalletSession, shareWalletSession } from './wallet-session';
+import { useWalletSession } from './wallet-session';
 import BridgeDialog from './bridge-dialog';
 import { CHAIN } from "@/lib/robinhood-chain";
 import { compareObservations, purchasePreview, parseUsdCents, type PricedObservation, type Preview } from "@/lib/chain-analysis";
@@ -22,31 +21,30 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
   const [snapshot, setSnapshot] = useState<PricedObservation | null>(null);
   const [history, setHistory] = useState<PricedObservation[]>([]);
   const [previous, setPrevious] = useState<PricedObservation | null>(null);
-  const [clock, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(Date.now);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [contract, setContract] = useState("");
   const [amount, setAmount] = useState("1.00");
   const generation = useRef(0);
-  function clear() {
-    generation.current++; setSnapshot(null); setPrevious(null);
-    setAddress(""); setBusy(false); setError(null); setNotice(null); setContract("");
-  }
   // One wallet connection is shared with every panel. A wallet that joined in
   // Autonomy (or anywhere) appears here immediately; a wallet-level account
   // change drops the session and returns the panel to watch-only.
   const sessionAddress = session?.address ?? "";
   const lastSessionAddress = useRef("");
   useEffect(() => {
+    const timer = setTimeout(() => {
     if (sessionAddress) {
       setAddress(sessionAddress); setSnapshot(null); setPrevious(null);
-      setNotice("Wallet connected. Observe & save reads its holdings at one block.");
+      setNotice("Wallet connected. Refresh to see your latest balances.");
     } else if (lastSessionAddress.current) {
       setSnapshot(null); setPrevious(null); setAddress(lastSessionAddress.current);
       setNotice("Wallet account changed or was disconnected. Saved receipts remain; observe again to read the current state.");
     }
     lastSessionAddress.current = sessionAddress;
+    }, 0);
+    return () => clearTimeout(timer);
   }, [sessionAddress]);
   useEffect(() => { if (!snapshot) return; const timer = setInterval(() => setClock(Date.now()), 15000); return () => clearInterval(timer); }, [snapshot]);
   const historical = snapshot ? clock - Date.parse(snapshot.observedAt) > 120000 : false;
@@ -87,19 +85,19 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
     try { preview = purchasePreview(snapshot, contract, amountCents, mandate); } catch { /* Invalid input shows no checks. */ }
   }
   return <section id="ws-chain-panel" className="ws-check-panel ws-chain-panel" aria-busy={busy}>
-    <div className="ws-account-head"><div><span className="ws-label">WALLET & FUNDS</span><h2>Your wallet.</h2>
-      <p>Look at your balances and bring funds over. Watching never signs anything.</p></div>
-      {connected?<button className="ws-recheck" onClick={()=>{clear();shareWalletSession(null);setNotice("Disconnected. Saved receipts remain; you can still watch any address.");}} disabled={busy}>Disconnect from Steward</button>:<WalletConnect disabled={busy} onConnected={(p,address)=>{clear();setAddress(address);setNotice("Wallet connected. Observe & save reads its holdings at one block.");}}/>}</div>
-    <div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
+    <div className="ws-account-head"><div><span className="ws-label">BALANCES & FUNDING</span><h2>See what this wallet holds.</h2>
+      <p>Refresh balances, add USDG or inspect a public address. Watching never signs anything.</p></div>
+      <button className="ws-recheck" onClick={()=>document.getElementById('ws-wallet-setup')?.scrollIntoView({behavior:'smooth',block:'start'})}>{connected?'Wallet connected':'Connect in Wallet & permission'}</button></div>
+    <details className="ws-watch-address"><summary>Just watching an address?</summary><div className="ws-check-fields"><label>Public address · ownership unverified<input value={address} disabled={busy} onChange={e => {
       generation.current++; setAddress(e.target.value.trim()); setSnapshot(null); setPrevious(null); setNotice(null);
     }} placeholder="0x…" spellCheck={false} /></label>
-      <button onClick={read} disabled={busy || !valid(address)}>{busy ? "Reading evidence…" : "Observe & save"}</button></div>
-    <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>Load saved observations</button>
-      <span>Robinhood mainnet 4663 · reads limited to once per 15 seconds</span></div>
+      <button onClick={read} disabled={busy || !valid(address)}>{busy ? "Reading evidence…" : "Refresh balances"}</button></div></details>
+    <div className="ws-chain-tools"><button className="ws-recheck" onClick={historyClick} disabled={busy}>View saved balances</button>
+      <span>Robinhood Chain · refresh every 15 seconds</span></div>
     <details className="ws-chain-note"><summary>About watching and saved records</summary><p>Watch-only addresses are supported. Saved records belong to your site login, not proof of wallet ownership. Disconnecting clears the current view; saved records remain.</p></details>
     <details className="ws-chain-fund">
-      <summary>Get funds onto Robinhood Chain</summary>
-      <p>Bring USDG (the chain's dollar) and a little ETH for network fees. The bridge settles straight to your wallet — Stock Steward never holds your funds.</p>
+      <summary>Add funds to Robinhood Chain</summary>
+      <p>Use USDG to buy stock tokens and ETH to pay network fees. Transfers arrive at the displayed address.</p>
       <BridgeDialog provider={session?.provider ?? null} address={valid(address) ? address : sessionAddress} />
       <div className="ws-chain-fund-options">
         <span className="ws-label">PREFER ANOTHER APP?</span>
@@ -109,7 +107,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
           href={`https://relay.link/bridge?toChainId=4663&toCurrency=${USDG}${valid(address) ? `&toAddress=${address}` : ""}`}>Bridge with Relay ↗</a>
         <a className="ws-recheck" target="_blank" rel="noreferrer" href="https://docs.robinhood.com/chain/bridging/">Official bridging guide ↗</a>
       </div>
-      <small>Arriving with USDC or another token? Swap to USDG in the same bridge app after it lands. Then press Observe & save here.</small>
+      <small>If you receive another token, swap it to USDG, then refresh your balances.</small>
     </details>
     {error && <p className="ws-error" role="alert">{error}{snapshot && " Previous evidence below was not refreshed."}</p>}
     {notice && <p className="ws-chain-brief" role="status">{notice}</p>}
@@ -151,7 +149,7 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
           <div><dt>Prices</dt><dd>Indicative midpoints, not swap quotes · quotes older than two minutes, halted, mismatched or multiplier-less are excluded · at most 20 held tokens priced per scan</dd></div>
           <div><dt>Source</dt><dd>{snapshot.source} plus official Robinhood quote API · <a href="https://docs.robinhood.com/chain/stock-token-apis/" target="_blank" rel="noreferrer">Official data documentation ↗</a></dd></div>
         </dl></details>
-      <p>Optional monitoring and ownership verification are in Autonomy. Live spending remains inactive.</p>
+      <p>Optional monitoring and verification records are in Advanced / developer details above.</p>
     </div>}
     {history.length > 0 && <div className="ws-chain-history"><span className="ws-label">YOUR SAVED OBSERVATIONS / LATEST 20</span>{history.map((record, i) => <div key={record.id}>
       <span>{shorten(record.address)} · {when(record.observedAt)} · {record.holdings.length} holdings</span><button className="ws-recheck" disabled={busy} onClick={() => {
@@ -160,4 +158,3 @@ export default function ChainPanel({ mandate }: { mandate: Mandate }) {
       }}>Inspect</button></div>)}</div>}
   </section>;
 }
-

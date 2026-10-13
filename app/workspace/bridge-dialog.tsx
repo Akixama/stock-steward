@@ -15,9 +15,9 @@ export default function BridgeDialog({ provider, address }: {
   const short = /^0x[0-9a-f]{40}$/i.test(address) ? `${address.slice(0, 6)}…${address.slice(-4)}` : 'your wallet';
   return <div className="ws-bridge-embed">
     <div className="ws-bridge-teaser">
-      <div><strong>Bridge without leaving Steward</strong>
-      <p>Destination is locked to Robinhood Chain · to {short}: USDG for buying power, ETH for gas. You sign every transfer in your own wallet.</p></div>
-      <button type="button" className="ws-action-primary" onClick={() => setOpen(true)}>Open the bridge <ArrowUpRight size={16} /></button>
+      <div><strong>Transfer from another chain</strong>
+      <p>Receive funds in {short} on Robinhood Chain. You approve the transfer in your wallet.</p></div>
+      <button type="button" className="ws-action-primary" onClick={() => setOpen(true)}>Add funds <ArrowUpRight size={16} /></button>
     </div>
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>

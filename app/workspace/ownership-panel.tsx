@@ -2,10 +2,10 @@
 import {useState,useEffect,useRef} from 'react';import {toHex} from 'viem';import type {OwnershipChallenge} from '@/lib/wallet-ownership';
 import {matchingWallet,type WalletProvider} from '@/lib/browser-wallet';
 export default function OwnershipPanel({address,provider}:{address:string;provider:WalletProvider|null}){
- const [record,setRecord]=useState<OwnershipChallenge|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[now,setNow]=useState(Date.now());const generation=useRef(0);
- useEffect(()=>{const ticket=++generation.current;setBusy(false);setError('');setRecord(null);fetch('/api/workspace/ownership',{cache:'no-store'}).then(r=>r.json()).then(raw=>{const b=raw as {ownership?:OwnershipChallenge};if(ticket===generation.current)setRecord(b.ownership??null);}).catch(()=>{});return()=>{generation.current++;};},[address,provider]);
+ const [record,setRecord]=useState<OwnershipChallenge|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[now,setNow]=useState(Date.now);const generation=useRef(0);
+ useEffect(()=>{const ticket=++generation.current;const timer=setTimeout(()=>{setBusy(false);setError('');setRecord(null);},0);fetch('/api/workspace/ownership',{cache:'no-store'}).then(r=>r.json()).then(raw=>{const b=raw as {ownership?:OwnershipChallenge};if(ticket===generation.current)setRecord(b.ownership??null);}).catch(()=>{});return()=>{clearTimeout(timer);generation.current++;};},[address,provider]);
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer);},[]);
- async function post(body:unknown){const r=await fetch('/api/workspace/ownership',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json() as {ownership:OwnershipChallenge;error?:string};if(!r.ok)throw new Error(b.error??'Ownership check failed.');return b.ownership;}
+ async function post(body:unknown){const r=await fetch('/api/workspace/ownership',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json() as {ownership:OwnershipChallenge;error?:string};if(!r.ok)throw new Error(b.error??'Ownership check failed.');window.dispatchEvent(new Event('stock-steward:ownership-changed'));return b.ownership;}
  async function act(action:'challenge'|'sign'|'forget'){const ticket=++generation.current;setBusy(true);setError('');try{
   if(action==='challenge'){const c=await post({action,address});if(ticket===generation.current)setRecord(c);}
   else if(action==='forget'){await post({action});if(ticket===generation.current)setRecord(null);}

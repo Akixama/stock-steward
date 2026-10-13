@@ -1,5 +1,5 @@
 // Keep this guide in sync with the mandate UI and lib/decision.ts when either changes.
-export const guideRevision = "9 October 2026";
+export const guideRevision = "13 October 2026";
 
 export const guideChapters = [
   { id: "overview", number: "01", title: "The model" },
@@ -16,12 +16,12 @@ export const guideChapters = [
   { id: "checks", number: "05", title: "Decision checks" },
   { id: "receipts", number: "06", title: "Decision receipts" },
   { id: "orders", number: "07", title: "Execution lifecycle" },
-  { id: "roadmap", number: "08", title: "Before real money" },
+  { id: "roadmap", number: "08", title: "Beyond the current pilot" },
   { id: "glossary", number: "09", title: "Glossary" },
 ] as const;
 
 export const capabilityStatus = [
-  {name:'Reviewed strategies and practice',state:'Available · saved simulation',detail:'Nine Practice strategy types cover scheduled and price-based buys, price-based sales including loss limits, two-sided price ranges, and one- or multi-stock rebalancing. Review, exact approval or automatic practice, separate permission, pause/revoke, live or fixture prices, simulated clock and downloadable receipts are available. Server-side AI suggests drafts that require review. Fake balances and receipts are saved per signed-in owner, with optional background checks and safeguard scenarios. Live execution remains inactive.'},
+  {name:'Reviewed strategies and practice',state:'Available · saved simulation',detail:'Twelve Practice strategy types cover scheduled, price, allocation, accumulation, news and portfolio rules for buys and sales. Review, exact approval or automatic practice, separate permission, pause/revoke, indicative quotes and downloadable receipts are available. Server-side AI suggests drafts that require review. Fake balances and receipts are saved per signed-in owner, with optional background checks and safeguard scenarios. Autonomous real-money execution remains disabled.'},
   { name: 'Wallet code and settlement ledger', state: 'Available · read only', detail: 'Inspect canonical wallet code and any delegation indicator. Route receipts combine observed USDG balance with owner-bound pending reservations. External spending, complete USD prices and full portfolio valuation remain unverified. Scheduled recovery verifies recorded direct-router or narrow Roles/Safe outcomes but never sends transactions.' },
   { name: 'Direct-router simulation', state: 'Available · read only', detail: 'Route inspection attempts an exact one-pool router call at the recorded block, records its fingerprints and any revert, and checks canonicality. It does not verify delegated wallet authority or submit transactions. Integer accounting and durable attempt recovery are internal tested foundations; live accounting and execution adapters remain unwired.' },
   { name: 'Autonomy readiness and budget guards', state: 'Available · execution inactive', detail: 'Manually check documented mainnet infrastructure and save a blocked readiness receipt. Atomic reservation accounting and complete-fee budget checks are implemented and tested but not connected to a live executor. Read-only scheduling requires a verified runner. Live direct-pool quoter evidence and optional ownership messages are available. No session key or automatic spending is enabled.' },

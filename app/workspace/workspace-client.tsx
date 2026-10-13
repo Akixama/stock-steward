@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
-  ArrowRight, ArrowUpRight, Check, ChevronRight, CircleDot, Clock3,
+  ArrowRight, ArrowUpRight, Check, CircleDot, Clock3,
   FileText, LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal, Play, BellRing,
 } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
@@ -16,6 +16,7 @@ import PracticeTrail from './practice-trail';
 import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
 import AutonomyPanel from "./autonomy-panel";
+import { useWalletSession } from "./wallet-session";
 import "./workspace.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
@@ -29,6 +30,7 @@ const usd = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 2,
 }).format(cents / 100);
 export default function WorkspaceClient({initialMandate,storageError}:{initialMandate:Mandate|null;storageError:string|null}) {
+  const walletSession = useWalletSession();
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
@@ -45,6 +47,32 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [legacyDraft, setLegacyDraft] = useState(false);
+  const [overviewState, setOverviewState] = useState({ ownership: false, permission: false, funded: false, bought: false });
+  useEffect(() => {
+    if (!walletSession) { const timer=window.setTimeout(()=>setOverviewState({ ownership: false, permission: false, funded: false, bought: false }),0); return () => window.clearTimeout(timer); }
+    let active = true;
+    const read = async () => {
+      try {
+        const [ownershipResponse, orderResponse] = await Promise.all([
+          fetch('/api/workspace/ownership', { cache: 'no-store' }),
+          fetch('/api/workspace/orders/live/status', { cache: 'no-store' }),
+        ]);
+        const ownership = await ownershipResponse.json() as { ownership?: { address?: string; verifiedAt?: string } | null };
+        const order = await orderResponse.json() as { permissionActive?: boolean; balanceCents?: number | null; latestOrder?: { state?: string } | null };
+        if (active) setOverviewState({
+          ownership: Boolean(ownership.ownership?.verifiedAt && ownership.ownership.address?.toLowerCase() === walletSession.address.toLowerCase()),
+          permission: order.permissionActive === true,
+          funded: order.permissionActive === true && Number(order.balanceCents ?? 0) > 0,
+          bought: Boolean(order.latestOrder),
+        });
+      } catch { /* The detailed cards below retain their own error states. */ }
+    };
+    void read();
+    const refresh = () => void read();
+    window.addEventListener('stock-steward:ownership-changed', refresh);
+    window.addEventListener('steward-permission-updated', refresh);
+    return () => { active = false; window.removeEventListener('stock-steward:ownership-changed', refresh); window.removeEventListener('steward-permission-updated', refresh); };
+  }, [walletSession]);
   useEffect(() => {
     if (initialMandate) return;
     try {
@@ -67,6 +95,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   }, [initialMandate]);
 
   const allowedSymbols = [...new Set(symbols.toUpperCase().split(/[\s,]+/).filter(Boolean))];
+  const invalidSymbols = allowedSymbols.filter((symbol) => !/^[A-Z.]{1,8}$/.test(symbol));
   const orderCents = Math.round(Number(maxOrder) * 100);
   const dailyCents = Math.round(Number(maxDaily) * 100);
   const positionBps = Math.round(Number(maxPosition) * 100);
@@ -85,11 +114,11 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     const direction=order.indexOf(next)>order.indexOf(view)?1:-1;
     setAnimateView(enabled);flushSync(()=>setView(next));window.scrollTo(0,0);
     const panel=mainRef.current;
-    if(enabled&&panel)motion.current=panel.animate([{opacity:.55,transform:'translateX('+(direction*22)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:340,easing:'cubic-bezier(.23,1,.32,1)'});
+    if(enabled&&panel)motion.current=panel.animate([{opacity:.7,transform:'translateX('+(direction*12)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'cubic-bezier(.23,1,.32,1)'});
   }
 
   function scrollToId(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth', block: "start" });
   }
 
   function resetDraft() {
@@ -160,54 +189,58 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
 
       <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
-        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/></div>
-        {view === 'goal' && <GoalPanel onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
-        {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">02B / PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Arm alerts for the stocks in your Mandate. Checking them never buys or sells anything.</p></div></div><AlertsPanel mandate={mandate}/></div>} 
+        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/></div>
+        {view === 'goal' && <GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
+        {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Alerts are checked when you press Check prices now. They are not checked in the background and never place orders.</p></div></div><AlertsPanel mandate={mandate}/></div>}
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
+          <div className="ws-page-head ws-overview-heading"><div><span className="ws-eyebrow">YOUR WORKSPACE</span><h1>Stay in control.<br/><em>Approve every move.</em></h1><p>Your limits, wallet and purchases in one place.</p></div><span className="ws-overview-mode"><LockKeyhole size={14}/> Wallet approval required</span></div>
           <nav className="ws-path" aria-label="What to do next"><span className="ws-label">DO NEXT</span><ol>
-            <li><button type="button" onClick={() => navigate("mandate")}><b>1 · Set your limits</b><small>{mandate.version ? `Saved as v${mandate.version} — open Mandate to change` : "Pick stocks and caps in Mandate"}</small></button></li>
-            <li><button type="button" onClick={() => scrollToId("ws-activation")}><b>2 · Turn on the permission</b><small>One signature, then verified onchain</small></button></li>
-            <li><button type="button" onClick={() => scrollToId("ws-real-orders")}><b>3 · Fund and buy</b><small>Send USDG, then place a $1 order</small></button></li>
+            <li><button type="button" data-state={mandate.version?'done':'current'} onClick={()=>navigate('mandate')}><b>{mandate.version?<Check size={14}/>:1} · Set your limits</b><small>{mandate.version?`Saved as Mandate v${mandate.version}`:'Pick stocks and spending limits'}</small></button></li>
+            <li><button type="button" data-state={overviewState.ownership?'done':mandate.version?'current':'upcoming'} onClick={()=>scrollToId('ws-wallet-setup')}><b>{overviewState.ownership?<Check size={14}/>:2} · Connect and verify your wallet</b><small>{overviewState.ownership?'Wallet ownership verified':'Connect, select Robinhood Chain and sign a free message'}</small></button></li>
+            <li><button type="button" data-state={overviewState.permission?'done':overviewState.ownership?'current':'upcoming'} onClick={()=>scrollToId('ws-activation')}><b>{overviewState.permission?<Check size={14}/>:3} · Activate permission</b><small>{overviewState.permission?'Permission active':'Approve your saved limits once in your wallet'}</small></button></li>
+            <li><button type="button" data-state={overviewState.funded?'done':overviewState.permission?'current':'upcoming'} onClick={()=>scrollToId('ws-real-orders')}><b>{overviewState.funded?<Check size={14}/>:4} · Fund with USDG</b><small>{overviewState.funded?'USDG detected':'Add USDG to the Steward wallet'}</small></button></li>
+            <li><button type="button" data-state={overviewState.bought?'done':overviewState.funded?'current':'upcoming'} onClick={()=>scrollToId('ws-real-orders')}><b>{overviewState.bought?<Check size={14}/>:5} · Buy</b><small>{overviewState.bought?'A real order receipt exists':'Review and approve an exact order'}</small></button></li>
           </ol></nav>
+          <button type="button" className="ws-practice-callout" onClick={()=>navigate('practice')}><Play size={18}/><span><strong>Try it with fake funds first</strong><small>Practice uses simulated cash and needs no wallet signature.</small></span><ArrowRight size={17}/></button>
           <div className="ws-status-strip" role="status">
             <div><span className="ws-label">MANDATE</span><strong>{mandate.version ? `v${mandate.version} saved · ${mandate.allowedSymbols.join(", ") || "no symbols"}` : "Not saved yet"}</strong></div>
-            <div><span className="ws-label">MODE</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Automatic within limits" : "Ask me every time"}</strong></div>
-            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Fund via Chain, then review activation in Autonomy"}</strong></div>
-          </div><div className="ws-page-head"><div><span className="ws-eyebrow">OVERVIEW</span><h1>Your money,<br /><em>your rules.</em></h1><p>Set limits, turn on the permission, then buy. Practice first with fake money if you like.</p></div><OverviewMotion/></div>
+            <div><span className="ws-label">MODE</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Check only · no orders" : "Ask me every time"}</strong></div>
+            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Save your limits in Mandate" : "Review permission and order status below"}</strong></div>
+          </div>
           <div className="ws-overview-grid ws-wallet-overview">
             <section className="ws-mandate-preview">
-              <div className="ws-panel-top"><span className="ws-label">YOUR BOUNDARIES</span><span className="ws-panel-index">SAVED LIMITS</span></div>
-              <div className="ws-preview-body"><span className="ws-preview-version">{mandate.version ? `MANDATE VERSION ${mandate.version}` : "NO MANDATE SAVED"}</span><h2>{mandate.version ? "Rules in place." : "Begin with a boundary."}</h2><p>{mandate.version ? `${mandate.allowedSymbols.length} approved stocks. Your limits are saved in this signed-in workspace.` : "Define which stocks and purchase limits the agent may use."}</p><div className="ws-preview-rules"><div className="ws-preview-rule"><span>Single trade limit</span><strong>{mandate.version ? usd(mandate.maxOrderCents) : "—"}</strong></div><div className="ws-preview-rule"><span>Daily buy limit</span><strong>{mandate.version ? usd(mandate.maxDailyBuyCents) : "—"}</strong></div><div className="ws-preview-rule"><span>Position ceiling</span><strong>{mandate.version ? `${mandate.maxPositionBps / 100}%` : "—"}</strong></div></div></div>
-              <button type="button" className="ws-text-action" onClick={() => navigate("mandate")}>{mandate.version ? "Review your mandate" : "Set your boundaries"}<ArrowUpRight size={17} /></button>
+              <div className="ws-panel-top"><span className="ws-label">YOUR LIMITS</span><span className="ws-panel-index">MANDATE {mandate.version?`V${mandate.version}`:'DRAFT'}</span></div>
+              <div className="ws-preview-body"><h2>{mandate.version ? "Your saved limits" : "Set your first limits"}</h2><p>{mandate.version ? `${mandate.allowedSymbols.length} approved ${mandate.allowedSymbols.length===1?'stock':'stocks'}. Permission status is checked below.` : "Choose stocks and purchase limits before activating permission."}</p><div className="ws-preview-rules"><div className="ws-preview-rule"><span>Per purchase</span><strong>{mandate.version ? usd(mandate.maxOrderCents) : "—"}</strong></div><div className="ws-preview-rule"><span>Per day</span><strong>{mandate.version ? usd(mandate.maxDailyBuyCents) : "—"}</strong></div><div className="ws-preview-rule"><span>2-day permission total</span><strong>{mandate.version ? usd(mandate.maxDailyBuyCents*2) : "—"}</strong><small>Calculated from two days of your daily limit.</small></div><div className="ws-preview-rule"><span>One-stock exposure</span><strong>{mandate.version ? `${mandate.maxPositionBps / 100}%` : "—"}</strong></div></div></div>
+              <button type="button" className="ws-text-action" onClick={() => navigate("mandate")}>{mandate.version ? "Review your limits" : "Set your limits"}<ArrowUpRight size={17} /></button>
             </section>
           </div>
-          <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19}/></div><div><span className="ws-label">PRACTICE DECISION TRAIL</span><strong>See what the agent did.</strong><p>Review saved simulated purchases, holds and their reasons.</p></div></button>
-          <ChainPanel mandate={mandate} />
+          <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19}/></div><div><span className="ws-label">PRACTICE DECISION TRAIL</span><strong>See what Steward did.</strong><p>Review saved simulated purchases, holds and their reasons.</p></div></button>
           <AutonomyPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
+          <details className="ws-overview-more"><summary>Balances, funding and watch-only tools</summary><ChainPanel mandate={mandate} /></details>
         </div>}
 
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">
-          <div className="ws-page-head"><div><span className="ws-eyebrow">02 / YOUR MANDATE</span><h1>Decide the limits.<br /><em>Keep the control.</em></h1><p>Make the rules specific. Saving them does not grant wallet access or authorize a trade.</p></div><OverviewMotion variant="mandate" caption={mandate.version ? `POLICY VERSION ${mandate.version}` : "UNSAVED DRAFT"}/></div>
+          <div className="ws-page-head"><div><span className="ws-eyebrow">YOUR MANDATE</span><h1>Decide the limits.<br /><em>Keep the control.</em></h1><p>Make the rules specific. Saving them does not grant wallet access or authorize a trade.</p></div><OverviewMotion variant="mandate" caption={mandate.version ? `MANDATE V${mandate.version}` : "UNSAVED DRAFT"}/></div>
           {legacyDraft && <p className="ws-import-note">Earlier device-only limits were found. Review these fields, then save to move them into your signed-in workspace.</p>}
           <div className="ws-mandate-grid">
             <section className="ws-editor">
-              <div className="ws-editor-intro"><span className="ws-label">PURCHASE POLICY</span><h2>Make room for restraint.</h2><p>Choose how actions are handled. Saving this mandate never authorizes a trade.</p></div>
+              <div className="ws-editor-intro"><span className="ws-label">PURCHASE LIMITS</span><h2>Make room for restraint.</h2></div>
               <div className="ws-fields">
-                <label className="ws-field ws-field-wide"><span>Approved stock symbols</span><input value={symbols} onChange={(event) => setSymbols(event.target.value)} placeholder="AAPL, MSFT, NVDA" aria-label="Approved stock symbols" /><small>Separate tickers with commas. Leave empty to approve no purchases.</small></label>
+                <label className="ws-field ws-field-wide"><span>Approved stock symbols</span><input value={symbols} onChange={(event) => setSymbols(event.target.value)} placeholder="AAPL, MSFT, NVDA" aria-label="Approved stock symbols" /><small>Separate supported stock-token tickers with commas. Final token support is checked before activation.</small>{allowedSymbols.length>0&&<span className="ws-symbol-chips">{allowedSymbols.map(symbol=><i key={symbol} data-invalid={invalidSymbols.includes(symbol)}>{symbol}</i>)}</span>}{invalidSymbols.length>0&&<small className="ws-field-warning">Use 1 to 8 letters or periods for each ticker.</small>}</label>
                 <label className="ws-field"><span>Maximum single trade</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxOrder} onChange={(event) => setMaxOrder(event.target.value)} /></div></label>
-                <label className="ws-field"><span>Maximum buys per day</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} /></div></label>
-                <label className="ws-field ws-field-wide"><span>Maximum one-stock exposure</span><div className="ws-input-unit"><input type="number" min="0.01" max="100" step="0.01" value={maxPosition} onChange={(event) => setMaxPosition(event.target.value)} /><b>%</b></div></label>
-                <fieldset className="ws-execution-field"><legend>Action preference</legend><div className="ws-execution-options"><label className={executionPreference === "approval" ? "selected" : ""}><input type="radio" name="execution-preference" value="approval" checked={executionPreference === "approval"} onChange={() => setExecutionPreference("approval")} /><span><strong>Ask me every time</strong><small>Review and approve each exact order before submission.</small></span></label><label className={executionPreference === "automatic" ? "selected" : ""}><input type="radio" name="execution-preference" value="automatic" checked={executionPreference === "automatic"} onChange={() => setExecutionPreference("automatic")} /><span><strong>Automatic within limits</strong><small>Steward can decide for you within your limits. Real-money orders always need your approval.</small></span></label></div><p>Live onchain spending stays locked until the bounded spending permission is installed on your wallet. Real-money orders always require your explicit approval. Selecting this never grants wallet authority.</p></fieldset>
+                <label className="ws-field"><span>Maximum spend per day</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} /></div><small>The permission total is two days of this limit: {Number.isFinite(dailyCents)?usd(dailyCents*2):'—'}.</small></label>
+                <label className="ws-field ws-field-wide"><span>Maximum one-stock exposure</span><div className="ws-input-unit"><input type="number" min="0" max="100" step="0.1" value={maxPosition} onChange={(event) => setMaxPosition(event.target.value)} /><b>%</b></div><small>0 to 100% of the account value.</small></label>
+                <fieldset className="ws-execution-field"><legend>Action preference</legend><div className="ws-execution-options"><label className={executionPreference === "approval" ? "selected" : ""}><input type="radio" name="execution-preference" value="approval" checked={executionPreference === "approval"} onChange={() => setExecutionPreference("approval")} /><span><strong>Ask me every time</strong><small>Steward checks each buy against your limits, then you approve the exact order.</small></span></label><label className={executionPreference === "automatic" ? "selected" : ""}><input type="radio" name="execution-preference" value="automatic" checked={executionPreference === "automatic"} onChange={() => setExecutionPreference("automatic")} /><span><strong>Check only (no orders)</strong><small>Steward checks buys against your limits and shows the result. It never places orders.</small></span></label></div><p>Real purchases need the permission you activate on the Overview page.</p></fieldset>
               </div>
-              <div className="ws-editor-footer"><div><span className={dirty ? "ws-dirty-dot" : "ws-clean-dot"} />{dirty ? "Unsaved changes" : `Saved as version ${mandate.version}`}</div><div className="ws-editor-actions">{dirty && mandate.version > 0 && <button type="button" className="ws-reset" onClick={resetDraft}><RotateCcw size={15} />Reset draft</button>}<button type="button" className={saved && !dirty ? "ws-save is-saved" : "ws-save"} onClick={saveMandate} disabled={!valid || !dirty || saving || Boolean(storageError)}>{saving ? "Saving…" : saved && !dirty ? <><Check size={17} /> Saved</> : <>Save mandate <ArrowRight size={17} /></>}</button></div></div>
+              <div className="ws-editor-footer"><div><span className={dirty ? "ws-dirty-dot" : "ws-clean-dot"} />{dirty ? "Unsaved changes" : `Saved as version ${mandate.version}`}</div><div className="ws-editor-actions">{dirty && mandate.version > 0 && <button type="button" className="ws-reset" onClick={resetDraft}><RotateCcw size={15} />Reset draft</button>}<button type="button" className={saved && !dirty ? "ws-save is-saved" : "ws-save"} onClick={saveMandate} disabled={!valid || !dirty || saving || Boolean(storageError)}>{saving ? "Saving…" : !dirty ? `No changes to save` : <>Save as version {mandate.version+1} <ArrowRight size={17} /></>}</button></div></div>
             </section>
-            <aside className="ws-policy-preview"><div className="ws-policy-preview-head"><ShieldCheck size={18} /><span>LIVE PREVIEW / DRAFT</span></div><h2>What your limits say.</h2><p className="ws-policy-sentence">{allowedSymbols.length ? <>Consider <strong>{allowedSymbols.slice(0, 3).join(", ")}{allowedSymbols.length > 3 ? ` +${allowedSymbols.length - 3}` : ""}</strong> only.</> : <>Consider <strong>no stock purchases</strong>.</>} A single trade stays under <strong>{Number.isFinite(orderCents) ? usd(orderCents) : "—"}</strong>, with no more than <strong>{Number.isFinite(dailyCents) ? usd(dailyCents) : "—"}</strong> bought in a day, in Practice and in real orders alike.</p><div className="ws-preview-meter"><div><span>One-stock ceiling</span><strong>{Number.isFinite(positionBps) ? `${(positionBps / 100).toFixed(2)}%` : "—"}</strong></div><div className="ws-meter-track"><span style={{ transform: `scaleX(${valid ? Math.min(100, Number(maxPosition)) / 100 : 0})` }} /></div><small>Share of total account value</small></div><div className="ws-approval"><span><Check size={16} /></span><div><strong>{executionPreference === "approval" ? "Approval before each order" : dirty ? "Automatic preference in draft" : "Automatic preference saved"}</strong><p>{executionPreference === "approval" ? "Current execution rule. A fresh evidence check is also required." : "Steward acts within your limits; real-money orders always need your approval."}</p></div></div><p className="ws-preview-disclaimer"><LockKeyhole size={14} /> Preview of your rules, not a market decision.</p></aside>
+            <aside className="ws-policy-preview"><div className="ws-policy-preview-head"><ShieldCheck size={18} /><span>LIVE PREVIEW / DRAFT</span></div><h2>What your limits say.</h2><p className="ws-policy-sentence">{allowedSymbols.length ? <>Only <strong>{allowedSymbols.slice(0, 3).join(", ")}{allowedSymbols.length > 3 ? ` +${allowedSymbols.length - 3}` : ""}</strong> {allowedSymbols.length===1?'is':'are'} approved.</> : <><strong>No stock purchases</strong> are approved.</>} A single trade stays under <strong>{Number.isFinite(orderCents) ? usd(orderCents) : "—"}</strong>, with no more than <strong>{Number.isFinite(dailyCents) ? usd(dailyCents) : "—"}</strong> bought in a day, in Practice and in real orders alike.</p><div className="ws-preview-meter"><div><span>One-stock ceiling</span><strong>{Number.isFinite(positionBps) ? `${(positionBps / 100).toFixed(1)}%` : "—"}</strong></div><div className="ws-meter-track"><span style={{ transform: `scaleX(${valid ? Math.min(100, Number(maxPosition)) / 100 : 0})` }} /></div><small>0 to 100% of total account value</small></div><div className="ws-approval"><span><Check size={16} /></span><div><strong>{executionPreference === "approval" ? "Approval before each order" : "Check only"}</strong><p>{executionPreference === "approval" ? "Steward checks the order, then you decide." : "No order is placed."}</p></div></div><p className="ws-preview-disclaimer"><LockKeyhole size={14} /> Preview of your limits, not a market decision.</p></aside>
           </div>
           {saveError && <p className="ws-error" role="alert">{saveError}</p>}
           <div className="ws-below-note"><LockKeyhole size={16} /> A saved mandate does not grant wallet access or place an order.</div>
         </div>}
 
-        {view === "trail" && <div className="ws-view" data-animate={animateView} key="trail"><div className="ws-page-head"><div><span className="ws-eyebrow">03 / DECISION TRAIL</span><h1>See the reason.<br/><em>See the result.</em></h1><p>Saved Practice decisions show why the agent bought, sold or held. Every trade here uses simulated funds.</p></div><OverviewMotion variant="trail" caption="PRACTICE RECEIPTS"/></div><PracticeTrail onStrategy={()=>navigate("practice")}/></div>}
+        {view === "trail" && <div className="ws-view" data-animate={animateView} key="trail"><div className="ws-page-head"><div><span className="ws-eyebrow">DECISION TRAIL</span><h1>See the reason.<br/><em>See the result.</em></h1><p>Trail currently shows Practice decisions only. See why Steward bought, sold or held using simulated funds.</p></div><OverviewMotion variant="trail" caption="PRACTICE RECEIPTS"/></div><PracticeTrail mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate("practice")}/></div>}
       </main>
     </div>
   </div>;

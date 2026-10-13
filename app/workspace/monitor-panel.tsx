@@ -25,7 +25,7 @@ export default function MonitorPanel({address}:{address:string}){
   }
   const schedule=status?.schedule;
   return <div className="ws-monitor">
-    <div className="ws-monitor-head"><div><span className="ws-label"><Activity size={14}/> WHILE YOU'RE AWAY</span><h3>A watch that keeps its place.</h3></div><span className={`ws-monitor-badge ${schedule?.enabled?'is-active':''}`}><span/>{schedule?.enabled?'Monitoring scheduled':schedule?'Monitoring paused':'No monitor yet'}</span></div>
+    <div className="ws-monitor-head"><div><span className="ws-label"><Activity size={14}/> WHILE YOU’RE AWAY</span><h3>A watch that keeps its place.</h3></div><span className={`ws-monitor-badge ${schedule?.enabled?'is-active':''}`}><span/>{schedule?.enabled?'Monitoring scheduled':schedule?'Monitoring paused':'No monitor yet'}</span></div>
     <p>Keep observing this public address while the page is closed. Every completed run saves holdings evidence and a blocked readiness receipt. This does not authorize trading.</p>
     <div className="ws-check-fields"><label>Observation interval<select value={interval} disabled={busy} onChange={e=>setIntervalMinutes(e.target.value)}><option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option><option value="240">Every 4 hours</option><option value="1440">Daily</option></select></label>
       <button disabled={busy||!status?.workerConfigured||!/^0x[0-9a-f]{40}$/i.test(address)} onClick={()=>action('start')}><Clock3 size={16}/>{schedule?'Update monitor for this address':'Start read-only monitoring'}</button></div>

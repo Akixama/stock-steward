@@ -144,7 +144,7 @@ export default function BridgePanel({ provider, address }: {
         setTracked(`Bridge reports: ${status}${payload.substatus ? ` · ${payload.substatus}` : ''}.`);
         if (status === 'DONE') {
           setDone(true);
-          setTracked('Arrived on Robinhood Chain. Press Observe & save in Chain to record it as evidence.');
+          setTracked('Arrived on Robinhood Chain. Press Refresh balances in Chain to record it as evidence.');
           return;
         }
         if (status === 'FAILED' || status === 'REFUNDED') {
