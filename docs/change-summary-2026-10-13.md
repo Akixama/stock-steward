@@ -1,0 +1,291 @@
+# Stock Steward release change record — 13 October 2026
+
+## Overview before and after
+
+**Before:** the bottom of Overview exposed dense contract readbacks, long activation histories, fee internals, route monitoring, and ambiguous pending transaction states. Important activity and revocation controls were difficult to find.
+
+**After:** the normal workspace keeps activity near the top, shows a direct transaction-check action when confirmation is uncertain, and keeps revocation visible behind an explicit confirmation. Contract diagnostics and unfinished automation controls are hidden from the ordinary flow. The page finishes with the order workspace and a collapsed Advanced area.
+
+## Product and engineering decisions
+
+- The Strategy experience now uses a staged choose, configure, and review flow for all 12 strategy types.
+- The Guide is a standalone, practical documentation area with setup, permissions, ordering, strategy, safety, and troubleshooting chapters.
+- Alpaca is preserved under `archive/alpaca`; legacy routes return an unavailable response.
+- Automatic real-money execution is compiled off. Shadow evaluation and the manual approval foundation can be reviewed without authorizing unattended spending.
+- No project license was inferred. The owner still needs to choose MIT or proprietary terms.
+
+## Validation completed
+
+- 364 automated tests
+- TypeScript typecheck
+- ESLint with zero errors
+- Production build
+- Working-tree and full-history secret scan
+- 44-scenario isolated permission lab with no live wallet and no real-money spending
+- Desktop and mobile visual review of Strategy and Guide
+
+## Changed files
+
+- `.github/workflows/ci.yml`
+- `.gitignore`
+- `app/api/broker/alpaca/callback/route.ts`
+- `app/api/broker/alpaca/disconnect/route.ts`
+- `app/api/broker/alpaca/start/route.ts`
+- `app/api/internal/autonomy/tick/route.ts`
+- `app/api/workspace/account/route.ts`
+- `app/api/workspace/agent/route.ts`
+- `app/api/workspace/autonomy/controls/route.ts`
+- `app/api/workspace/autonomy/incidents/route.ts`
+- `app/api/workspace/autonomy/preflight/route.ts`
+- `app/api/workspace/autonomy/rehearsal/route.ts`
+- `app/api/workspace/autonomy/session/retire/route.ts`
+- `app/api/workspace/autonomy/session/revoke/route.ts`
+- `app/api/workspace/autonomy/session/route.ts`
+- `app/api/workspace/autonomy/session/verify/route.ts`
+- `app/api/workspace/autonomy/shadow/route.ts`
+- `app/api/workspace/check/route.ts`
+- `app/api/workspace/decisions/[id]/approve/route.ts`
+- `app/api/workspace/decisions/[id]/decline/route.ts`
+- `app/api/workspace/decisions/[id]/reconcile/route.ts`
+- `app/api/workspace/orders/live/_shared.ts`
+- `app/api/workspace/orders/live/prepare/route.ts`
+- `app/api/workspace/orders/live/receipt/route.ts`
+- `app/api/workspace/orders/live/reconcile/route.ts`
+- `app/api/workspace/orders/live/status/route.ts`
+- `app/api/workspace/orders/refresh/route.ts`
+- `app/api/workspace/permission/install/route.ts`
+- `app/connect/connect.css`
+- `app/connect/page.tsx`
+- `app/guide/guide.css`
+- `app/guide/page.tsx`
+- `app/page.tsx`
+- `app/privacy/page.tsx`
+- `app/terms/page.tsx`
+- `app/workspace/alerts-panel.tsx`
+- `app/workspace/autonomy-controls.tsx`
+- `app/workspace/autonomy-inbox.tsx`
+- `app/workspace/autonomy-panel.tsx`
+- `app/workspace/autonomy-rehearsal.tsx`
+- `app/workspace/bridge-dialog.tsx`
+- `app/workspace/bridge-panel.tsx`
+- `app/workspace/chain-panel.tsx`
+- `app/workspace/goal-panel.tsx`
+- `app/workspace/install-driver.tsx`
+- `app/workspace/install-review.tsx`
+- `app/workspace/monitor-panel.tsx`
+- `app/workspace/ownership-panel.tsx`
+- `app/workspace/permission-design.tsx`
+- `app/workspace/practice-balance.tsx`
+- `app/workspace/practice-trail.tsx`
+- `app/workspace/real-order-panel.tsx`
+- `app/workspace/route-panel.tsx`
+- `app/workspace/session-purchase-rehearsal.tsx`
+- `app/workspace/session-review.tsx`
+- `app/workspace/session-wallet-actions.tsx`
+- `app/workspace/shadow-agent-panel.tsx`
+- `app/workspace/strategy-ai.tsx`
+- `app/workspace/strategy-panel.tsx`
+- `app/workspace/wallet-connect.tsx`
+- `app/workspace/wallet-setup.tsx`
+- `app/workspace/workspace-client.tsx`
+- `app/workspace/workspace.css`
+- `archive/alpaca/app/api/broker/alpaca/callback/route.ts`
+- `archive/alpaca/app/api/broker/alpaca/disconnect/route.ts`
+- `archive/alpaca/app/api/broker/alpaca/start/route.ts`
+- `archive/alpaca/app/api/workspace/account/route.ts`
+- `archive/alpaca/app/api/workspace/agent/route.ts`
+- `archive/alpaca/app/api/workspace/check/route.ts`
+- `archive/alpaca/app/api/workspace/decisions/[id]/approve/route.ts`
+- `archive/alpaca/app/api/workspace/decisions/[id]/decline/route.ts`
+- `archive/alpaca/app/api/workspace/decisions/[id]/reconcile/route.ts`
+- `archive/alpaca/app/api/workspace/orders/refresh/route.ts`
+- `archive/alpaca/app/workspace/broker-panel.tsx`
+- `archive/alpaca/db/agent-plans.test.ts`
+- `archive/alpaca/db/agent-plans.ts`
+- `archive/alpaca/db/observations.ts`
+- `archive/alpaca/docs/alpaca-account-setup.md`
+- `archive/alpaca/docs/alpaca-connect-logo.png`
+- `archive/alpaca/docs/alpaca-connect-submission.md`
+- `archive/alpaca/docs/alpaca-screenshots/account-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/connect-read-only-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/connect-read-only-details-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/connect-trading-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/connect-trading-details-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/landing-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/privacy-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/README.md`
+- `archive/alpaca/docs/alpaca-screenshots/terms-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/workspace-mandate-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/workspace-mandate-controls-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/workspace-overview-1024x500.jpg`
+- `archive/alpaca/docs/alpaca-screenshots/workspace-trail-1024x500.jpg`
+- `archive/alpaca/docs/automatic-decisions.md`
+- `archive/alpaca/docs/broker-selection.md`
+- `archive/alpaca/lib/agent-decision.test.ts`
+- `archive/alpaca/lib/agent-decision.ts`
+- `archive/alpaca/lib/agent-worker.ts`
+- `archive/alpaca/lib/alpaca-connection.ts`
+- `archive/alpaca/lib/alpaca-http.ts`
+- `archive/alpaca/lib/alpaca-order.test.ts`
+- `archive/alpaca/lib/alpaca-order.ts`
+- `archive/alpaca/lib/alpaca-reader.test.ts`
+- `archive/alpaca/lib/alpaca-reader.ts`
+- `archive/alpaca/lib/anytime.test.ts`
+- `archive/alpaca/lib/anytime.ts`
+- `archive/alpaca/lib/approval-plan.test.ts`
+- `archive/alpaca/lib/approval-plan.ts`
+- `archive/alpaca/lib/oauth-redirect.test.ts`
+- `archive/alpaca/lib/oauth-redirect.ts`
+- `archive/alpaca/lib/order-flow.test.ts`
+- `archive/alpaca/lib/order-flow.ts`
+- `archive/alpaca/README.md`
+- `cloudflare-env.d.ts`
+- `db/active-modules.test.ts`
+- `db/active-modules.ts`
+- `db/autonomous-controls.test.ts`
+- `db/autonomous-controls.ts`
+- `db/autonomous-grants.ts`
+- `db/autonomous-incidents.test.ts`
+- `db/autonomous-incidents.ts`
+- `db/autonomous-shadow.test.ts`
+- `db/autonomous-shadow.ts`
+- `db/autonomous-transactions.ts`
+- `db/execution-attempts.test.ts`
+- `db/execution-attempts.ts`
+- `db/live-strategy-state.test.ts`
+- `db/live-strategy-state.ts`
+- `db/schema.ts`
+- `db/session-lifecycle.test.ts`
+- `db/session-lifecycle.ts`
+- `db/session-rehearsal-recovery.test.ts`
+- `db/session-rehearsal-recovery.ts`
+- `db/session-signers.ts`
+- `docs/ai-provider-setup.md`
+- `docs/alpaca-separation-inventory.md`
+- `docs/architecture.md`
+- `docs/autonomous-owner-checklist.md`
+- `docs/autonomous-security-review.md`
+- `docs/autonomous-trading-progress.md`
+- `docs/change-summary-2026-10-13.md`
+- `docs/current-version-launch.md`
+- `docs/full-release-scope-2026-10-12.md`
+- `docs/layout-correction-2026-10-12.md`
+- `docs/live-news-setup.md`
+- `docs/no-money-release.md`
+- `docs/operator-alerts.md`
+- `docs/repo-hygiene-2026-10-13.md`
+- `docs/runbook.md`
+- `docs/strategies-and-practice.md`
+- `docs/testing.md`
+- `docs/ui-and-release-review-2026-10-12.md`
+- `docs/verification-2026-10-10.md`
+- `drizzle/0018_active_module_outputs.sql`
+- `drizzle/0019_active_module_window.sql`
+- `drizzle/0020_autonomous_shadow.sql`
+- `drizzle/0021_autonomous_transaction_journal.sql`
+- `drizzle/0022_autonomous_session_grants.sql`
+- `drizzle/0023_autonomous_journal_settlement.sql`
+- `drizzle/0024_autonomous_incidents.sql`
+- `drizzle/0025_autonomous_grant_verification.sql`
+- `drizzle/0026_autonomous_release_controls.sql`
+- `drizzle/0027_autonomous_activation.sql`
+- `drizzle/0028_manual_session_rehearsal.sql`
+- `drizzle/0029_session_lifecycle.sql`
+- `drizzle/0030_operator_alert_delivery.sql`
+- `drizzle/0031_strategy_price_history.sql`
+- `lib/autonomous-activation.test.ts`
+- `lib/autonomous-activation.ts`
+- `lib/autonomous-consent.test.ts`
+- `lib/autonomous-consent.ts`
+- `lib/autonomous-executor.test.ts`
+- `lib/autonomous-executor.ts`
+- `lib/autonomous-grant-proof.ts`
+- `lib/autonomous-grant.test.ts`
+- `lib/autonomous-grant.ts`
+- `lib/autonomous-live.test.ts`
+- `lib/autonomous-live.ts`
+- `lib/autonomous-preflight.ts`
+- `lib/autonomous-production.test.ts`
+- `lib/autonomous-production.ts`
+- `lib/autonomous-release-manifest.ts`
+- `lib/autonomous-release-proof.ts`
+- `lib/autonomous-run-status.ts`
+- `lib/autonomous-session.test.ts`
+- `lib/autonomous-session.ts`
+- `lib/autonomous-shadow-worker.ts`
+- `lib/autonomous-signal.ts`
+- `lib/autonomy-worker.ts`
+- `lib/chain-fill-proof.test.ts`
+- `lib/chain-fill-proof.ts`
+- `lib/chain-route.ts`
+- `lib/chain-transport.test.ts`
+- `lib/chain-transport.ts`
+- `lib/execution-accounting.ts`
+- `lib/execution-fees.test.ts`
+- `lib/execution-fees.ts`
+- `lib/execution-guard.ts`
+- `lib/execution-review.ts`
+- `lib/execution-sale-accounting.test.ts`
+- `lib/execution-sources.test.ts`
+- `lib/execution-sources.ts`
+- `lib/install-flow.test.ts`
+- `lib/install-flow.ts`
+- `lib/installed-outputs.test.ts`
+- `lib/installed-outputs.ts`
+- `lib/live-accounting.test.ts`
+- `lib/live-accounting.ts`
+- `lib/live-evidence.test.ts`
+- `lib/live-evidence.ts`
+- `lib/live-news.test.ts`
+- `lib/live-news.ts`
+- `lib/live-order.test.ts`
+- `lib/live-order.ts`
+- `lib/live-strategy-runtime.ts`
+- `lib/live-strategy.test.ts`
+- `lib/live-strategy.ts`
+- `lib/manual-session-approval.test.ts`
+- `lib/manual-session-approval.ts`
+- `lib/operator-alerts.test.ts`
+- `lib/operator-alerts.ts`
+- `lib/pending-wallet-receipt.test.ts`
+- `lib/pending-wallet-receipt.ts`
+- `lib/practice-session.test.ts`
+- `lib/product-flags.ts`
+- `lib/product-guide.ts`
+- `lib/remaining-install.test.ts`
+- `lib/remaining-install.ts`
+- `lib/role-membership.ts`
+- `lib/roles-installation.ts`
+- `lib/roles-operation.ts`
+- `lib/roles-permission.test.ts`
+- `lib/roles-permission.ts`
+- `lib/router-candidate.test.ts`
+- `lib/router-candidate.ts`
+- `lib/saved-order-receipt.test.ts`
+- `lib/saved-order-receipt.ts`
+- `lib/session-renewal.ts`
+- `lib/session-retirement.ts`
+- `lib/session-revocation.ts`
+- `lib/session-sale-draft.ts`
+- `lib/strategy-ai-server.test.ts`
+- `lib/strategy-ai-server.ts`
+- `lib/trade-intent.ts`
+- `next.config.ts`
+- `package-lock.json`
+- `package.json`
+- `permission-lab/test.mjs`
+- `README.md`
+- `scripts/apply-local-migrations.mjs`
+- `scripts/audit-client-secrets.mjs`
+- `scripts/audit-dependency-summary.mjs`
+- `scripts/audit-deploy-config.mjs`
+- `scripts/audit-live-site.mjs`
+- `scripts/autonomous-review-manifest.mjs`
+- `scripts/package-autonomous-review.mjs`
+- `scripts/provision-session-storage.mjs`
+- `scripts/rehearse-on-testnet.mjs`
+- `scripts/resolve-expired-reservations.mjs`
+- `scripts/run-framework.mjs`
+- `scripts/scan-secrets.mjs`
+- `tsconfig.json`
+- `vite.config.ts`
