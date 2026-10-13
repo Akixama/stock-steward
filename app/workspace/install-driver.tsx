@@ -1,8 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { decodeEventLog } from 'viem';
+import { PermissionStatus } from './permission-design';
+import { decodeEventLog, parseAbi } from 'viem';
 import { rolesFactoryAbi } from '@/lib/roles-permission';
 import type { WalletProvider } from '@/lib/browser-wallet';
+import { remainingInstallData } from '@/lib/remaining-install';
 
 const FACTORY = '0x000000000000aDdB49795b0f9bA5BC298cDda236';
 const ROLES_MASTER = '0xf2964ce6161ce0e75964fe7927ce114cb0b283d5';
@@ -21,14 +23,18 @@ type Phase = {
   steps: Step[];
   batched?: Step;
   module?: string;
+  roleKey?: string;
   revocation?: Step;
   checks?: { label: string; expect: string; observed: string; ok: boolean }[];
   installed?: boolean;
   limitations?: string[];
+  // The exact prices the steps lock in. Posted back when recording so orders
+  // can carry them verbatim; present on steps responses, absent elsewhere.
+  outputs?: { token: string; fee: number; tickSpacing: number; minimumOutputRaw: string }[];
 };
 
-export default function InstallDriver({ provider, address, policyVersion, feesOk }: {
-  provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean;
+export default function InstallDriver({ provider, address, policyVersion, feesOk, expires }: {
+  provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean; expires: string;
 }) {
   const [phase, setPhase] = useState<Phase | null>(null);
   const [next, setNext] = useState(0);
@@ -36,32 +42,56 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [pendingHash, setPendingHash] = useState('');
   // One-click chaining: after Begin, each confirmed step automatically offers
   // the next signature. Every transaction still pops its own wallet approval,
   // and closing a popup or any failure pauses the chain at once.
   const [chain, setChain] = useState(false);
   const [skipBatch, setSkipBatch] = useState(false);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
-    for (let attempt = 0; attempt < 60; attempt++) {
-      const receipt = await provider!.request({ method: 'eth_getTransactionReceipt', params: [hash] }) as
-        { logs?: { address: string; topics: string[]; data: string }[]; status?: string } | null;
-      if (receipt) return { logs: receipt.logs ?? [], status: receipt.status ?? '0x0' };
+    setPendingHash(hash);
+    const deadline = Date.now() + 120000;
+    for (let attempt = 0; attempt < 60 && Date.now() < deadline; attempt++) {
+      // Wallet RPC requests can hang indefinitely. Bound each read and use the
+      // public chain as a read-only fallback; never re-send a transaction.
+      let receipt: { logs?: { address: string; topics: string[]; data: string }[]; status?: string } | null = null;
+      try {
+        receipt = await Promise.race([provider!.request({ method: 'eth_getTransactionReceipt', params: [hash] }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Wallet read timed out')), 4000))]) as typeof receipt;
+      } catch { /* Try an independent read below. */ }
+      if (!receipt) {
+        try {
+          const response = await fetch('https://rpc.mainnet.chain.robinhood.com/', { method: 'POST',
+            headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(4000),
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [hash] }) });
+          const body = await response.json() as { result?: { logs?: { address: string; topics: string[]; data: string }[]; status?: string } | null };
+          receipt = body.result ?? null;
+        } catch { /* Unavailable reads do not imply failure or success. */ }
+      }
+      if (receipt) { setPendingHash(''); return { logs: receipt.logs ?? [], status: receipt.status ?? '0x0' }; }
+      if (attempt === 5) say('Still checking confirmation. Your transaction has already been sent; do not submit another.');
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    throw new Error('Confirmation timed out. Do not re-send; check the transaction in your wallet and retry this step after it lands.');
+    throw new Error('Confirmation could not be verified within two minutes. Do not re-send. Check this transaction in your wallet before continuing.');
   }
 
   // Records a verified module server-side so orders can find it without
   // searching history again. Silent: the wallet scan recovers if it fails.
-  async function recordModule(candidate: string) {
+  async function recordModule(candidate: string, outputs?: Phase['outputs']) {
     try {
-      await fetch('/api/workspace/permission/install', {
+      const response = await fetch('/api/workspace/permission/install', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ module: candidate }),
+        body: JSON.stringify(outputs === undefined ? { module: candidate } : { module: candidate, outputs }),
       });
-    } catch { /* Recovery scan covers a missed record. */ }
+      if (!response.ok) {
+        const result = await response.json() as { error?: string };
+        throw new Error(`Setup confirmed, but its record wasn't saved. ${result.error ?? 'Server unavailable. Try checking permission again.'}`);
+      }
+      window.dispatchEvent(new Event('steward-permission-updated'));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Permission record unavailable.'); }
   }
 
   // Reads one candidate's live state and continues with it when the readback
@@ -75,12 +105,12 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       setModule(candidate);
       if (inspect.installed) {
         setNext((inspect.steps ?? []).length);
-        say('Permission already active and verified onchain. Nothing more to sign.');
+        say('Permission active. No setup approval needed.');
         void recordModule(candidate);
         return true;
       }
       setNext(0);
-      say('Continuing with your existing wallet and module. One click signs the remaining steps in order.');
+      say('Your wallet is ready. Approve the remaining setup once.');
       setChain(true);
       return true;
     } catch { return false; }
@@ -147,7 +177,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           { cache: 'no-store', signal: AbortSignal.timeout(25000) });
         const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; staleModule?: string | null };
         if (checkResponse.ok) {
-          say(`Onchain state: Steward wallet ${check.safe ?? "unknown"} (${check.safeHasCode ? "exists" : "not created yet"}) · ${(check.modules ?? []).length} module(s) on it${check.staleModule ? " · leftover module found" : ""}.`);
+          say(`${check.safeHasCode ? "Your trading wallet is ready. Checking permission." : "Your trading wallet needs setup."}`);
         }
         const candidate = checkResponse.ok
           ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
@@ -195,8 +225,9 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     if (!provider || !phase || busy) return;
     // The one-signature path: every remaining call rides in a single Safe
     // transaction through the audited batch helper. Same calls, same readback.
-    const batchable = !!phase.batched && next === 0 && !skipBatch;
-    const step = batchable ? phase.batched! : phase.steps[next];
+    const batchable = !!phase.batched && !skipBatch && next < phase.steps.length;
+    const step = batchable ? { ...phase.batched!, label: `Finish ${phase.steps.length - next} setup steps`,
+      data: remainingInstallData(phase.batched!.data as `0x${string}`, phase.steps.map(step => step.data as `0x${string}`), next) } : phase.steps[next];
     if (!step) { setError('No step is waiting. Press Restart activation to check again.'); return; }
     setBusy(true); setError('');
     try {
@@ -302,7 +333,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         say('Now: switch the module on and pin your limits.');
         setBusy(false);
       } else if (isLast) {
-        setNext(next + 1);
+        // A confirmed batch completed every remaining call, not one call.
+        // Stop chaining before readback so it can never offer another batch.
+        setNext(phase.steps.length);
+        setChain(false);
         setBusy(true);
         const recorded = phase.module ?? module;
         const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(recorded)}&inspect=1`, { cache: 'no-store' });
@@ -313,7 +347,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           say(final.installed
             ? 'Permission turned on and verified onchain. The policy now enforces your limits.'
             : 'Finished, but the readback is incomplete. Treat it as unverified until every check passes.');
-          if (final.installed) void recordModule(recorded);
+          // `phase` here is still the steps response (state updates do not apply
+          // inside this call), so its outputs are the exact prices the signed
+          // steps locked in — never the fresh quotes of the inspect above.
+          if (final.installed) await recordModule(recorded, phase.outputs);
         }
         setBusy(false);
       } else {
@@ -337,7 +374,18 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       say(`Sent: ${step.label} (${hash.slice(0, 10)}…) — waiting for confirmation.`);
       const receipt = await waitForReceipt(hash);
       if (receipt.status !== '0x1') throw new Error('Revocation reverted onchain. The permission may still be active.');
-      say('Confirmed: the spending permission is turned off. Re-activate to grant it again.');
+      const revokedRole = receipt.logs.some(entry => {
+        try {
+          if (entry.address.toLowerCase() !== phase.module?.toLowerCase()) return false;
+          const event = decodeEventLog({ abi: parseAbi(['event AssignRoles(address module,bytes32[] roleKeys,bool[] memberOf)']), data: entry.data as `0x${string}`, topics: entry.topics as [`0x${string}`, ...`0x${string}`[]] });
+          return event.args.module.toLowerCase() === address.toLowerCase() && event.args.roleKeys.some((key, index) => key.toLowerCase() === phase.roleKey?.toLowerCase() && event.args.memberOf[index] === false);
+        } catch { return false; }
+      });
+      if (!revokedRole) throw Error('Transaction confirmed, but permission removal could not be verified. Refresh status.');
+      setPhase(current => current ? { ...current, installed: false, checks: current.checks?.map(check => check.label === 'Session membership' ? { ...check, expect: 'active', observed: 'revoked', ok: false } : check) } : current);
+      setNext(phase.steps.length);
+      window.dispatchEvent(new Event('steward-permission-updated'));
+      say('Permission turned off. Your balances are unchanged.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The revocation did not complete.');
       say('Stopped. The permission may still be active; verify before relying on it.');
@@ -347,24 +395,53 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   // One-click chaining: whenever a next step waits and nothing is running,
   // offer its signature at once. Failures and pauses switch chaining off.
   useEffect(() => {
-    if (chain && !busy && phase?.steps?.[next]) void signCurrent();
+    if (!chain || busy || !phase?.steps?.[next]) return;
+    const timer = setTimeout(() => void signCurrent(), 0);
+    return () => clearTimeout(timer);
   }, [chain, busy, phase, next]);
 
+  const membership = phase?.checks?.find(check => check.label === 'Session membership');
+  const revoked = membership?.observed === 'revoked';
+  async function refreshStatus() {
+    if (!provider || busy) return;
+    setBusy(true); setError('');
+    try {
+      let candidate = phase?.module;
+      if (!candidate) {
+        const response = await fetch('/api/workspace/permission/install?check=1', { cache: 'no-store', signal: AbortSignal.timeout(25000) });
+        if (!response.ok) throw Error('Permission status unavailable.');
+        const check = await response.json() as { staleModule?: string; modules?: string[] };
+        candidate = check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : undefined);
+      }
+      if (!candidate) return;
+      const response = await fetch('/api/workspace/permission/install?module=' + encodeURIComponent(candidate) + '&inspect=1', { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+      const result = await response.json() as Phase & { error?: string };
+      if (!response.ok || !result.checks) throw Error(result.error ?? 'Permission status unavailable.');
+      setPhase(result); setModule(candidate); setNext(result.steps.length); setChain(false); setLog([]);
+      window.dispatchEvent(new Event('steward-permission-updated'));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Permission status unavailable.'); }
+    finally { setBusy(false); }
+  }
+  useEffect(() => { if (!provider) return; const timer = setTimeout(() => void refreshStatus(), 0); return () => clearTimeout(timer); }, [provider, address, policyVersion]);
   const current = phase?.steps?.[next];
   return <div className="ws-install-driver">
-    <div className="ws-chain-tools">
-      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !provider || !policyVersion || !feesOk}>
-        {phase ? 'Restart activation' : 'Turn on permission (one click signs each step)'}
+    {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}
+    {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
+    <div className="ws-chain-tools permission-actions">
+      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !provider || !policyVersion || !feesOk || phase?.installed}>
+        {busy ? 'Checking permission…' : revoked ? 'Reactivate permission' : phase?.installed ? 'Permission active' : 'Activate permission'}
       </button>
-      {chain && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause auto-signing</button>}
-      <span>{!provider ? 'Connect and verify your wallet above first.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : 'Each step opens your wallet. Review and sign one at a time.'}</span>
+      <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain || !provider}>Refresh status</button>
+      {phase?.revocation && phase.installed && !revoked && !busy && <button type="button" className="ws-action-revoke" onClick={()=>setConfirmingRevoke(true)}>Revoke permission</button>}
+      {chain && !busy && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause setup</button>}
+      <span>{!provider ? 'Connect and verify your wallet to continue.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : revoked ? 'Permission is off. New orders are blocked.' : phase?.installed ? `Permission active until ${expires}. You still approve each order.` : 'Not activated yet. Approve setup once in your wallet.'}</span>
     </div>
-    {phase?.batched && next === 0 && !skipBatch ? <div className="ws-order-plan">
-      <span>ALL {phase!.steps.length} STEPS · ONE SIGNATURE</span>
-      <strong>{phase!.batched!.label}</strong>
+    {phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
+      <span>{phase.steps.length - next} REMAINING STEPS · ONE APPROVAL</span>
+      <strong>Finish setup in one approval</strong>
       <p>{phase!.batched!.verify} Same calls as the separate steps, checked by the readback below.</p>
       <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
-        {busy ? 'Working…' : `Sign once: run all ${phase!.steps.length} steps`}
+        {busy ? 'Checking setup…' : `Approve ${phase.steps.length - next} steps together`}
       </button>
       <button type="button" className="ws-action-quiet" onClick={() => setSkipBatch(true)} disabled={busy}>
         Sign each step separately instead
@@ -376,19 +453,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
         {busy ? 'Working…' : `Sign: ${current.label}`}
       </button>
+      {phase?.batched && <button type="button" className="ws-action-quiet" disabled={busy} onClick={() => { setChain(false); setSkipBatch(false); }}>Finish remaining steps in one approval</button>}
     </div>}
-    {phase?.revocation && <div className="ws-order-plan">
-      <span>KILL SWITCH</span>
-      <strong>Turn off the permission</strong>
-      <p>Removes the spending permission from your wallet in one signature. Costs a small network fee. Steward cannot undo this for you; re-activate to grant again.</p>
-      <button type="button" className="ws-action-primary" onClick={killSwitch} disabled={busy}>
-        {busy ? 'Working…' : `Sign: ${phase.revocation.label}`}
-      </button>
-    </div>}
-    {phase?.checks && <div className="ws-order-events"><span>ONCHAIN READBACK</span>
-      {phase.checks.map((check) => <div key={check.label}><b>{check.ok ? 'PASS' : 'FAIL'} · {check.label}</b>
-        <small>expected {check.expect} · observed {check.observed}</small></div>)}</div>}
-    {log.length > 0 && <div className="ws-chain-brief"><strong>Activation update</strong><p>{log[log.length - 1]}</p>
+    {confirmingRevoke&&phase?.revocation&&!revoked&&!busy&&<div className="ws-revoke-confirm" role="alertdialog" aria-labelledby="revoke-title"><div><span className="ws-label">CONFIRM</span><strong id="revoke-title">Revoke trading permission?</strong><p>New orders will stop. Your balances stay in the wallet. Your wallet will ask you to approve the revocation and network fee.</p></div><div><button type="button" className="ws-action-revoke" onClick={()=>{setConfirmingRevoke(false);void killSwitch();}}>Revoke permission</button><button type="button" className="ws-action-quiet" onClick={()=>setConfirmingRevoke(false)}>Keep active</button></div></div>}
+    {log.length > 0 && <div className="ws-chain-brief"><strong>Latest update</strong><p>{log[log.length - 1]}</p>
       {log.length > 1 && <details><summary>Earlier updates ({log.length - 1})</summary>{log.slice(0, -1).map((line, index) => <p key={index}>{line}</p>)}</details>}</div>}
     {error && <div className="ws-toast-wrap" role="alert"><div className="ws-toast"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button></div></div>}
   </div>;

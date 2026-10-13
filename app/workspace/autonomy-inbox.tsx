@@ -1,0 +1,11 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import {RefreshCw} from 'lucide-react';
+type Incident={id:string;severity:string;message:string;created_at:string;acknowledged_at:string|null};
+export default function AutonomyInbox(){
+ const [rows,setRows]=useState<Incident[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[loaded,setLoaded]=useState(false);const ticket=useRef(0);
+ async function load(id?:string){if(busy)return;const n=++ticket.current;setBusy(true);setError('');try{if(id){const r=await fetch('/api/workspace/autonomy/incidents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'acknowledge',id})});if(!r.ok)throw Error('Could not mark this update as read.');}const r=await fetch('/api/workspace/autonomy/incidents',{cache:'no-store'});if(!r.ok)throw Error('Updates are unavailable. Try again.');const data=await r.json() as {incidents:Incident[]};if(n===ticket.current){setRows(data.incidents);setLoaded(true);}}catch(e){if(n===ticket.current)setError(e instanceof Error?e.message:'Updates unavailable.');}finally{if(n===ticket.current)setBusy(false);}}
+ useEffect(()=>{void load();return()=>{ticket.current++;};},[]);
+ const unread=rows.filter(row=>!row.acknowledged_at).length;
+ return <section className="ws-activity-card"><div><span className="ws-label">ACTIVITY</span><h3>{unread?`${unread} update${unread===1?'':'s'} need attention`:'You’re up to date'}</h3><p>Marking an update as read never clears an order or changes its funding.</p></div><button className="ws-activity-refresh" aria-label="Refresh activity updates" title="Refresh activity updates" disabled={busy} onClick={()=>load()}><RefreshCw size={15}/></button>{loaded&&!rows.length&&<small>No saved updates.</small>}<div className="ws-activity-list">{rows.map(row=><div key={row.id} className="ws-autonomy-incident"><span className="ws-label">{row.severity==='critical'?'Needs attention':row.severity==='warning'?'Review':'Confirmed'} · {new Date(row.created_at).toLocaleString()}</span><p>{row.message}</p>{row.acknowledged_at?<span>Read</span>:<button className="ws-recheck" disabled={busy} onClick={()=>load(row.id)}>Mark as read</button>}</div>)}</div>{error&&<p role="alert" className="ws-error">{error}</p>}</section>;
+}
