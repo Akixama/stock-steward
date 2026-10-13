@@ -10,6 +10,7 @@
     "dev": "node scripts/run-framework.mjs dev",
     "build": "node scripts/run-framework.mjs build",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
+    "test": "node --test lib/*.test.ts db/*.test.ts archive/alpaca/lib/*.test.ts archive/alpaca/db/*.test.ts",
     "db:local:apply": "node scripts/apply-local-migrations.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .sites-runtime --ignore-pattern .wrangler --ignore-pattern outputs",
     "db:generate": "drizzle-kit generate"

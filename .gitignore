@@ -21,6 +21,8 @@
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.pem
 
 # debug
@@ -51,3 +53,12 @@ next-env.d.ts
 
 # local tooling
 .claude/
+.idea/
+.vscode/
+
+# Local release logs created by audit and deployment commands.
+/*-build.txt
+/*-deploy.txt
+/audit-*.txt
+/outputs-audit-*.txt
+/deploy-*-result.txt
