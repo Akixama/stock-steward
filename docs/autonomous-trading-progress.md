@@ -35,9 +35,9 @@ Additive migrations: `0020_autonomous_shadow.sql`, `0021_autonomous_transaction_
 
 ## Current verification
 
-- 364 application and archived-adapter tests passed.
+- 364 application and archived-adapter tests passed again against the current source.
 - TypeScript, ESLint with zero errors, production build and full repository/history secret scan passed.
-- The isolated permission lab passed 44 scenarios against pinned runtimes and fixture assets. It used no live wallet and spent no real money.
+- The isolated permission lab passed 59 scenarios against pinned runtimes and fixture assets. It used no live wallet and spent no real money.
 - All 19 deployed page, redirect and authentication checks passed after release.
 
 ## Signing references

@@ -8,4 +8,4 @@ The receiver must verify X-Steward-Signature as lowercase hex HMAC-SHA256 over X
 
 Inspect autonomous_alert_deliveries for exhausted_at IS NOT NULL AND delivered_at IS NULL. Exhaustion needs operator investigation; it cannot cancel, resubmit or release a financial order. In-app incidents remain available even when delivery is disabled or exhausted. An approved receiver should also monitor the runner independently: this same runner cannot alert if it never runs.
 
-Apply drizzle/0030_operator_alert_delivery.sql before enabling delivery. Tests use an isolated database and stub network only. No real notification recipient has been configured or contacted.
+Migration `drizzle/0030_operator_alert_delivery.sql` is present in the production database. Tests use an isolated database and stub network only. No real notification recipient has been configured or contacted.
