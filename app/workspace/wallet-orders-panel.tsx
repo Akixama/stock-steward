@@ -20,7 +20,7 @@ export default function WalletOrdersPanel({mandate,onOpenMandate}:{mandate:Manda
       <h2>Your trading controls.</h2><p>Use one wallet connection to verify ownership, activate your limits and approve each purchase.</p></div>
       <span className="ws-autonomy-state"><CirclePause size={16}/> Approval required</span></div>
     <p className="ws-chain-note">Mandate v{mandate.version || '—'} · Every real order opens in your wallet for approval.</p>
-    <WalletSetup onProvider={receiveProvider} onAddress={receiveAddress}/>
+    <WalletSetup onProvider={receiveProvider} onAddress={receiveAddress} disabled={false}/>
     <InstallReview key={`review-${address}-${mandate.version}`} provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
     <RealOrderPanel key={`orders-${address}-${mandate.version}`} provider={walletProvider} address={address} onOpenMandate={onOpenMandate}/>
     <details className="ws-developer-details"><summary>Advanced</summary>
