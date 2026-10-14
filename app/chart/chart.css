@@ -64,3 +64,6 @@
 .market-alert-link{max-width:240px;min-height:40px;border-radius:4px}
 @media(max-width:800px){.market-layout{grid-template-columns:1fr}.market-list-scroll{display:flex;min-height:0;max-height:none;overflow-x:auto;overflow-y:hidden}.market-list-item{flex:0 0 175px;min-height:58px;grid-template-columns:1fr auto}.market-context{grid-column:1/-1}.market-center{padding:0 18px 18px}}
 @media(max-width:600px){.market-header{height:62px}.market-header nav a,.market-header nav span{padding:22px 0 19px}.market-intro{align-items:flex-start}.market-intro h1{font-size:2.15rem}.market-plot{height:285px}.market-plot-status{left:10px;top:14px;max-width:190px}.market-context{grid-template-columns:1fr}.market-context-actions{border-left:0;border-top:1px solid #344032}.market-price-band{flex-direction:row;align-items:end}.market-price-change{text-align:right}.market-price-change small{display:none}}
+.market-list-symbol,.market-list-price{font-size:.8rem}
+.market-list-name,.market-context-row,.market-context p,.market-intro p{font-size:.75rem}
+.market-chart-head p,.market-chart-foot,.market-list-foot{font-size:.7rem}
