@@ -13,3 +13,54 @@
 @media(max-width:800px){.market-header{gap:20px}.market-header nav{gap:16px}.market-header-action{display:none}.market-layout{grid-template-columns:1fr}.market-list{border-right:0;border-bottom:1px solid #303b2c}.market-list-scroll{display:flex;min-height:0;max-height:none;overflow-x:auto;overflow-y:hidden}.market-list-item{flex:0 0 170px;min-height:62px;grid-template-columns:1fr auto;gap:3px;border-bottom:0;border-left:0;border-right:1px solid #283326;padding:9px 12px}.market-list-item[aria-pressed=true]{box-shadow:inset 0 -2px #bbe440}.market-list-name{grid-column:1/-1;grid-row:2}.market-list-price{grid-column:2;grid-row:1}.market-list-foot{display:none}.market-search{margin-bottom:10px}.market-center{padding:0 20px 22px}}
 @media(max-width:600px){.market-header{height:66px;padding:0 16px}.market-brand .brand-symbol{width:31px;height:31px}.market-brand .brand-name{font-size:1.18rem}.market-header nav{margin-left:auto;gap:12px;font-size:.69rem}.market-header nav a,.market-header nav span{padding:24px 0 21px}.market-header nav a:first-child,.market-header nav a:last-child{display:none}.market-main{padding:29px 15px 40px}.market-intro{align-items:start;flex-direction:column;gap:16px}.market-intro-note{min-width:0}.market-intro h1{font-size:2.55rem}.market-layout{border-radius:14px}.market-instrument{min-height:85px}.market-instrument h2{font-size:1.4rem;display:block}.market-instrument h2 span{margin-left:7px}.market-market-state{font-size:.6rem}.market-price-band{align-items:start;flex-direction:column}.market-price-change{text-align:left}.market-plot{height:260px}.market-chart-foot{flex-direction:column;gap:4px}.market-context{grid-template-columns:1fr}.market-context-actions{border-left:0;border-top:1px solid #35432f}.market-footer{flex-direction:column}.market-metrics strong{font-size:.82rem}}
 @media(prefers-reduced-motion:reduce){.market :is(button,a){transition:none}}
+
+/* The market desk keeps the chart, quote and searchable tape in one sightline. */
+.market{--market-mono:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;background:#080b09;font-family:var(--market-mono);font-size:12px}
+.market-header{height:62px;border-color:#202820;background:#080b09}
+.market-header nav{font-family:var(--market-mono);font-weight:600;font-size:.72rem;letter-spacing:.01em}
+.market-header nav a,.market-header nav span{padding:21px 0 19px}
+.market-header-action{border-radius:5px;font-family:var(--market-mono);font-size:.68rem}
+.market-main{padding-top:22px}
+.market-intro{margin-bottom:20px;align-items:center}
+.market-intro h1{margin:7px 0 6px;font-family:Arial,Helvetica,sans-serif;font-size:clamp(2rem,3.4vw,3.2rem);letter-spacing:-.06em}
+.market-intro p{max-width:790px;font-size:.74rem;line-height:1.5}
+.market-intro-note{border-radius:7px;background:#101710}
+.market-layout{grid-template-columns:265px minmax(0,1fr);min-height:0;border-color:#273027;border-radius:8px;background:#0c110d;box-shadow:none}
+.market-list{background:#0b100c}
+.market-list-head{padding:18px 16px 12px}
+.market-search{margin:0 10px 8px;border-radius:4px;background:#090d09}
+.market-list-scroll{max-height:578px;min-height:485px;scrollbar-width:thin}
+.market-list-item{min-height:41px;padding:6px 10px;grid-template-columns:62px minmax(0,1fr) auto;gap:5px}
+.market-list-symbol{font-family:var(--market-mono);font-size:.75rem;letter-spacing:-.03em}
+.market-list-name{font-size:.67rem;color:#94a194}
+.market-list-price{font-family:var(--market-mono);font-size:.7rem;font-variant-numeric:tabular-nums}
+.market-list-foot{padding:10px 14px}
+.market-center{padding:0 28px 20px;background:#0b100c}
+.market-instrument{min-height:68px}
+.market-instrument h2{font-family:Arial,Helvetica,sans-serif;font-size:clamp(1.35rem,2vw,1.8rem);margin-top:4px}
+.market-instrument h2 span{font-family:var(--market-mono);font-size:.8rem}
+.market-price-band{padding:16px 0 13px}
+.market-price-band strong{font-family:var(--market-mono);font-size:clamp(2rem,2.6vw,2.7rem);font-variant-numeric:tabular-nums;letter-spacing:-.07em}
+.market-price-change strong{font-size:1.15rem}
+.market-chart-head{padding-top:15px}
+.market-chart-head p{font-size:.66rem}
+.market-periods{border-radius:4px}
+.market-periods button{border-radius:3px}
+.market-plot{height:350px;position:relative;margin-top:5px}
+.market-plot-status{position:absolute;left:22px;top:28px;display:grid;gap:4px;max-width:230px;padding:10px 13px;background:#101710dd;border:1px solid #344432;border-radius:4px;pointer-events:none}
+.market-plot-status span{font-size:.61rem;letter-spacing:.13em;color:#b3d571;font-weight:800}
+.market-plot-status strong{font-family:Arial,Helvetica,sans-serif;font-size:.83rem}
+.market-plot-status small{color:#9dab99;line-height:1.45;font-size:.64rem}
+.market-chart-foot{margin:3px 0 16px}
+.market-metrics strong{font-family:var(--market-mono);font-size:.9rem;font-variant-numeric:tabular-nums}
+.market-context{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;border-left:0;border-top:1px solid #2b372b;background:#111812}
+.market-context-top,.market-context-actions{padding:19px 24px}
+.market-context-actions{border-top:0;border-left:1px solid #344032;background:#151e14}
+.market-context h3{margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:1.05rem}
+.market-context p{margin-bottom:14px;max-width:660px;font-size:.68rem;line-height:1.55}
+.market-context-row{padding:7px 0}
+.market-source-link{margin-top:11px}
+.market-context-actions p{max-width:420px}
+.market-alert-link{max-width:240px;min-height:40px;border-radius:4px}
+@media(max-width:800px){.market-layout{grid-template-columns:1fr}.market-list-scroll{display:flex;min-height:0;max-height:none;overflow-x:auto;overflow-y:hidden}.market-list-item{flex:0 0 175px;min-height:58px;grid-template-columns:1fr auto}.market-context{grid-column:1/-1}.market-center{padding:0 18px 18px}}
+@media(max-width:600px){.market-header{height:62px}.market-header nav a,.market-header nav span{padding:22px 0 19px}.market-intro{align-items:flex-start}.market-intro h1{font-size:2.15rem}.market-plot{height:285px}.market-plot-status{left:10px;top:14px;max-width:190px}.market-context{grid-template-columns:1fr}.market-context-actions{border-left:0;border-top:1px solid #344032}.market-price-band{flex-direction:row;align-items:end}.market-price-change{text-align:right}.market-price-change small{display:none}}
