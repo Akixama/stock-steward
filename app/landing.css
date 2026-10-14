@@ -31,6 +31,7 @@
 .lp-text-link{display:inline-flex;align-items:center;gap:8px;margin-top:21px;color:#c6c4be;font-size:.84rem;font-weight:650;transition:color .18s ease,transform .18s ease}
 .lp-text-link:hover{color:#fff;transform:translateX(2px)}
 .lp-hero-guide{display:none;align-items:center;gap:7px;color:#c8c4bb;font-size:.8rem;font-weight:700;margin-top:21px}
+.lp-hero-secondary{display:flex;align-items:center;flex-wrap:wrap;gap:0 18px}
 @media(max-width:600px){.lp-hero-guide{display:inline-flex}}
 @media(max-width:360px){.lp-header{padding-inline:13px;gap:6px}.lp-brand{gap:6px}.lp-brand .brand-symbol{width:30px;height:30px}.lp-brand .brand-name{font-size:1.12rem}.lp-header nav .lp-nav-cta{font-size:.67rem;padding:8px 9px;gap:4px}}
 
