@@ -15,7 +15,7 @@ import AlertsPanel from './alerts-panel';
 import PracticeTrail from './practice-trail';
 import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
-import AutonomyPanel from "./autonomy-panel";
+import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
 import "./workspace.css";
 
@@ -215,7 +215,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
             </section>
           </div>
           <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19}/></div><div><span className="ws-label">PRACTICE DECISION TRAIL</span><strong>See what Steward did.</strong><p>Review saved simulated purchases, holds and their reasons.</p></div></button>
-          <AutonomyPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
+          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
           <details className="ws-overview-more"><summary>Balances, funding and watch-only tools</summary><ChainPanel mandate={mandate} /></details>
         </div>}
 

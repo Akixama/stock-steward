@@ -192,7 +192,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD, fixed by your permission<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
-    {!provider && !hash && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-autonomy-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
+    {!provider && !hash && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>EXACT ORDER · SIGN WITHIN SECONDS</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>

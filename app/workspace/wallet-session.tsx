@@ -2,8 +2,8 @@
 import { useSyncExternalStore } from 'react';
 import type { WalletProvider } from '@/lib/browser-wallet';
 
-// One wallet session shared by every workspace panel. Connecting once (Chain,
-// Autonomy or anywhere else) is visible everywhere; disconnecting clears it
+// One wallet session shared by every workspace panel. Connecting once is
+// visible everywhere; disconnecting clears it
 // everywhere. An account change in the wallet invalidates the session — the
 // user must reconnect so no panel keeps acting for a replaced account. A
 // network change keeps the session: Steward always observes Robinhood Chain
