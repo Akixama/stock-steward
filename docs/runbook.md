@@ -31,7 +31,7 @@ The demo sign-in uses `STEWARD_DEMO_AUTH`. Read-only scheduled wakes use a match
 
 ## Visibility flags
 
-`SHOW_DEVELOPER_TOOLS=true` exposes diagnostic route, monitoring and transaction watch controls. `AUTOMATIC_TRADING_ENABLED=true` exposes unfinished automation review UI. Set them before building. Neither flag changes the compiled autonomous execution gate.
+`SHOW_DEVELOPER_TOOLS=true` exposes diagnostic route, monitoring and transaction watch controls. Automatic real-money trading is shelved in source and cannot be enabled through a hosting environment variable. See `docs/automatic-trading-shelved.md` before planning a later release.
 
 ## Operational rules
 

@@ -46,6 +46,7 @@
     "examples",
     "outputs",
     "permission-lab/node_modules",
-    "archive/alpaca"
+    "archive/alpaca",
+    "archive/automatic-trading"
   ]
 }

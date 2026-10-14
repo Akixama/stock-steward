@@ -5,5 +5,5 @@ config.d1_databases[0].database_name='stock-steward-demo-db';
 config.d1_databases[0].database_id='c020cd5a-f6cc-4d9c-a9c6-1d2e5fa704f7';
 config.routes=[{pattern:'stocksteward.app',custom_domain:true},{pattern:'www.stocksteward.app',custom_domain:true}];
 config.ai={binding:'AI'};
-config.vars={...config.vars,STEWARD_AI_ENABLED:'true',STEWARD_AUTONOMOUS_SHADOW_ENABLED:'true'};
+config.vars={...config.vars,STEWARD_AI_ENABLED:'true',STEWARD_AUTONOMOUS_SHADOW_ENABLED:'false'};
 fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');

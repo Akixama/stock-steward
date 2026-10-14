@@ -7,7 +7,7 @@
     "crons": ["*/15 * * * *"]
   },
   "vars": {
-    "STEWARD_TICK_URL": "https://stocksteward.app/api/internal/autonomy/tick"
+    "STEWARD_TICK_URL": "https://stocksteward.app/api/internal/monitor/tick"
   },
   "observability": {
     "enabled": true
