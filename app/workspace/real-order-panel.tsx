@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { matchingWallet, type WalletProvider } from '@/lib/browser-wallet';
 import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wallet-receipt';
+import { ArrowRight, Clock3 } from 'lucide-react';
 
 // Stage 3: one real order at a time, each prepared server-side, signed in the
 // owner's own wallet, and reconciled against exact onchain evidence. The server
@@ -181,13 +182,10 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
           ? `Holding ${dollars(status.balanceCents)} — enough for your ${status.perTrade} order. Keep some ETH in your own wallet for gas.`
           : `Holding ${dollars(status.balanceCents)} — send ${dollars(status.perTradeCents - status.balanceCents)} more USDG here, then press Refresh. Keep some ETH in your own wallet for gas.`}</p>
       <div className="ws-fund-row"><code>{status.safe}</code><button type="button" disabled={busy} onClick={async () => { try { await navigator.clipboard.writeText(status.safe); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { setError('Could not copy the address. Select and copy it manually.'); } }}>{copied ? 'Copied' : 'Copy'}</button></div></div>}
-    {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan">
-      <span>PERMISSION UPDATE</span>
-      <strong>{/window ended|expired/i.test(status.detail??'')?'Your previous permission expired.':'Update your purchase limits.'}</strong>
-      <p>{/window ended|expired/i.test(status.detail??'')
-        ? 'Your saved limits above show what a new permission would allow; they do not extend the previous one. Save a new mandate version, then approve the new permission in your wallet before ordering.'
-        : `${status.detail ?? 'The pilot allows $10 a trade, $50 a day and $100 total, with approval on every order.'} Fix it in Mandate, save, then re-activate above.`}</p>
-      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Open Mandate</button></div>}
+    {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan ws-order-blocked" role="status">
+      <div className="ws-order-blocked-heading"><span className="ws-order-blocked-icon"><Clock3 size={20} aria-hidden="true" /></span><div><span className="ws-label">ORDER PAUSED</span><strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired':'Your limits need an update'}</strong><p>{/window ended|expired/i.test(status.detail??'') ? 'The saved limits above are a proposal for a new permission. They have not extended the old one.' : status.detail ?? 'Review and save your purchase limits before ordering.'}</p></div></div>
+      <div className="ws-order-blocked-next"><div><span>1</span> Save a new mandate version</div><div><span>2</span> Approve the new permission in your wallet</div></div>
+      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update Mandate <ArrowRight size={16} aria-hidden="true" /></button></div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on the permission above first. Real orders stay locked until activation is verified.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
@@ -195,7 +193,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
       <label>Pay · USD, fixed by your permission<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
-    {!provider && !hash && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
+    {!provider && !hash && !(status && !status.permissionActive && status.blocked === 'limits') && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>EXACT ORDER · SIGN WITHIN SECONDS</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>

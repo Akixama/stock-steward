@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import InstallDriver from './install-driver';
 import { PermissionReviewDetails } from './permission-design';
+import { Check, LockKeyhole, ShieldCheck } from 'lucide-react';
 
 // The activation review: exactly what would be turned on for your wallet onchain,
 // with the complete setup-fee table in dollars, before anything is signed. Read-only.
@@ -64,7 +65,15 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
     {!busy && error && !step && <p className="ws-error" role="alert">{error}</p>}
     {plan && <div className="ws-install-body">
       <PermissionReviewDetails plan={plan} />
-      <div className="ws-permission-explainer" role="note"><strong>What activation allows</strong><p>Buy {plan.summary.outputs} stock tokens, up to {plan.summary.perTrade} each and {plan.summary.daily} per day, with {plan.summary.total} across two days, until {plan.summary.expires}.</p><p>It cannot withdraw funds, trade other assets or exceed these limits. Use Permission controls below to turn it off.</p></div>
+      <div className="ws-permission-explainer" role="note">
+        <div className="ws-permission-explainer-title"><span className="ws-permission-explainer-icon"><ShieldCheck size={19} aria-hidden="true" /></span><div><span className="ws-label">PERMISSION SCOPE</span><strong>What turning this on allows</strong></div></div>
+        <div className="ws-permission-explainer-points">
+          <span><Check size={15} aria-hidden="true" /> Buy {plan.summary.outputs} only, within the limits above</span>
+          <span><Check size={15} aria-hidden="true" /> You approve each purchase in your wallet</span>
+          <span><LockKeyhole size={15} aria-hidden="true" /> No withdrawals or other assets</span>
+        </div>
+        <p>Ends {plan.summary.expires}. You can turn it off in Permission controls.</p>
+      </div>
       <InstallDriver provider={provider} address={address} policyVersion={policyVersion} feesOk={plan.fees.review.state === 'within_cap'} expires={plan.summary.expires} />
     </div>}
   </section>;

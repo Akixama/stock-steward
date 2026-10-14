@@ -428,13 +428,15 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}
     {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
     <div className="ws-chain-tools permission-actions">
-      <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !provider || !policyVersion || !feesOk || phase?.installed}>
-        {busy ? 'Checking permission…' : revoked ? 'Reactivate permission' : phase?.installed ? 'Permission active' : 'Activate permission'}
-      </button>
-      <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain || !provider}>Refresh status</button>
+      {!provider ? <button type="button" className="ws-action-primary" onClick={() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>Connect wallet to continue</button> : <>
+        <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !policyVersion || !feesOk || phase?.installed}>
+          {busy ? 'Checking permission…' : revoked ? 'Reactivate permission' : phase?.installed ? 'Permission active' : 'Activate permission'}
+        </button>
+        <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain}>Refresh status</button>
+      </>}
       {phase?.revocation && phase.installed && !revoked && !busy && <button type="button" className="ws-action-revoke" onClick={()=>setConfirmingRevoke(true)}>Revoke permission</button>}
       {chain && !busy && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause setup</button>}
-      <span>{!provider ? 'Connect and verify your wallet to continue.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : revoked ? 'Permission is off. New orders are blocked.' : phase?.installed ? `Permission active until ${expires}. You still approve each order.` : 'Not activated yet. Approve setup once in your wallet.'}</span>
+      <span>{!provider ? 'Connect on Robinhood Chain and sign a free ownership message. No spending permission is requested yet.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : revoked ? 'Permission is off. New orders are blocked.' : phase?.installed ? `Permission active until ${expires}. You still approve each order.` : 'Not activated yet. Approve setup once in your wallet.'}</span>
     </div>
     {phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
       <span>{phase.steps.length - next} REMAINING STEPS · ONE APPROVAL</span>
