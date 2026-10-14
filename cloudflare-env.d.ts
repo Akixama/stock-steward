@@ -10,6 +10,8 @@ declare namespace Cloudflare {
     OC_SECRET_KEY?: string;
     ALCHEMY_API_KEY?: string;
     STEWARD_WORKER_KEY?: string;
+    STEWARD_VAPID_PUBLIC_KEY?: string;
+    STEWARD_VAPID_PRIVATE_KEY?: string;
     STEWARD_RUNNER_ENABLED?: string;
     STEWARD_AUTONOMOUS_SHADOW_ENABLED?: string;
     STEWARD_DEMO_AUTH?: string;

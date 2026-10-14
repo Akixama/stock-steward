@@ -758,3 +758,6 @@ carries side margins for its other surfaces, which would inset it here. */
 .ws-stock-warning{margin:0;color:#e6bf9c;font-size:11px;line-height:1.5}
 .ws-stock-footnote{margin:0;color:#98a88f;font-size:11px;line-height:1.5}
 @media(max-width:560px){.ws-stock-picker-head{flex-direction:column;gap:8px}.ws-stock-picker-head>span{align-self:flex-start}.ws-stock-results{max-height:220px}.ws-stock-results button{grid-template-columns:55px minmax(0,1fr) 18px;gap:6px;padding:8px 10px}}
+.ws-alert-device{display:flex;align-items:center;justify-content:space-between;gap:22px;margin:0 0 22px;padding:22px 25px;border:1px solid #43532e;border-radius:18px;background:linear-gradient(125deg,#1d2816,#151a11 70%)}
+.ws-alert-device>div{max-width:66ch}.ws-alert-device .ws-label{display:block;margin-bottom:7px;color:#badc70}.ws-alert-device strong{display:block;color:#f2f5eb;font-size:1.02rem}.ws-alert-device p{margin:7px 0 0;color:#b7c2ab;font-size:.8rem;line-height:1.6}.ws-alert-device>small{max-width:28ch;color:#b7c2ab;line-height:1.5}.ws-alert-device>button{flex:none}
+@media(max-width:650px){.ws-alert-device{align-items:stretch;flex-direction:column;padding:20px}.ws-alert-device>button{width:100%}}

@@ -1,4 +1,4 @@
-import {evaluatePriceAlert,validateAlertInput,type PriceAlert,type PriceAlertInput} from '../lib/price-alerts.ts';
+import {evaluatePriceAlert,validateAlertInput,type PriceAlert} from '../lib/price-alerts.ts';
 import {fetchPracticeMarketQuote} from '../lib/practice-market.ts';
 type Row={id:string;symbol:string;direction:'above'|'below';price_cents:number;created_at:string;status:'active'|'triggered';triggered_at:string|null;observed_price_cents:number|null};
 const MAX_ALERTS=20;
@@ -17,6 +17,7 @@ export async function createAlert(db:D1Database,owner:string,value:unknown,now=D
 }
 export async function removeAlert(db:D1Database,owner:string,id:string):Promise<boolean>{
  if(typeof id!=='string'||!id)return false;
+ await db.prepare('DELETE FROM push_deliveries WHERE owner_ref=? AND alert_id=?').bind(owner,id).run();
  const result=await db.prepare('DELETE FROM price_alerts WHERE owner_ref=? AND id=?').bind(owner,id).run();
  return result.meta.changes===1;
 }
@@ -30,8 +31,8 @@ export async function checkAlerts(db:D1Database,owner:string,now=Date.now()):Pro
  for(const alert of armed){
   const outcome=evaluatePriceAlert(alert,bySymbol.get(alert.symbol)??null,now);
   if(!outcome.triggered)continue;
-  await db.prepare('UPDATE price_alerts SET status=?,triggered_at=?,observed_price_cents=? WHERE owner_ref=? AND id=? AND status=?').bind(outcome.alert.status,outcome.alert.triggeredAt,outcome.alert.observedPriceCents,owner,alert.id,'active').run();
-  triggered.push(outcome.alert);
+  const update=await db.prepare('UPDATE price_alerts SET status=?,triggered_at=?,observed_price_cents=? WHERE owner_ref=? AND id=? AND status=?').bind(outcome.alert.status,outcome.alert.triggeredAt,outcome.alert.observedPriceCents,owner,alert.id,'active').run();
+  if(update.meta.changes===1)triggered.push(outcome.alert);
  }
  return {alerts:await listAlerts(db,owner),triggered,checked:armed.length};
 }

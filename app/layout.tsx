@@ -8,6 +8,8 @@ import { RouteStage } from "@/components/route-transition";
 export const metadata: Metadata = {
   title: "Stock Steward — know what happened and why",
   description: "A clear decision trail for stock investing boundaries and onchain-confirmed buys.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {capable:true,title:'Stock Steward',statusBarStyle:'black-translucent'},
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
