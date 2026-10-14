@@ -47,9 +47,8 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [legacyDraft, setLegacyDraft] = useState(false);
-  const [overviewState, setOverviewState] = useState({ ownership: false, permission: false, funded: false, bought: false });
+  const [overviewState, setOverviewState] = useState({ ownership: false, permission: false, funded: false, bought: false, receiptVerified: false, limitIssue: '' as '' | 'expired' | 'invalid' });
   useEffect(() => {
-    if (!walletSession) { const timer=window.setTimeout(()=>setOverviewState({ ownership: false, permission: false, funded: false, bought: false }),0); return () => window.clearTimeout(timer); }
     let active = true;
     const read = async () => {
       try {
@@ -58,12 +57,14 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
           fetch('/api/workspace/orders/live/status', { cache: 'no-store' }),
         ]);
         const ownership = await ownershipResponse.json() as { ownership?: { address?: string; verifiedAt?: string } | null };
-        const order = await orderResponse.json() as { permissionActive?: boolean; balanceCents?: number | null; latestOrder?: { state?: string } | null };
+        const order = await orderResponse.json() as { permissionActive?: boolean; blocked?: string; detail?: string; balanceCents?: number | null; perTradeCents?: number; latestOrder?: { state?: string } | null };
         if (active) setOverviewState({
-          ownership: Boolean(ownership.ownership?.verifiedAt && ownership.ownership.address?.toLowerCase() === walletSession.address.toLowerCase()),
+          ownership: Boolean(walletSession && ownership.ownership?.verifiedAt && ownership.ownership.address?.toLowerCase() === walletSession.address.toLowerCase()),
           permission: order.permissionActive === true,
-          funded: order.permissionActive === true && Number(order.balanceCents ?? 0) > 0,
-          bought: Boolean(order.latestOrder),
+          funded: order.permissionActive === true && Number.isFinite(order.perTradeCents) && Number(order.balanceCents ?? 0) >= Number(order.perTradeCents),
+          bought: Boolean(order.latestOrder && order.latestOrder.state !== 'reverted'),
+          receiptVerified: order.latestOrder?.state === 'confirmed',
+          limitIssue: order.blocked === 'limits' ? /permission window ended/i.test(order.detail ?? '') ? 'expired' : 'invalid' : '',
         });
       } catch { /* The detailed cards below retain their own error states. */ }
     };
@@ -71,7 +72,8 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     const refresh = () => void read();
     window.addEventListener('stock-steward:ownership-changed', refresh);
     window.addEventListener('steward-permission-updated', refresh);
-    return () => { active = false; window.removeEventListener('stock-steward:ownership-changed', refresh); window.removeEventListener('steward-permission-updated', refresh); };
+    window.addEventListener('steward-order-updated', refresh);
+    return () => { active = false; window.removeEventListener('stock-steward:ownership-changed', refresh); window.removeEventListener('steward-permission-updated', refresh); window.removeEventListener('steward-order-updated', refresh); };
   }, [walletSession]);
   useEffect(() => {
     if (initialMandate) return;
@@ -164,6 +166,9 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     }
   }
 
+  const limitsReady = Boolean(mandate.version) && !overviewState.limitIssue;
+  const completedSteps = [limitsReady, overviewState.ownership, overviewState.permission, overviewState.funded, overviewState.bought, overviewState.receiptVerified].filter(Boolean).length;
+
   return <div className="ws">
     <header className="ws-header">
       <RouteLink href="/" className="ws-brand" aria-label="Stock Steward home"><BrandMark /><BrandName /></RouteLink>
@@ -194,12 +199,13 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Alerts are checked when you press Check prices now. They are not checked in the background and never place orders.</p></div></div><AlertsPanel mandate={mandate}/></div>}
         {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
           <div className="ws-page-head ws-overview-heading"><div><span className="ws-eyebrow">YOUR WORKSPACE</span><h1>Stay in control.<br/><em>Approve every move.</em></h1><p>Your limits, wallet and purchases in one place.</p></div><span className="ws-overview-mode"><LockKeyhole size={14}/> Wallet approval required</span></div>
-          <nav className="ws-path" aria-label="What to do next"><span className="ws-label">DO NEXT</span><ol>
-            <li><button type="button" data-state={mandate.version?'done':'current'} onClick={()=>navigate('mandate')}><b>{mandate.version?<Check size={14}/>:1} · Set your limits</b><small>{mandate.version?`Saved as Mandate v${mandate.version}`:'Pick stocks and spending limits'}</small></button></li>
-            <li><button type="button" data-state={overviewState.ownership?'done':mandate.version?'current':'upcoming'} onClick={()=>scrollToId('ws-wallet-setup')}><b>{overviewState.ownership?<Check size={14}/>:2} · Connect and verify your wallet</b><small>{overviewState.ownership?'Wallet ownership verified':'Connect, select Robinhood Chain and sign a free message'}</small></button></li>
-            <li><button type="button" data-state={overviewState.permission?'done':overviewState.ownership?'current':'upcoming'} onClick={()=>scrollToId('ws-activation')}><b>{overviewState.permission?<Check size={14}/>:3} · Activate permission</b><small>{overviewState.permission?'Permission active':'Approve your saved limits once in your wallet'}</small></button></li>
-            <li><button type="button" data-state={overviewState.funded?'done':overviewState.permission?'current':'upcoming'} onClick={()=>scrollToId('ws-real-orders')}><b>{overviewState.funded?<Check size={14}/>:4} · Fund with USDG</b><small>{overviewState.funded?'USDG detected':'Add USDG to the Steward wallet'}</small></button></li>
-            <li><button type="button" data-state={overviewState.bought?'done':overviewState.funded?'current':'upcoming'} onClick={()=>scrollToId('ws-real-orders')}><b>{overviewState.bought?<Check size={14}/>:5} · Buy</b><small>{overviewState.bought?'A real order receipt exists':'Review and approve an exact order'}</small></button></li>
+          <nav className="ws-path" aria-label="What to do next"><div className="ws-path-head"><div><span className="ws-label">DO NEXT</span><p>From saved limits to a verified purchase.</p></div><span className="ws-path-count">{completedSteps} of 6 complete</span></div><ol>
+            <li><button type="button" data-state={limitsReady?'done':'current'} aria-current={!limitsReady?'step':undefined} onClick={()=>navigate('mandate')}><span className="ws-path-meta"><span className="ws-path-number">{limitsReady?<Check size={15}/>:1}</span><span className="ws-path-state">{limitsReady?'Done':overviewState.limitIssue?'Update':'Now'}</span></span><strong>Set your limits</strong><small>{overviewState.limitIssue==='expired'?'Save a new mandate version to renew an expired permission':overviewState.limitIssue==='invalid'?'Update your mandate before real orders can continue':mandate.version?`Saved as Mandate v${mandate.version}`:'Choose stocks and spending limits'}</small></button></li>
+            <li><button type="button" data-state={overviewState.ownership?'done':limitsReady?'current':'upcoming'} aria-current={limitsReady&&!overviewState.ownership?'step':undefined} onClick={()=>scrollToId('ws-wallet-setup')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.ownership?<Check size={15}/>:2}</span><span className="ws-path-state">{overviewState.ownership?'Done':limitsReady?'Now':'Later'}</span></span><strong>Verify your wallet</strong><small>{overviewState.ownership?'Wallet ownership verified':'Connect on Robinhood Chain and sign a free message'}</small></button></li>
+            <li><button type="button" data-state={overviewState.permission?'done':overviewState.ownership&&limitsReady?'current':'upcoming'} aria-current={overviewState.ownership&&limitsReady&&!overviewState.permission?'step':undefined} onClick={()=>scrollToId('ws-activation')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.permission?<Check size={15}/>:3}</span><span className="ws-path-state">{overviewState.permission?'Done':overviewState.ownership&&limitsReady?'Now':'Later'}</span></span><strong>Activate permission</strong><small>{overviewState.permission?'Permission active':'Approve your limits once in your wallet'}</small></button></li>
+            <li><button type="button" data-state={overviewState.funded?'done':overviewState.permission?'current':'upcoming'} aria-current={overviewState.permission&&!overviewState.funded?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.funded?<Check size={15}/>:4}</span><span className="ws-path-state">{overviewState.funded?'Done':overviewState.permission?'Now':'Later'}</span></span><strong>Add USDG</strong><small>{overviewState.funded?'Enough USDG for one order':'Fund the Steward wallet for a purchase'}</small></button></li>
+            <li><button type="button" data-state={overviewState.bought?'done':overviewState.funded?'current':'upcoming'} aria-current={overviewState.funded&&!overviewState.bought?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.bought?<Check size={15}/>:5}</span><span className="ws-path-state">{overviewState.bought?'Done':overviewState.funded?'Now':'Later'}</span></span><strong>Approve a buy</strong><small>{overviewState.bought?'Transaction sent':'Review the exact order in your wallet'}</small></button></li>
+            <li><button type="button" data-state={overviewState.receiptVerified?'done':overviewState.bought?'current':'upcoming'} aria-current={overviewState.bought&&!overviewState.receiptVerified?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.receiptVerified?<Check size={15}/>:6}</span><span className="ws-path-state">{overviewState.receiptVerified?'Done':overviewState.bought?'Now':'Later'}</span></span><strong>Verify the result</strong><small>{overviewState.receiptVerified?'Purchase receipt verified':'Check the onchain receipt before another buy'}</small></button></li>
           </ol></nav>
           <button type="button" className="ws-practice-callout" onClick={()=>navigate('practice')}><Play size={18}/><span><strong>Try it with fake funds first</strong><small>Practice uses simulated cash and needs no wallet signature.</small></span><ArrowRight size={17}/></button>
           <div className="ws-status-strip" role="status">

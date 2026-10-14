@@ -70,6 +70,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       const payload = await response.json() as Status & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? 'Order status unavailable.');
       setStatus(payload);
+      window.dispatchEvent(new Event('steward-order-updated'));
       if (payload.permissionActive && !hash) {
         let unsaved = null;
         try { unsaved = parsePendingWalletReceipt(sessionStorage.getItem(pendingReceiptKey(payload.safe))); } catch { /* Storage unavailable. */ }
