@@ -1,5 +1,7 @@
 # Autonomous trading implementation — October 13, 2026
 
+**Historical implementation record.** The owner chose to shelve automatic real-money trading for the current release. The preview, session setup UI and associated production routes described below were later archived and are not available on stocksteward.app. See [the current release boundary](automatic-trading-shelved.md) before using any instructions in this record. Worker IDs and test counts below describe earlier builds, not the current deployment.
+
 ## Release boundary
 
 Production unattended spending remains compiled off in `lib/autonomous-live.ts`. No environment variable or workspace action can override it. The existing owner-signed pilot is unchanged. The deployed background runner is SHADOW ONLY: it evaluates all 12 strategy types and stores explanatory receipts. A triggered rule is not an authorized trade.

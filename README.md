@@ -42,8 +42,8 @@ Run every application and archived-adapter test with `npm test`. See [testing](d
 ## Product visibility flags
 
 - `SHOW_DEVELOPER_TOOLS=true` shows route inspection, read-only monitoring and transaction watch tools.
-- `AUTOMATIC_TRADING_ENABLED=true` shows the unfinished preview and setup reviews. It does not enable execution; the compiled release gate remains off.
-- Both default to `false` and are read at build time.
+- Automatic real-money trading is shelved in source. Its former preview, setup routes and executor cannot be enabled by a hosting flag. See [the shelved feature record](docs/automatic-trading-shelved.md).
+- `SHOW_DEVELOPER_TOOLS` defaults to `false` and is read at build time.
 
 ## Documentation
 

@@ -182,8 +182,10 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
       <div className="ws-fund-row"><code>{status.safe}</code><button type="button" disabled={busy} onClick={async () => { try { await navigator.clipboard.writeText(status.safe); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { setError('Could not copy the address. Select and copy it manually.'); } }}>{copied ? 'Copied' : 'Copy'}</button></div></div>}
     {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan">
       <span>PERMISSION UPDATE</span>
-      <strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired.':'Update your purchase limits.'}</strong>
-      <p>{status.detail ?? "The pilot allows $10 a trade, $50 a day and $100 total, with approval on every order."} Fix it in Mandate, save, then re-activate above.</p>
+      <strong>{/window ended|expired/i.test(status.detail??'')?'Your previous permission expired.':'Update your purchase limits.'}</strong>
+      <p>{/window ended|expired/i.test(status.detail??'')
+        ? 'Your saved limits above show what a new permission would allow; they do not extend the previous one. Save a new mandate version, then approve the new permission in your wallet before ordering.'
+        : `${status.detail ?? 'The pilot allows $10 a trade, $50 a day and $100 total, with approval on every order.'} Fix it in Mandate, save, then re-activate above.`}</p>
       <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Open Mandate</button></div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on the permission above first. Real orders stay locked until activation is verified.'}</p>}

@@ -1,6 +1,6 @@
 # Stock Steward: next steps for the separate session pilot
 
-The requested launch scope is one release including autonomous real-money trading. Automatic trading is currently compiled off; the working wallet-approved purchase path is evidence for that path only. No separate session permission, funded session purchase or external signoff has been completed. Do not describe this release as finished until its autonomous launch gates pass.
+**Archived future-release checklist.** The owner chose to shelve automatic real-money trading. The advanced automation and session-review controls named below are not present in the current product, and these steps cannot be completed on stocksteward.app today. See [the current release boundary](automatic-trading-shelved.md). The current real-order path requires wallet approval for each exact purchase. No separate session permission, funded session purchase or external signoff has been completed.
 
 ## Before wallet installation
 
