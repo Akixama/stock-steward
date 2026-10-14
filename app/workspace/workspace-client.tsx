@@ -17,6 +17,7 @@ import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
 import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
+import StockSelector from './stock-selector';
 import "./workspace.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
@@ -97,11 +98,10 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   }, [initialMandate]);
 
   const allowedSymbols = [...new Set(symbols.toUpperCase().split(/[\s,]+/).filter(Boolean))];
-  const invalidSymbols = allowedSymbols.filter((symbol) => !/^[A-Z.]{1,8}$/.test(symbol));
   const orderCents = Math.round(Number(maxOrder) * 100);
   const dailyCents = Math.round(Number(maxDaily) * 100);
   const positionBps = Math.round(Number(maxPosition) * 100);
-  const valid = allowedSymbols.length <= 32 && allowedSymbols.every((symbol) => /^[A-Z.]{1,8}$/.test(symbol)) &&
+  const valid = allowedSymbols.length <= 3 && allowedSymbols.every((symbol) => /^[A-Z.]{1,8}$/.test(symbol)) &&
     [maxOrder, maxDaily, maxPosition].every((value) => value.trim() !== "" && Number.isFinite(Number(value))) &&
     Number(maxOrder) >= 0.01 && Number(maxDaily) >= Number(maxOrder) && Number(maxDaily) <= 1_000_000 &&
     Number(maxPosition) > 0 && Number(maxPosition) <= 100;
@@ -232,7 +232,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
             <section className="ws-editor">
               <div className="ws-editor-intro"><span className="ws-label">PURCHASE LIMITS</span><h2>Make room for restraint.</h2></div>
               <div className="ws-fields">
-                <label className="ws-field ws-field-wide"><span>Approved stock symbols</span><input value={symbols} onChange={(event) => setSymbols(event.target.value)} placeholder="AAPL, MSFT, NVDA" aria-label="Approved stock symbols" /><small>Separate supported stock-token tickers with commas. Final token support is checked before activation.</small>{allowedSymbols.length>0&&<span className="ws-symbol-chips">{allowedSymbols.map(symbol=><i key={symbol} data-invalid={invalidSymbols.includes(symbol)}>{symbol}</i>)}</span>}{invalidSymbols.length>0&&<small className="ws-field-warning">Use 1 to 8 letters or periods for each ticker.</small>}</label>
+                <StockSelector selected={allowedSymbols} onChange={(next) => setSymbols(next.join(', '))} />
                 <label className="ws-field"><span>Maximum single trade</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxOrder} onChange={(event) => setMaxOrder(event.target.value)} /></div></label>
                 <label className="ws-field"><span>Maximum spend per day</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} /></div><small>The permission total is two days of this limit: {Number.isFinite(dailyCents)?usd(dailyCents*2):'—'}.</small></label>
                 <label className="ws-field ws-field-wide"><span>Maximum one-stock exposure</span><div className="ws-input-unit"><input type="number" min="0" max="100" step="0.1" value={maxPosition} onChange={(event) => setMaxPosition(event.target.value)} /><b>%</b></div><small>0 to 100% of the account value.</small></label>

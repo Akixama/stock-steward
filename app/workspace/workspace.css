@@ -724,3 +724,36 @@ carries side margins for its other surfaces, which would inset it here. */
 #ws-real-orders .ws-order-blocked-next span{display:grid;place-items:center;flex:none;width:19px;height:19px;border:1px solid #5b6a4c;border-radius:6px;color:#d5e5bf;font-size:10px;font-weight:700;letter-spacing:0}
 #ws-real-orders .ws-order-blocked>.ws-action-primary{display:inline-flex;align-items:center;justify-content:center;gap:9px;grid-column:2;grid-row:1/3;white-space:nowrap}
 @media(max-width:720px){.ws-permission-explainer-points{grid-template-columns:1fr}.ws-permission-explainer-points span{padding:10px 12px}#ws-real-orders .ws-order-blocked{grid-template-columns:1fr;padding:19px;gap:16px}.ws-order-blocked-next{grid-column:1;margin-left:0}#ws-real-orders .ws-order-blocked>.ws-action-primary{grid-column:1;grid-row:auto;justify-self:stretch}}
+
+/* Mandate stock discovery: the list mirrors active official chain assets. */
+.ws-stock-picker{display:grid;gap:12px;min-width:0}
+.ws-stock-picker-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.ws-stock-picker-head>div{min-width:0}
+.ws-stock-picker-head label{display:block;color:#edf1e9;font-size:13px;font-weight:700}
+.ws-stock-picker-head p{margin:5px 0 0;color:#aab5a1;font-size:11px;line-height:1.5}
+.ws-stock-picker-head>span{flex:none;padding:5px 8px;border:1px solid #435336;border-radius:7px;color:#c6dcaa;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+.ws-stock-selected{display:flex;flex-wrap:wrap;gap:6px}
+.ws-stock-selected button{display:inline-flex;align-items:center;gap:10px;min-height:30px;padding:5px 9px;border:1px solid #647d3a;border-radius:7px;background:#25341a;color:#d7efa9;font-size:11px;font-weight:700}
+.ws-stock-selected button:hover{background:#324624}
+.ws-stock-selected svg{opacity:.75}
+.ws-stock-search{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 13px;border:1px solid #526146;border-radius:9px;background:#0d120b;color:#9eaf92;transition:border-color .15s ease,box-shadow .15s ease}
+.ws-stock-search:focus-within{border-color:#acd432;box-shadow:0 0 0 3px #acd4321c}
+.ws-stock-search svg{flex:none}
+.ws-stock-search input{width:100%;min-width:0;height:44px;border:0;outline:0;background:transparent;color:#edf2e8;font-size:13px}
+.ws-stock-search input::placeholder{color:#84947d}
+.ws-stock-list-head{display:flex;justify-content:space-between;gap:12px;color:#a7b39c;font-size:10px}
+.ws-stock-list-head strong{color:#c9d3bf;font-weight:650}
+.ws-stock-results{display:grid;max-height:258px;overflow:auto;border:1px solid #303d2c;border-radius:10px;background:#121710;scrollbar-color:#5a6a4c transparent}
+.ws-stock-results button{display:grid;grid-template-columns:66px minmax(0,1fr) 20px;align-items:center;gap:10px;min-height:42px;padding:8px 12px;border:0;border-bottom:1px solid #30392c;background:transparent;color:#e1e8d9;text-align:left}
+.ws-stock-results button:last-child{border-bottom:0}
+.ws-stock-results button:hover:not(:disabled),.ws-stock-results button[aria-pressed=true]{background:#222d1b}
+.ws-stock-results button:disabled{opacity:.48;cursor:not-allowed}
+.ws-stock-results button:focus-visible,.ws-stock-selected button:focus-visible,.ws-stock-message button:focus-visible{outline:2px solid #c5ea72;outline-offset:-2px}
+.ws-stock-ticker{color:#d7eea7;font-size:11px;font-weight:750}
+.ws-stock-name{overflow:hidden;color:#d7dfd0;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.ws-stock-check{justify-self:end;color:#bada81;font-size:17px;line-height:1}
+.ws-stock-message{margin:0;padding:15px;color:#aebba6;font-size:12px;line-height:1.5}
+.ws-stock-message button{margin-left:8px;padding:3px 0;border:0;border-bottom:1px solid currentColor;background:none;color:#cde993;font-weight:700}
+.ws-stock-warning{margin:0;color:#e6bf9c;font-size:11px;line-height:1.5}
+.ws-stock-footnote{margin:0;color:#98a88f;font-size:11px;line-height:1.5}
+@media(max-width:560px){.ws-stock-picker-head{flex-direction:column;gap:8px}.ws-stock-picker-head>span{align-self:flex-start}.ws-stock-results{max-height:220px}.ws-stock-results button{grid-template-columns:55px minmax(0,1fr) 18px;gap:6px;padding:8px 10px}}
