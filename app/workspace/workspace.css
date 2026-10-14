@@ -707,7 +707,7 @@ carries side margins for its other surfaces, which would inset it here. */
 .ws-permission-explainer-points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .ws-permission-explainer-points span{display:flex;align-items:flex-start;gap:8px;min-width:0;padding:12px;border:1px solid #36442e;border-radius:9px;background:#1d2719;color:#d8e1d0;font-size:12px;line-height:1.45}
 .ws-permission-explainer-points svg{flex:none;margin-top:1px;color:#b9db7b}
-.ws-permission-explainer>p{margin:0;padding-top:12px;border-top:1px solid #35442d;color:#aebda2;font-size:12px;line-height:1.5}
+.ws-permission-explainer>p{max-width:none!important;margin:0;padding-top:12px;border-top:1px solid #35442d;color:#aebda2;font-size:12px;line-height:1.5}
 .ws-install-review .permission-actions .ws-action-primary:disabled{background:#252c20!important;border-color:#3b4834!important;color:#a9b59c!important;box-shadow:none!important;cursor:not-allowed;transform:none!important;opacity:1}
 .ws-install-driver .permission-actions{margin-top:0}
 .ws-install-driver .permission-actions>span{padding-top:3px;line-height:1.5}
