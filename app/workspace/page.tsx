@@ -4,8 +4,13 @@ import {D1DecisionLedger} from '@/db/ledger';
 import type {Mandate} from '@/lib/decision';
 import WorkspaceClient from './workspace-client';
 export const dynamic='force-dynamic';
-export default async function WorkspacePage(){
-  const user=await requireChatGPTUser('/workspace');
+export default async function WorkspacePage({searchParams}:{searchParams?:Promise<{view?:string|string[];symbol?:string|string[]}>}){
+  const params=await searchParams;
+  const requestedSymbol=typeof params?.symbol==='string'?params.symbol.toUpperCase():'';
+  const returnTo=params?.view==='alerts'&&/^[A-Z][A-Z0-9.]{0,7}$/.test(requestedSymbol)
+    ?`/workspace?view=alerts&symbol=${encodeURIComponent(requestedSymbol)}`
+    :params?.view==='alerts'?'/workspace?view=alerts':'/workspace';
+  const user=await requireChatGPTUser(returnTo);
   let mandate:Mandate|null=null;
   let storageError:string|null=null;
   try{

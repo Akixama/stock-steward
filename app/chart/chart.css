@@ -164,16 +164,14 @@
 /* A quiet scrolling market strip. Quote values still update only when sampled. */
 .market-ribbon-label{display:flex;align-items:center;gap:10px}
 .market-ribbon-label .market-live-dot{margin:0;width:5px;height:5px}
-.market-ribbon-scroll{overflow:hidden}
-.market-ribbon-track{display:flex;width:max-content;animation:market-ribbon-drift 62s linear infinite}
-.market-ribbon-scroll:hover .market-ribbon-track,.market-ribbon-scroll:focus-within .market-ribbon-track{animation-play-state:paused}
+.market-ribbon-scroll{overflow-x:auto;overflow-y:hidden}
+.market-ribbon-track{display:flex;width:max-content}
 .market-ribbon-group{display:flex;flex:none;width:max-content}
-.market-ribbon-group button,.market-ribbon-copy{display:flex;flex:none;align-items:center;gap:11px;width:150px;height:49px;padding:0 18px;border:0;border-right:1px solid #27272c;border-bottom:2px solid transparent;background:transparent;color:#d4d4db;font:600 .75rem var(--market-mono);white-space:nowrap}
-.market-ribbon-copy>span{color:#b3b3be;font-weight:500}
+.market-ribbon-group button{display:flex;flex:none;align-items:center;gap:11px;width:150px;height:49px;padding:0 18px;border:0;border-right:1px solid #27272c;border-bottom:2px solid transparent;background:transparent;color:#d4d4db;font:600 .75rem var(--market-mono);white-space:nowrap}
 .market-ribbon-group button{min-width:0;transition:background 160ms,color 160ms}
 .market-ribbon-group button:hover{background:#202025;color:#fff}
 .market-ribbon-group button[aria-pressed=true]{border-bottom-color:#cad2ff;background:#1c1c23;color:#fff}
-@keyframes market-ribbon-drift{to{transform:translateX(-50%)}}
+.market-ribbon-empty{display:flex;align-items:center;padding:0 18px;color:#93939d;font:.71rem var(--market-mono)}
 
 .market-plot{height:clamp(305px,31vw,440px)}
 .market-chart-foot{align-items:center;margin:8px 0 14px;line-height:1.5}
@@ -210,7 +208,6 @@
 .market-alert-link{width:100%;height:43px;border-radius:7px}
 .market-context-safe{margin-top:auto;padding-top:18px;font-size:.66rem}
 @media(max-width:1250px){.market-context{gap:12px;padding:12px;align-items:start}.market-context-top,.market-context-actions{padding:20px}.market-context-actions{border-left:1px solid #34333e}.market-context-action-icon{margin-bottom:12px}.market-context-safe{margin-top:0}}
-@media(max-width:760px){.market-plot{height:340px}.market-context{display:grid;grid-template-columns:1fr 1fr}.market-context-top,.market-context-actions{min-width:0}.market-ribbon-group button,.market-ribbon-copy{height:49px}}
+@media(max-width:760px){.market-plot{height:340px}.market-context{display:grid;grid-template-columns:1fr 1fr}.market-context-top,.market-context-actions{min-width:0}.market-ribbon-group button{height:49px}}
 @media(max-width:620px){.market-context{grid-template-columns:1fr}.market-plot{height:315px}.market-chart-foot{align-items:flex-start}.market-context-actions p{max-width:none}}
-@media(max-width:520px){.market-plot{height:295px}.market-ribbon-group button,.market-ribbon-copy{width:136px;height:44px;padding:0 11px;font-size:.68rem}}
-@media(prefers-reduced-motion:reduce){.market-ribbon-track{animation:none}.market-ribbon-scroll{overflow-x:auto}}
+@media(max-width:520px){.market-plot{height:295px}.market-ribbon-group button{width:136px;height:44px;padding:0 11px;font-size:.68rem}}
