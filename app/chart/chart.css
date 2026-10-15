@@ -160,3 +160,57 @@
 @media(max-width:760px){.market-header{height:58px}.market-header nav a,.market-header nav span{height:58px}.market-ribbon-label{padding:0 13px}.market-ribbon-caption{display:none}.market-layout{display:block;min-height:0}.market-list-scroll{max-height:none}.market-list-item{flex-basis:185px}.market-center{padding:0 17px 20px}.market-plot{height:390px}.market-instrument{height:76px}.market-quote-strip{min-height:108px}}
 @media(max-width:520px){.market-header{padding:0 13px}.market-topline{padding:0 13px}.market-ribbon{height:45px}.market-ribbon-label{font-size:.58rem}.market-ribbon-scroll button{height:44px;min-width:112px;padding:0 11px;font-size:.68rem}.market-center{padding:0 12px 17px}.market-quote-strip{grid-template-columns:1fr 1fr;gap:12px;min-height:0;padding:19px 0}.market-primary-quote strong{font-size:2.1rem}.market-quote-status{grid-column:1/-1}.market-plot{height:340px}.market-view-label{font-size:.65rem}.market-chart-toolbar{min-height:56px}.market-chart-foot{font-size:.64rem}.market-metrics>div{padding:13px 7px}}
 @media(hover:hover) and (pointer:fine){.market-ribbon-scroll button:active,.market-icon-action:active,.market-chart-expand:active,.market-alert-link:active{transform:scale(.97)}}
+
+/* A quiet scrolling market strip. Quote values still update only when sampled. */
+.market-ribbon-label{display:flex;align-items:center;gap:10px}
+.market-ribbon-label .market-live-dot{margin:0;width:5px;height:5px}
+.market-ribbon-scroll{overflow:hidden}
+.market-ribbon-track{display:flex;width:max-content;animation:market-ribbon-drift 62s linear infinite}
+.market-ribbon-scroll:hover .market-ribbon-track,.market-ribbon-scroll:focus-within .market-ribbon-track{animation-play-state:paused}
+.market-ribbon-group{display:flex;flex:none;width:max-content}
+.market-ribbon-group button,.market-ribbon-copy{display:flex;flex:none;align-items:center;gap:11px;width:150px;height:49px;padding:0 18px;border:0;border-right:1px solid #27272c;border-bottom:2px solid transparent;background:transparent;color:#d4d4db;font:600 .75rem var(--market-mono);white-space:nowrap}
+.market-ribbon-copy>span{color:#b3b3be;font-weight:500}
+.market-ribbon-group button{min-width:0;transition:background 160ms,color 160ms}
+.market-ribbon-group button:hover{background:#202025;color:#fff}
+.market-ribbon-group button[aria-pressed=true]{border-bottom-color:#cad2ff;background:#1c1c23;color:#fff}
+@keyframes market-ribbon-drift{to{transform:translateX(-50%)}}
+
+.market-plot{height:clamp(305px,31vw,440px)}
+.market-chart-foot{align-items:center;margin:8px 0 14px;line-height:1.5}
+.market-metrics>div{padding:14px 16px}
+.market-context{gap:14px;padding:16px;background:#0b0b0d}
+.market-context-top,.market-context-actions{min-width:0;border:1px solid #2b2b31;border-radius:11px;background:#111114}
+.market-context-top{flex:none;padding:21px}
+.market-context h2{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;margin:12px 0 23px;font:700 1.4rem var(--market-mono);letter-spacing:-.055em}
+.market-context h2 span{font:400 .68rem Inter,"Segoe UI",sans-serif;letter-spacing:0;color:#a4a4af}
+.market-context-quotes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.market-context-quotes>div{display:grid;gap:9px;padding:14px 12px;border:1px solid #323238;border-radius:8px;background:#18181c}
+.market-context-quotes span,.market-context-updated span{color:#9b9ba6;font:700 .59rem var(--market-mono);letter-spacing:.12em}
+.market-context-quotes strong{font:700 clamp(1.2rem,1.5vw,1.55rem) var(--market-mono);font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.market-context-spread,.market-context-updated{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 1px;border-bottom:1px solid #2b2b31;font-size:.75rem;color:#a5a5af}
+.market-context-spread strong,.market-context-updated strong{color:#e7e7ed;font:600 .75rem var(--market-mono);text-align:right}
+.market-context-range{padding:19px 1px 7px}
+.market-context-range-title,.market-context-range-values{display:flex;justify-content:space-between;gap:10px}
+.market-context-range-title{font-size:.73rem;color:#bcbcc5}
+.market-context-range-title strong{font:500 .67rem var(--market-mono);color:#8c8c98}
+.market-context-range-track{position:relative;height:4px;margin:17px 4px 11px;border-radius:4px;background:linear-gradient(90deg,#f17a85,#888ab8,#42d3a1)}
+.market-context-range-track i{position:absolute;top:50%;width:11px;height:11px;border:2px solid #f5f5f8;border-radius:50%;background:#151519;transform:translate(-50%,-50%)}
+.market-context-range-values{font:600 .68rem var(--market-mono);color:#c6c6cf}
+.market-context-updated{border-top:1px solid #2b2b31;border-bottom:0;margin-top:14px;padding-bottom:8px}
+.market-context-source{margin-top:11px;border-top:1px solid #2b2b31;color:#a8a8b2;font-size:.7rem;line-height:1.55}
+.market-context-source summary{display:flex;justify-content:space-between;align-items:center;padding-top:15px;cursor:pointer;list-style:none}
+.market-context-source summary::-webkit-details-marker{display:none}
+.market-context-source summary:hover{color:#eeeef4}
+.market-context-source p{margin:12px 0 7px}
+.market-context-source a{color:#cbd0ff!important;text-decoration:underline}
+.market-context-actions{position:relative;display:flex;flex-direction:column;align-items:flex-start;padding:20px 21px;border:1px solid #34333e;background:linear-gradient(145deg,#1b1b22,#111114 72%)}
+.market-context-action-icon{display:grid;place-items:center;width:37px;height:37px;margin-bottom:22px;border:1px solid #555464;border-radius:9px;background:#282833;color:#e2e4f9}
+.market-context h3{margin:9px 0 6px;font-size:1.42rem;letter-spacing:-.045em}
+.market-context-actions p{max-width:220px;margin:0 0 19px;color:#b5b5bf;font-size:.75rem}
+.market-alert-link{width:100%;height:43px;border-radius:7px}
+.market-context-safe{margin-top:auto;padding-top:18px;font-size:.66rem}
+@media(max-width:1250px){.market-context{gap:12px;padding:12px;align-items:start}.market-context-top,.market-context-actions{padding:20px}.market-context-actions{border-left:1px solid #34333e}.market-context-action-icon{margin-bottom:12px}.market-context-safe{margin-top:0}}
+@media(max-width:760px){.market-plot{height:340px}.market-context{display:grid;grid-template-columns:1fr 1fr}.market-context-top,.market-context-actions{min-width:0}.market-ribbon-group button,.market-ribbon-copy{height:49px}}
+@media(max-width:620px){.market-context{grid-template-columns:1fr}.market-plot{height:315px}.market-chart-foot{align-items:flex-start}.market-context-actions p{max-width:none}}
+@media(max-width:520px){.market-plot{height:295px}.market-ribbon-group button,.market-ribbon-copy{width:136px;height:44px;padding:0 11px;font-size:.68rem}}
+@media(prefers-reduced-motion:reduce){.market-ribbon-track{animation:none}.market-ribbon-scroll{overflow-x:auto}}
