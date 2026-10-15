@@ -74,3 +74,4 @@
 .market-candle-tooltip strong{color:#f0f4ec;font-size:.72rem}
 .market-candles g:focus-visible{outline:none}.market-candles g:focus-visible rect:not([fill=transparent]){stroke:#fff;stroke-width:2}
 @media(max-width:600px){.market-candles-label{top:7px;left:7px;gap:6px;font-size:.58rem}.market-candles-label span{font-size:.57rem}}
+@media(max-width:600px){.market-price-band span{font-size:.53rem;letter-spacing:.05em}.market-price-band small{font-size:.63rem}.market-chart-head{align-items:flex-start;flex-direction:column;gap:10px}.market-chart-head p{line-height:1.4}.market-periods{align-self:flex-start}}

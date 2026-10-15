@@ -33,11 +33,12 @@ export default function SampleCandleChart({history,period,symbol}:{history:Marke
  const active=hovered===null?null:candles[hovered];
  const latest=candles.at(-1);
  const lastY=latest?y(latest.closeCents):0;
+ const horizontalTicks=width<520?[0,2,4]:[0,1,2,3,4];
  return <div ref={ref} className="market-candles">
   <div className="market-candles-label">SAMPLED CANDLES <span>{candleIntervalLabel(intervalMs)} groups · {history.length} recorded bids</span></div>
   <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${symbol} sampled bid candlestick chart with ${candles.length} candles`}>
    {[0,1,2,3,4].map(index=>{const value=min+(max-min)*(index/4),vertical=y(value);return <g key={index}><line x1={left} x2={width-right+4} y1={vertical} y2={vertical} stroke="#242d25" strokeWidth="1"/><text x={width-right+9} y={vertical+4} fill="#9aa79a" fontSize="11" fontFamily="var(--market-mono)">{money(Math.round(value))}</text></g>;})}
-   {[0,1,2,3,4].map(index=>{const time=start+(end-start)*(index/4),horizontal=x(time);return <g key={index}><line x1={horizontal} x2={horizontal} y1={top} y2={height-bottom} stroke="#1a221b" strokeWidth="1"/><text x={horizontal} y={height-12} textAnchor="middle" fill="#879487" fontSize="11" fontFamily="var(--market-mono)">{clock(time,period)}</text></g>;})}
+   {horizontalTicks.map(index=>{const time=start+(end-start)*(index/4),horizontal=x(time);return <g key={index}><line x1={horizontal} x2={horizontal} y1={top} y2={height-bottom} stroke="#1a221b" strokeWidth="1"/><text x={horizontal} y={height-12} textAnchor="middle" fill="#879487" fontSize="11" fontFamily="var(--market-mono)">{clock(time,period)}</text></g>;})}
    {candles.map((candle,index)=>{
     const center=x(candle.startAt+intervalMs/2),up=candle.closeCents>candle.openCents,down=candle.closeCents<candle.openCents;
     const color=up?'#36d49b':down?'#f06472':'#b9df48';
