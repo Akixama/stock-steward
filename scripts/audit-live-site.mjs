@@ -10,7 +10,7 @@ async function check(path,expected,init={}){
 }
 for(const path of ['/','/guide','/privacy','/terms'])await check(path,[200]);
 await check('/workspace',[302,303,307]);
-for(const path of ['/api/workspace/orders/live/status','/api/workspace/permission/install','/api/workspace/goal','/api/workspace/practice','/api/workspace/ownership']){
+for(const path of ['/api/workspace/orders/live/status','/api/workspace/permission/install','/api/workspace/wallets/previous','/api/workspace/goal','/api/workspace/practice','/api/workspace/ownership']){
  await check(path,[401]);
  await check(path,[401],{headers:{'oai-authenticated-user-id':'audit-probe','oai-authenticated-user-email':'probe@example.invalid'}});
 }

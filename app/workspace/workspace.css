@@ -712,6 +712,14 @@ carries side margins for its other surfaces, which would inset it here. */
 .ws-install-review .permission-actions .ws-action-primary:disabled{background:#252c20!important;border-color:#3b4834!important;color:#a9b59c!important;box-shadow:none!important;cursor:not-allowed;transform:none!important;opacity:1}
 .ws-install-driver .permission-actions{margin-top:0}
 .ws-install-driver .permission-actions>span{padding-top:3px;line-height:1.5}
+.ws-previous-wallet{display:grid;gap:12px;padding:20px 22px;border:1px solid #657442;border-radius:16px;background:linear-gradient(145deg,#1d2717,#171c13);color:#e9efde}
+.ws-previous-wallet>.ws-label{color:#b6d679}
+.ws-previous-wallet>strong{font-size:1rem;line-height:1.35}
+.ws-previous-wallet p{margin:0;color:#b6c0aa;font-size:.85rem;line-height:1.6}
+.ws-previous-wallet>a{color:#c6e28c;font-size:.82rem;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.ws-previous-balances{display:flex;flex-wrap:wrap;gap:10px}
+.ws-previous-balances span{display:grid;gap:4px;min-width:150px;padding:10px 13px;border:1px solid #3c4b2d;border-radius:10px;background:#12190f;color:#aab79b;font-size:.72rem}
+.ws-previous-balances b{color:#f0f3e9;font-size:.92rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 
 #ws-real-orders .ws-order-blocked{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:24px;row-gap:18px;align-items:center;margin:0;padding:22px 24px;border:1px solid #465039;border-radius:15px;background:linear-gradient(120deg,#1c2118,#171b15);animation:none}
 .ws-order-blocked-heading{display:flex;align-items:flex-start;gap:13px;min-width:0}

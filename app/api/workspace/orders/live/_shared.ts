@@ -41,8 +41,11 @@ export async function getCode(address: string, transport: typeof fetch): Promise
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getCode", params: [address, "latest"] }),
     cache: "no-store",
   });
-  const body = await response.json() as { result?: string };
-  return body.result ?? "0x";
+  const body = await response.json() as { result?: string; error?: unknown };
+  if (!response.ok || body.error || typeof body.result !== 'string' || !/^0x(?:[0-9a-f]{2})*$/i.test(body.result)) {
+    throw new Error('Wallet code could not be verified.');
+  }
+  return body.result;
 }
 
 export async function listModules(safe: string, transport: typeof fetch): Promise<string[]> {
@@ -287,10 +290,8 @@ export async function checkPermissionState(db: D1Database, userId: string) {
   const located = await locateSafe(db, userId);
   let safeHasCode = false;
   let modules: string[] = [];
-  try {
-    safeHasCode = (await getCode(located.safe, located.transport)) !== "0x";
-    if (safeHasCode) modules = await listModules(located.safe, located.transport);
-  } catch { /* Unreadable chain state simply reports nothing found. */ }
+  safeHasCode = (await getCode(located.safe, located.transport)) !== "0x";
+  if (safeHasCode) modules = await listModules(located.safe, located.transport);
   // Resume a recorded deployment before searching historical logs. A module
   // can exist without being enabled on the Safe after an interrupted install.
   // The record is only a discovery hint; prove its admin and execution target.
@@ -307,7 +308,10 @@ export async function checkPermissionState(db: D1Database, userId: string) {
         staleModule = recorded.module;
       } catch { /* Unproven records never become candidates. */ }
     }
-    if (!staleModule) staleModule = await findUnenabledModule(located.safe, located.transport);
+    if (!staleModule) staleModule = await Promise.race([
+      findUnenabledModule(located.safe, located.transport),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Earlier permission search timed out. No setup was offered.')), 12000)),
+    ]);
   }
   return { safe: located.safe, safeHasCode, modules, staleModule };
 }

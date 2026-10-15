@@ -32,6 +32,8 @@ type Phase = {
   // can carry them verbatim; present on steps responses, absent elsewhere.
   outputs?: { token: string; fee: number; tickSpacing: number; minimumOutputRaw: string }[];
 };
+type PreviousWallet = { safe: string; mandateVersion: number; usdg: string | null;
+  holdings: { symbol: string; tokens: string | null }[]; verified: boolean };
 
 export default function InstallDriver({ provider, address, policyVersion, feesOk, expires }: {
   provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean; expires: string;
@@ -49,6 +51,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [chain, setChain] = useState(false);
   const [skipBatch, setSkipBatch] = useState(false);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
+  const [previousWallet, setPreviousWallet] = useState<PreviousWallet | null>(null);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -121,9 +124,16 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   // searches), so the browser asks directly. Read-only: nothing is sent.
   async function scanLocally(safe: string): Promise<string | null> {
     if (!provider) return null;
+    const deadline = Date.now() + 12000;
+    const read = async (method: string, params: unknown[]) => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error('The wallet history check timed out. No setup was offered.');
+      return Promise.race([provider.request({ method, params }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('The wallet history check timed out. No setup was offered.')), remaining))]);
+    };
     try {
-      const head = await provider.request({ method: 'eth_blockNumber', params: [] }) as string;
-      if (!/^0x[0-9a-f]+$/i.test(head)) return null;
+      const head = await read('eth_blockNumber', []) as string;
+      if (!/^0x[0-9a-f]+$/i.test(head)) throw new Error('The wallet history could not be checked. No setup was offered.');
       const masterTopic = `0x${'0'.repeat(24)}${ROLES_MASTER.slice(2).toLowerCase()}`;
       const safeTail = safe.slice(2).toLowerCase();
       let cursor = BigInt(head);
@@ -133,34 +143,31 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const from = cursor - size > 0n ? cursor - size : 0n;
         let logs: { topics?: string[] }[] | null = null;
         try {
-          logs = await provider.request({ method: 'eth_getLogs',
-            params: [{ address: FACTORY, topics: [CREATION_SIG],
-              fromBlock: `0x${from.toString(16)}`, toBlock: `0x${cursor.toString(16)}` }] }) as { topics?: string[] }[];
+          logs = await read('eth_getLogs', [{ address: FACTORY, topics: [CREATION_SIG],
+            fromBlock: `0x${from.toString(16)}`, toBlock: `0x${cursor.toString(16)}` }]) as { topics?: string[] }[];
         } catch {
           size = size / 2n;
-          if (size < 1_000n) return null;
+          if (Date.now() >= deadline || size < 1_000n) throw new Error('The wallet history could not be checked. No setup was offered.');
           continue;
         }
-        if (Array.isArray(logs)) {
-          const proxies = [...new Set(logs
-            .filter((entry) => entry.topics?.[2]?.toLowerCase() === masterTopic)
-            .map((entry) => entry.topics?.[1])
-            .filter((topic): topic is string => typeof topic === 'string' && /^0x[0-9a-f]{64}$/i.test(topic))
-            .map((topic) => `0x${topic.slice(-40)}`))];
-          for (const proxy of proxies) {
-            try {
-              const owner = await provider.request({ method: 'eth_call',
-                params: [{ to: proxy, data: '0x8da5cb5b' }, 'latest'] }) as string;
-              if (typeof owner === 'string' && owner.toLowerCase().endsWith(safeTail)) return proxy;
-            } catch { /* Unreadable candidate; keep looking. */ }
-          }
+        if (!Array.isArray(logs)) throw new Error('The wallet history returned an invalid response. No setup was offered.');
+        const proxies = [...new Set(logs
+          .filter((entry) => entry.topics?.[2]?.toLowerCase() === masterTopic)
+          .map((entry) => entry.topics?.[1])
+          .filter((topic): topic is string => typeof topic === 'string' && /^0x[0-9a-f]{64}$/i.test(topic))
+          .map((topic) => `0x${topic.slice(-40)}`))];
+        for (const proxy of proxies) {
+          try {
+            const owner = await read('eth_call', [{ to: proxy, data: '0x8da5cb5b' }, 'latest']) as string;
+            if (typeof owner === 'string' && owner.toLowerCase().endsWith(safeTail)) return proxy;
+          } catch { throw new Error('An earlier module could not be checked. No setup was offered.'); }
         }
         scanned += cursor - from;
         cursor = from;
         size = 50_000n;
         if (from === 0n) break;
       }
-    } catch { /* Any wallet search failure simply reports nothing found. */ }
+    } catch (cause) { throw cause instanceof Error ? cause : new Error('The wallet history could not be checked. No setup was offered.'); }
     return null;
   }
 
@@ -176,23 +183,28 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const checkResponse = await fetch('/api/workspace/permission/install?check=1',
           { cache: 'no-store', signal: AbortSignal.timeout(25000) });
         const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; staleModule?: string | null };
-        if (checkResponse.ok) {
-          say(`${check.safeHasCode ? "Your trading wallet is ready. Checking permission." : "Your trading wallet needs setup."}`);
-        }
+        if (!checkResponse.ok || !check.safe || typeof check.safeHasCode !== 'boolean') throw new Error('Existing wallet state could not be verified. No setup was offered.');
+        say(check.safeHasCode ? 'This mandate has a wallet. Checking its permission.' : 'This mandate needs its own wallet. Earlier holdings stay in their original wallet.');
         const candidate = checkResponse.ok
           ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
           : null;
-        if (candidate && await adoptModule(candidate)) return;
+        if (candidate) {
+          if (await adoptModule(candidate)) return;
+          throw new Error('An earlier permission was found but could not be verified. No new setup was offered.');
+        }
         // The server search came back empty: its chain provider refuses history
         // searches, so look through the wallet's own connection instead.
-        if (checkResponse.ok && check.safe) {
-          say('Server found nothing. Checking through your wallet instead.');
+        if (check.safeHasCode) {
+          say('Checking this wallet for an earlier permission module.');
           const local = await scanLocally(check.safe);
-          if (local && await adoptModule(local)) return;
-          say('No leftover found in recent history. Building fresh below.');
+          if (local) {
+            if (await adoptModule(local)) return;
+            throw new Error('An earlier permission was found but could not be verified. No new setup was offered.');
+          }
+          say('No earlier module found for this wallet.');
         }
       } catch (checkCause) {
-        say(`Prior onchain state could not be read (${checkCause instanceof Error ? checkCause.message : 'network unavailable'}). Building fresh below.`);
+        throw new Error(checkCause instanceof Error ? checkCause.message : 'Existing wallet state could not be checked. No setup was offered.');
       }
       const response = await fetch('/api/workspace/permission/install', { cache: 'no-store' });
       const payload = await response.json() as Phase & { error?: string };
@@ -202,8 +214,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       // Pre-flight: the factory must answer, and an already-created wallet is
       // skipped, never re-sent (re-creating it would always fail onchain).
       const codeOf = async (target: string) => {
-        try { return await provider.request({ method: 'eth_getCode', params: [target, 'latest'] }) as string; }
-        catch { return '0x'; }
+        const code = await Promise.race([provider.request({ method: 'eth_getCode', params: [target, 'latest'] }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Wallet network check timed out. No setup was offered.')), 8000))]);
+        if (typeof code !== 'string' || !/^0x[0-9a-f]*$/i.test(code)) throw new Error('Wallet network check failed. No setup was offered.');
+        return code;
       };
       const factoryCode = await codeOf(payload.steps[0].to);
       if (!factoryCode || factoryCode === '0x') {
@@ -423,8 +437,28 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     finally { setBusy(false); }
   }
   useEffect(() => { if (!provider) return; const timer = setTimeout(() => void refreshStatus(), 0); return () => clearTimeout(timer); }, [provider, address, policyVersion]);
+  useEffect(() => {
+    if (policyVersion < 2) return;
+    const controller = new AbortController();
+    void fetch('/api/workspace/wallets/previous', { cache: 'no-store', signal: controller.signal })
+      .then(async response => response.ok ? response.json() as Promise<{ wallet: PreviousWallet | null }> : null)
+      .then(result => { if (!controller.signal.aborted) setPreviousWallet(result?.wallet ?? null); })
+      .catch(() => { /* An unavailable read must not imply an empty old wallet. */ });
+    return () => controller.abort();
+  }, [provider, address, policyVersion]);
   const current = phase?.steps?.[next];
   return <div className="ws-install-driver">
+    {previousWallet && previousWallet.mandateVersion < policyVersion && <div className="ws-previous-wallet" role="note">
+      <span className="ws-label">EARLIER WALLET · MANDATE V{previousWallet.mandateVersion}</span>
+      <strong>Your earlier holdings stay in their original wallet.</strong>
+      <p>This mandate uses a separate wallet. Changing your limits did not transfer its funds, and new orders will not use these earlier balances.</p>
+      {previousWallet.verified && <div className="ws-previous-balances">
+        <span>USDG <b>{previousWallet.usdg ?? 'Balance unavailable'}</b></span>
+        {previousWallet.holdings.map(holding => <span key={holding.symbol}>{holding.symbol} tokens <b>{holding.tokens ?? 'Balance unavailable'}</b></span>)}
+      </div>}
+      {!previousWallet.verified && <p>Its owner and balances could not be checked just now. Use the explorer link to inspect it.</p>}
+      <a href={`https://robinhoodchain.blockscout.com/address/${previousWallet.safe}`} target="_blank" rel="noopener noreferrer">View earlier wallet on Robinhood Chain ↗</a>
+    </div>}
     {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}
     {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
     <div className="ws-chain-tools permission-actions">
