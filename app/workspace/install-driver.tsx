@@ -5,6 +5,7 @@ import { decodeEventLog, parseAbi } from 'viem';
 import { rolesFactoryAbi } from '@/lib/roles-permission';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import { remainingInstallData } from '@/lib/remaining-install';
+import PreviousWalletRecovery from './previous-wallet-recovery';
 
 const FACTORY = '0x000000000000aDdB49795b0f9bA5BC298cDda236';
 const ROLES_MASTER = '0xf2964ce6161ce0e75964fe7927ce114cb0b283d5';
@@ -52,6 +53,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [skipBatch, setSkipBatch] = useState(false);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const [previousWallet, setPreviousWallet] = useState<PreviousWallet | null>(null);
+  const [previousWalletRefresh, setPreviousWalletRefresh] = useState(0);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -445,7 +447,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       .then(result => { if (!controller.signal.aborted) setPreviousWallet(result?.wallet ?? null); })
       .catch(() => { /* An unavailable read must not imply an empty old wallet. */ });
     return () => controller.abort();
-  }, [provider, address, policyVersion]);
+  }, [provider, address, policyVersion, previousWalletRefresh]);
   const current = phase?.steps?.[next];
   return <div className="ws-install-driver">
     {previousWallet && previousWallet.mandateVersion < policyVersion && <div className="ws-previous-wallet" role="note">
@@ -457,6 +459,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         {previousWallet.holdings.map(holding => <span key={holding.symbol}>{holding.symbol} tokens <b>{holding.tokens ?? 'Balance unavailable'}</b></span>)}
       </div>}
       {!previousWallet.verified && <p>Its owner and balances could not be checked just now. Use the explorer link to inspect it.</p>}
+      {previousWallet.verified && <PreviousWalletRecovery provider={provider} address={address} safe={previousWallet.safe} assets={[
+        { symbol: 'USDG', quantity: previousWallet.usdg },
+        ...previousWallet.holdings.map(holding => ({ symbol: holding.symbol, quantity: holding.tokens })),
+      ]} onComplete={() => setPreviousWalletRefresh(value => value + 1)} />}
       <a href={`https://robinhoodchain.blockscout.com/address/${previousWallet.safe}`} target="_blank" rel="noopener noreferrer">View earlier wallet on Robinhood Chain ↗</a>
     </div>}
     {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}

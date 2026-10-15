@@ -717,6 +717,10 @@ carries side margins for its other surfaces, which would inset it here. */
 .ws-previous-wallet>strong{font-size:1rem;line-height:1.35}
 .ws-previous-wallet p{margin:0;color:#b6c0aa;font-size:.85rem;line-height:1.6}
 .ws-previous-wallet>a{color:#c6e28c;font-size:.82rem;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.ws-previous-recovery{display:grid;gap:14px;padding:17px;border:1px solid #3f5035;border-radius:12px;background:#101810}
+.ws-previous-recovery>div>strong{font-size:.93rem}.ws-previous-recovery p{font-size:.78rem;line-height:1.55}
+.ws-previous-recovery-assets{display:flex;flex-wrap:wrap;gap:8px}.ws-previous-recovery-assets button,.ws-previous-recovery-review button{padding:10px 13px;border:1px solid #668145;border-radius:7px;background:#202e1a;color:#e4f0d0;font-size:.77rem;font-weight:700}.ws-previous-recovery-assets button:hover,.ws-previous-recovery-review button:hover{background:#324621}.ws-previous-recovery button:disabled{opacity:.5;cursor:not-allowed}
+.ws-previous-recovery-review{display:grid;gap:9px;padding:14px;border:1px solid #a8ca58;border-radius:9px;background:#1b2817}.ws-previous-recovery-review>span{color:#bbd98b;font-size:.62rem;font-weight:800;letter-spacing:.12em}.ws-previous-recovery-review>strong{font-size:1rem}.ws-previous-recovery-review code{overflow-wrap:anywhere;color:#e9f5d6}.ws-previous-recovery-review>div{display:flex;flex-wrap:wrap;gap:8px}.ws-previous-recovery-review button:first-child{background:#b4da3b;color:#14200d;border-color:#b4da3b}.ws-previous-recovery-error{color:#f3b8ad!important}.ws-previous-recovery>a{color:#c6e28c;text-decoration:underline;font-size:.76rem}
 .ws-previous-balances{display:flex;flex-wrap:wrap;gap:10px}
 .ws-previous-balances span{display:grid;gap:4px;min-width:150px;padding:10px 13px;border:1px solid #3c4b2d;border-radius:10px;background:#12190f;color:#aab79b;font-size:.72rem}
 .ws-previous-balances b{color:#f0f3e9;font-size:.92rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}

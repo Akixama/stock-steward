@@ -29,13 +29,14 @@ export default function SampleCandleChart({history,period,symbol}:{history:Marke
  const end=candles.length?candles.at(-1)!.startAt+intervalMs*2:1;
  const x=(time:number)=>left+((time-start)/(end-start))*plotWidth;
  const y=(cents:number)=>top+((max-cents)/(max-min))*plotHeight;
- const barWidth=Math.max(5,Math.min(20,plotWidth/(candles.length*1.7)));
+ const barWidth=Math.max(5,Math.min(16,plotWidth/(candles.length*1.45)));
  const active=hovered===null?null:candles[hovered];
  const latest=candles.at(-1);
+ const readout=active??latest;
  const lastY=latest?y(latest.closeCents):0;
  const horizontalTicks=width<520?[0,2,4]:[0,1,2,3,4];
  return <div ref={ref} className="market-candles">
-  <div className="market-candles-label">SAMPLED CANDLES <span>{candleIntervalLabel(intervalMs)} groups · {history.length} recorded bids</span></div>
+  <div className="market-candles-label"><span>{candleIntervalLabel(intervalMs)} CANDLES · {history.length} SAVED BIDS</span>{readout&&<span className="market-candle-readout">O {money(readout.openCents)} <b>H {money(readout.highCents)}</b> L {money(readout.lowCents)} <b>C {money(readout.closeCents)}</b></span>}</div>
   <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${symbol} sampled bid candlestick chart with ${candles.length} candles`}>
    {[0,1,2,3,4].map(index=>{const value=min+(max-min)*(index/4),vertical=y(value);return <g key={index}><line x1={left} x2={width-right+4} y1={vertical} y2={vertical} stroke="#242d25" strokeWidth="1"/><text x={width-right+9} y={vertical+4} fill="#9aa79a" fontSize="11" fontFamily="var(--market-mono)">{money(Math.round(value))}</text></g>;})}
    {horizontalTicks.map(index=>{const time=start+(end-start)*(index/4),horizontal=x(time);return <g key={index}><line x1={horizontal} x2={horizontal} y1={top} y2={height-bottom} stroke="#1a221b" strokeWidth="1"/><text x={horizontal} y={height-12} textAnchor="middle" fill="#879487" fontSize="11" fontFamily="var(--market-mono)">{clock(time,period)}</text></g>;})}
@@ -50,6 +51,7 @@ export default function SampleCandleChart({history,period,symbol}:{history:Marke
      <rect x={center-Math.max(12,barWidth)/2} y={top} width={Math.max(12,barWidth)} height={plotHeight} fill="transparent"/>
     </g>;
    })}
+   {active&&<g pointerEvents="none"><line x1={x(active.startAt+intervalMs/2)} x2={x(active.startAt+intervalMs/2)} y1={top} y2={height-bottom} stroke="#81947e" strokeWidth="1" strokeDasharray="4 4" opacity=".6"/><line x1={left} x2={width-right+4} y1={y(active.closeCents)} y2={y(active.closeCents)} stroke="#81947e" strokeWidth="1" strokeDasharray="4 4" opacity=".6"/></g>}
    {latest&&<g><line x1={x(latest.startAt+intervalMs/2)} x2={width-right+4} y1={lastY} y2={lastY} stroke="#b9df48" strokeWidth="1" strokeDasharray="3 4" opacity=".65"/><rect x={width-right+5} y={lastY-11} width={right-8} height="22" rx="3" fill="#b9df48"/><text x={width-right+10} y={lastY+4} fill="#10170d" fontSize="11" fontWeight="700" fontFamily="var(--market-mono)">{money(latest.closeCents)}</text></g>}
   </svg>
   {active&&<div className="market-candle-tooltip" style={{left:Math.min(width-188,Math.max(8,x(active.startAt+intervalMs/2)-85))}}><strong>{clock(active.startAt,period)} · {active.observations} {active.observations===1?'sample':'samples'}</strong><span>O {money(active.openCents)} · H {money(active.highCents)}</span><span>L {money(active.lowCents)} · C {money(active.closeCents)}</span></div>}
