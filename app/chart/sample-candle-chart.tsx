@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import type {MarketSample} from '@/lib/market-chart';
 import {sampledCandles} from '@/lib/market-candles';
 
@@ -14,15 +14,16 @@ export default function SampleCandleChart({history,period,symbol}:{history:Marke
  useEffect(()=>{
   const node=ref.current;
   if(!node)return;
-  const observer=new ResizeObserver(entries=>setSize({width:Math.max(280,Math.round(entries[0].contentRect.width)),height:Math.max(280,Math.round(entries[0].contentRect.height))}));
+  const observer=new ResizeObserver(entries=>{const width=Math.max(280,Math.round(entries[0].contentRect.width)),height=Math.max(280,Math.round(entries[0].contentRect.height));setSize(current=>current.width===width&&current.height===height?current:{width,height});});
   observer.observe(node);
   return()=>observer.disconnect();
  },[]);
- const {candles}=sampledCandles(history);
+ // Hovering a bar updates the tooltip; it should not regroup and sort the
+ // entire price history on every pointer move.
+ const {candles}=useMemo(()=>sampledCandles(history),[history]);
  const {width,height}=size,left=14,right=76,top=20,bottom=38;
  const plotWidth=Math.max(80,width-left-right),plotHeight=height-top-bottom;
- const values=candles.flatMap(candle=>[candle.highCents,candle.lowCents]);
- const rawMin=values.length?Math.min(...values):0,rawMax=values.length?Math.max(...values):100;
+ const [rawMin,rawMax]=useMemo(()=>candles.length?[Math.min(...candles.map(candle=>candle.lowCents)),Math.max(...candles.map(candle=>candle.highCents))]:[0,100],[candles]);
  const pad=Math.max(25,Math.round((rawMax-rawMin)*.14));
  const min=rawMin-pad,max=rawMax+pad;
  // Place recorded candles in observation order. Empty clock intervals have no
