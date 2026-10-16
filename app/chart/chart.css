@@ -211,3 +211,5 @@
 @media(max-width:760px){.market-plot{height:340px}.market-context{display:grid;grid-template-columns:1fr 1fr}.market-context-top,.market-context-actions{min-width:0}.market-ribbon-group button{height:49px}}
 @media(max-width:620px){.market-context{grid-template-columns:1fr}.market-plot{height:315px}.market-chart-foot{align-items:flex-start}.market-context-actions p{max-width:none}}
 @media(max-width:520px){.market-plot{height:295px}.market-ribbon-group button{width:136px;height:44px;padding:0 11px;font-size:.68rem}}
+@media(max-width:1450px){.market-candles-label .market-candle-readout{display:none}}
+.market-candles-label{white-space:nowrap}

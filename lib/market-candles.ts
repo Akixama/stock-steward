@@ -9,7 +9,9 @@ export function sampledCandles(samples:MarketSample[]):{candles:SampleCandle[];i
   .sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt));
  if(!ordered.length)return {candles:[],intervalMs:15*60_000};
  const first=Date.parse(ordered[0].observedAt),last=Date.parse(ordered.at(-1)!.observedAt);
- const targetBars=Math.min(36,Math.max(1,Math.ceil(ordered.length/2)));
+ // Keep enough recorded detail for a dense chart without inventing prices
+ // for time buckets that contain no observations.
+ const targetBars=Math.min(96,Math.max(1,Math.ceil(ordered.length*.8)));
  const intervalMs=Math.max(60_000,Math.ceil(Math.max(60_000,last-first)/targetBars/60_000)*60_000);
  const candles:SampleCandle[]=[];
  for(const sample of ordered){
@@ -22,7 +24,12 @@ export function sampledCandles(samples:MarketSample[]):{candles:SampleCandle[];i
    candle.lowCents=Math.min(candle.lowCents,sample.bidCents);
    candle.closeCents=sample.bidCents;
    candle.observations++;
-  }else candles.push({startAt,endAt:time,openCents:sample.bidCents,highCents:sample.bidCents,lowCents:sample.bidCents,closeCents:sample.bidCents,observations:1});
+  }else{
+   // The first saved bid in a bucket is not an exchange open. Use the last
+   // recorded bid as the starting point for the observed change instead.
+   const previousBid=candle?.closeCents??sample.bidCents;
+   candles.push({startAt,endAt:time,openCents:previousBid,highCents:Math.max(previousBid,sample.bidCents),lowCents:Math.min(previousBid,sample.bidCents),closeCents:sample.bidCents,observations:1});
+  }
  }
  return {candles,intervalMs};
 }
