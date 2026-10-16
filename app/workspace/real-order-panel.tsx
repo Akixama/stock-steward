@@ -26,11 +26,11 @@ type Prepared = {
   symbol: string; amountCents: number; minimumOutputRaw: string; outputToken: string; expiresAt: string;
 };
 
-export default function RealOrderPanel({ provider, address, onOpenMandate }: {
-  provider: WalletProvider | null; address: string; onOpenMandate: () => void;
+export default function RealOrderPanel({ provider, address, onOpenMandate, preferredSymbol }: {
+  provider: WalletProvider | null; address: string; onOpenMandate: () => void; preferredSymbol?: string;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
-  const [symbol, setSymbol] = useState('');
+  const [symbol, setSymbol] = useState(preferredSymbol ?? '');
   const [prepared, setPrepared] = useState<Prepared | null>(null);
   const [intent, setIntent] = useState('');
   const [hash, setHash] = useState('');
@@ -78,7 +78,8 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
         const latest = unsaved ?? payload.latestOrder;
         if (latest && latest.intentDigest !== dismissedIntent.current) { setHash(latest.hash); setIntent(latest.intentDigest); }
       }
-      if (payload.permissionActive && !symbol && payload.symbols.length) setSymbol(payload.symbols[0]);
+      if (payload.permissionActive && preferredSymbol) setSymbol(preferredSymbol);
+      else if (payload.permissionActive && !symbol && payload.symbols.length) setSymbol(payload.symbols[0]);
       if (!payload.permissionActive && payload.blocked === 'activation' && payload.safe) void recover(payload.safe);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Order status unavailable.');
@@ -189,8 +190,9 @@ export default function RealOrderPanel({ provider, address, onOpenMandate }: {
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on the permission above first. Real orders stay locked until activation is verified.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
-    {status?.permissionActive && !prepared && !hash && <div className="ws-check-fields ws-order-fields">
-      <label>Stock<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select></label>
+    {status?.permissionActive && preferredSymbol && !status.symbols.includes(preferredSymbol) && !hash && <div className="ws-order-plan ws-order-blocked" role="status"><strong>{preferredSymbol} is outside your approved stocks.</strong><p>Update your limits and activate the new permission before placing an order for this stock.</p><button type="button" className="ws-action-primary" onClick={onOpenMandate}>Update Mandate <ArrowRight size={16}/></button></div>}
+    {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
+      <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
       <label>Pay · USD, fixed by your permission<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
     {!provider && !hash && !(status && !status.permissionActive && status.blocked === 'limits') && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}

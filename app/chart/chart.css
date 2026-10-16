@@ -213,3 +213,33 @@
 @media(max-width:520px){.market-plot{height:295px}.market-ribbon-group button{width:136px;height:44px;padding:0 11px;font-size:.68rem}}
 @media(max-width:1450px){.market-candles-label .market-candle-readout{display:none}}
 .market-candles-label{white-space:nowrap}
+.market-context-quote-note{margin:-12px 0 20px;color:#a9a9b2;font-size:.7rem;line-height:1.55}
+.market-context-actions .market-buy-link,.market-context-actions .market-alert-link{width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:9px;border-radius:7px;padding:0 13px;font-size:.73rem;font-weight:800;text-align:left}
+.market-context-actions .market-buy-link{border:1px solid #e4e4ea;background:#e4e4ea;color:#101014;transition:background .16s ease,transform .16s ease}
+.market-context-actions .market-buy-link:hover:not(:disabled){background:#fff;transform:translateY(-1px)}
+.market-context-actions .market-buy-link:disabled{opacity:.5;cursor:not-allowed}
+.market-context-actions .market-alert-link{margin-top:9px;border:1px solid #51515d;background:#202026;color:#e4e4eb!important}
+.market-context-actions .market-alert-link:hover{background:#2a2a32}
+.market-order-dialog{position:fixed;inset:0 0 0 auto;margin:0;width:min(440px,100vw);height:100dvh;max-width:none;max-height:none;padding:0;border:0;border-left:1px solid #45454f;background:#111114;color:#f1f1f4;box-shadow:-18px 0 42px #0008;overflow-y:auto;overscroll-behavior:contain}
+.market-order-dialog::backdrop{background:#0003}
+.market-order-shell.ws{min-height:100%;padding:25px;background:#111114}
+.market-order-head{display:flex;align-items:start;gap:12px;padding:0 0 20px;border-bottom:1px solid #35353d}
+.market-order-head>div{min-width:0;flex:1}
+.market-order-head h2{font-size:1.63rem;line-height:1.12;letter-spacing:-.045em;margin:12px 0 8px}
+.market-order-head p{margin:0;max-width:45ch;color:#aaaab4;font-size:.78rem;line-height:1.55}
+.market-order-close{flex:none;display:grid;place-items:center;width:35px;height:35px;border:1px solid #45454f;border-radius:8px;background:#222229;color:#d6d6df}
+.market-order-close:hover{background:#303039}
+.market-order-safety{display:flex;align-items:start;gap:10px;margin:18px 0 4px;padding:13px;border:1px solid #3b493d;border-radius:9px;background:#192019;color:#c7dcc7;font-size:.74rem;line-height:1.5}
+.market-order-safety svg{flex:none;margin-top:1px}
+.market-order-message{margin-top:22px;padding:20px;border:1px solid #42424b;border-radius:12px;background:#1a1a20;color:#e8e8ee;font-size:.8rem;line-height:1.55}
+.market-order-message p{color:#aaaab4}
+.market-order-message button,.market-order-link{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:11px 14px;border:1px solid #e4e4e9;border-radius:8px;background:#e4e4e9;color:#111114!important;font-size:.76rem;font-weight:800;text-decoration:none}
+.market-order-shell .ws-wallet-setup,.market-order-shell .ws-install-review{margin:18px 0 0;padding:20px;border-radius:12px}
+.market-order-shell .ws-account-head{gap:12px}
+.market-order-shell .ws-account-head h3{font-size:1.32rem}
+.market-order-shell .ws-check-fields.ws-order-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.market-order-shell .ws-check-fields.ws-order-fields button{grid-column:1/-1}
+.market-order-shell .ws-live-balances{grid-template-columns:1fr 1fr}
+.market-order-shell .ws-fund-row{min-width:0}
+.market-order-shell .ws-fund-row code{overflow-wrap:anywhere}
+@media(max-width:560px){.market-order-dialog{width:100vw}.market-order-shell.ws{padding:18px}.market-order-shell .ws-check-fields.ws-order-fields,.market-order-shell .ws-live-balances{grid-template-columns:1fr}}

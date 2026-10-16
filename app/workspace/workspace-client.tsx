@@ -35,7 +35,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
-  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('view');if(requested!=='alerts')return;const timer=setTimeout(()=>setView('alerts'),0);return()=>clearTimeout(timer);},[]);
+  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('view');if(requested!=='alerts'&&requested!=='mandate')return;const timer=setTimeout(()=>setView(requested),0);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const nav=navRef.current;if(!nav)return;const measure=()=>{const selected=nav.querySelector<HTMLButtonElement>('button.selected');if(selected)setIndicator({left:selected.offsetLeft,width:selected.offsetWidth});};measure();const observer=new ResizeObserver(measure);observer.observe(nav);return()=>observer.disconnect();},[view]);
   useEffect(()=>()=>{navigation.current++;motion.current?.cancel();},[]);
   const [animateView, setAnimateView] = useState(true);
