@@ -46,13 +46,13 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
   const needsLimits = /mandate|limits|symbol|token contract/i.test(error);
   const needsWallet = /ownership|verify your wallet/i.test(error);
   const step = needsLimits
-    ? { n: '1', title: 'Set your limits first', why: 'There is nothing to turn on until your limits are saved.', action: 'Open Mandate', go: onOpenMandate }
+    ? { n: '1', title: 'Set your limits first', why: 'There is nothing to turn on until your limits are saved.', action: 'Set limits', go: onOpenMandate }
     : needsWallet
       ? { n: '2', title: 'Prove the wallet is yours', why: 'A free signature proves you control it. Activation needs that proof first.', action: 'Verify wallet', go: () => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth', block: 'start' }) }
       : null;
   return <section className="ws-install-review" id="ws-activation">
-    <div className="ws-account-head"><div><span className="ws-label">PERMISSION / REVIEW</span>
-      <h3>Review your trading limits.</h3>
+    <div className="ws-account-head"><div><span className="ws-label">REVIEW BUYING ACCESS</span>
+      <h3>Review what buying would allow.</h3>
       <p>Check your limits and estimated fees before approving setup.</p></div>
       {plan && <button type="button" className="ws-recheck" onClick={load} disabled={busy}>{busy ? 'Compiling…' : 'Refresh review'}</button>}</div>
     {busy && !plan && <p className="ws-chain-note">Checking what is ready…</p>}
@@ -66,7 +66,7 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
     {plan && <div className="ws-install-body">
       <PermissionReviewDetails plan={plan} />
       <div className="ws-permission-explainer" role="note">
-        <div className="ws-permission-explainer-title"><span className="ws-permission-explainer-icon"><ShieldCheck size={19} aria-hidden="true" /></span><div><span className="ws-label">PERMISSION SCOPE</span><strong>What turning this on allows</strong></div></div>
+        <div className="ws-permission-explainer-title"><span className="ws-permission-explainer-icon"><ShieldCheck size={19} aria-hidden="true" /></span><div><span className="ws-label">WHAT YOU ALLOW</span><strong>What turning this on allows</strong></div></div>
         <div className="ws-permission-explainer-points">
           <span><Check size={15} aria-hidden="true" /> Buy {plan.summary.outputs} only, within the limits above</span>
           <span><Check size={15} aria-hidden="true" /> You approve each purchase in your wallet</span>

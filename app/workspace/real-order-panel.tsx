@@ -168,13 +168,13 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
   }, [hash, intent, busy, receiptState]);
 
   return <section className="ws-install-review" id="ws-real-orders" aria-busy={busy}>
-    <div className="ws-account-head"><div><span className="ws-label">REAL ORDERS / PILOT</span>
+    <div className="ws-account-head"><div><span className="ws-label">BUY WITH REAL FUNDS</span>
       <h3>Buy stock tokens.</h3>
       <p>You review and approve every purchase in your wallet.</p></div>
       <button type="button" className="ws-recheck" onClick={() => { recovered.current = false; void loadStatus(); }} disabled={busy}>Refresh</button></div>
     {status?.permissionActive && <p className="ws-chain-note">
-      Committed today {dollars(status.spentTodayCents)} (includes pending orders) · {dollars(status.remainingTodayCents)} available in your daily budget.</p>}
-    {status?.permissionActive && <div className="ws-live-balances" aria-label="Steward wallet balances"><div><span>USDG available</span><strong>{status.balanceCents === null ? 'Unavailable' : dollars(status.balanceCents)}</strong></div>{status.holdings?.map(holding => <div key={holding.symbol}><span>{holding.symbol} tokens held</span><strong>{holding.tokens === null ? 'Unavailable' : holding.tokens}</strong></div>)}<small>Onchain wallet balances. Pending reservations are budget holds, not additional payments.</small></div>}
+      Used from today’s limit {dollars(status.spentTodayCents)} (including orders in progress) · {dollars(status.remainingTodayCents)} left for today.</p>}
+    {status?.permissionActive && <div className="ws-live-balances" aria-label="Steward wallet balances"><div><span>USDG available</span><strong>{status.balanceCents === null ? 'Unavailable' : dollars(status.balanceCents)}</strong></div>{status.holdings?.map(holding => <div key={holding.symbol}><span>{holding.symbol} tokens held</span><strong>{holding.tokens === null ? 'Unavailable' : holding.tokens}</strong></div>)}<small>Balances shown are in your wallet. Orders in progress count toward your daily limit; they do not charge you twice.</small></div>}
     {status?.permissionActive && !hash && <div className="ws-fund-card">
       <span className="ws-label">FUND THIS WALLET</span>
       <p>{status.balanceCents == null
@@ -185,25 +185,25 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
       <div className="ws-fund-row"><code>{status.safe}</code><button type="button" disabled={busy} onClick={async () => { try { await navigator.clipboard.writeText(status.safe); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { setError('Could not copy the address. Select and copy it manually.'); } }}>{copied ? 'Copied' : 'Copy'}</button></div></div>}
     {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan ws-order-blocked" role="status">
       <div className="ws-order-blocked-heading"><span className="ws-order-blocked-icon"><Clock3 size={20} aria-hidden="true" /></span><div><span className="ws-label">ORDER PAUSED</span><strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired':'Your limits need an update'}</strong><p>{/window ended|expired/i.test(status.detail??'') ? 'The saved limits above are a proposal for a new permission. They have not extended the old one.' : status.detail ?? 'Review and save your purchase limits before ordering.'}</p></div></div>
-      <div className="ws-order-blocked-next"><div><span>1</span> Save a new mandate version</div><div><span>2</span> Approve the new permission in your wallet</div></div>
-      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update Mandate <ArrowRight size={16} aria-hidden="true" /></button></div>}
+      <div className="ws-order-blocked-next"><div><span>1</span> Save your updated limits</div><div><span>2</span> Approve the new permission in your wallet</div></div>
+      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update limits <ArrowRight size={16} aria-hidden="true" /></button></div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
-    {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on the permission above first. Real orders stay locked until activation is verified.'}</p>}
+    {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on buying above before placing an order.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
-    {status?.permissionActive && preferredSymbol && !status.symbols.includes(preferredSymbol) && !hash && <div className="ws-order-plan ws-order-blocked" role="status"><strong>{preferredSymbol} is outside your approved stocks.</strong><p>Update your limits and activate the new permission before placing an order for this stock.</p><button type="button" className="ws-action-primary" onClick={onOpenMandate}>Update Mandate <ArrowRight size={16}/></button></div>}
+    {status?.permissionActive && preferredSymbol && !status.symbols.includes(preferredSymbol) && !hash && <div className="ws-order-plan ws-order-blocked" role="status"><strong>{preferredSymbol} is outside your approved stocks.</strong><p>Update your limits and activate the new permission before placing an order for this stock.</p><button type="button" className="ws-action-primary" onClick={onOpenMandate}>Update limits <ArrowRight size={16}/></button></div>}
     {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
       <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
-      <label>Pay · USD, fixed by your permission<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
-      <button type="button" onClick={prepare} disabled={busy || !provider}>Prepare exact order</button></div>}
+      <label>Amount to pay · USD, set by your limits<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
+      <button type="button" onClick={prepare} disabled={busy || !provider}>Review purchase</button></div>}
     {!provider && !hash && !(status && !status.permissionActive && status.blocked === 'limits') && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
-      <span>EXACT ORDER · SIGN WITHIN SECONDS</span>
+      <span>REVIEW IN YOUR WALLET SOON</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>
       <p>The quote expires in seconds. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
       <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>
       <button type="button" className="ws-action-quiet" onClick={() => setPrepared(null)} disabled={busy}>Discard</button></div>}
-    {hash && <div className="ws-order-events"><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · FINALITY PENDING' : receiptState === 'included' ? 'TRANSACTION SUCCEEDED · CHECKING RECEIPT' : receiptState === 'reverted' ? 'TRANSACTION REVERTED' : 'SENT · VERIFYING'}</span>
-      <div><b>{receiptState === 'confirmed' ? 'Stock-token purchase confirmed' : receiptState === 'included' ? 'Transaction succeeded onchain' : receiptState === 'verified' ? 'Receipt verified' : receiptState === 'reverted' ? 'No purchase completed' : 'Transaction recorded'}</b><small>{hash.slice(0, 18)}…</small></div>
+    {hash && <div className="ws-order-events"><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · CHECKING FINAL STATUS' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
+      <div><b>{receiptState === 'confirmed' ? 'Stock-token purchase confirmed' : receiptState === 'included' ? 'Payment sent; checking your purchase' : receiptState === 'verified' ? 'Purchase verified' : receiptState === 'reverted' ? 'No purchase completed' : 'Transaction sent'}</b><small>{hash.slice(0, 18)}…</small></div>
       <a className="ws-recheck" href={`https://robinhoodchain.blockscout.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">View transaction ↗</a>
       <p className="ws-chain-note">No additional funds are needed for this submitted order.</p>
       {receiptState!=='verified'&&<button type="button" className="ws-transaction-check" onClick={track} disabled={busy}>{busy ? 'Checking transaction…' : 'Check this transaction'}</button>}</div>}

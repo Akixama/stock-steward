@@ -16,10 +16,10 @@ export default function WalletOrdersPanel({mandate,onOpenMandate}:{mandate:Manda
   const receiveAddress=useCallback((next:string)=>setAddress(next),[]);
 
   return <section id="ws-wallet-orders" className="ws-check-panel ws-autonomy-panel">
-    <div className="ws-account-head"><div><span className="ws-label"><ShieldCheck size={14}/> WALLET, PERMISSION &amp; ORDERS</span>
-      <h2>Your trading controls.</h2><p>Use one wallet connection to verify ownership, activate your limits and approve each purchase.</p></div>
+    <div className="ws-account-head"><div><span className="ws-label"><ShieldCheck size={14}/> WALLET & BUYING</span>
+      <h2>Your wallet and purchases.</h2><p>Use one wallet connection to verify ownership, activate your limits and approve each purchase.</p></div>
       <span className="ws-autonomy-state"><CirclePause size={16}/> Approval required</span></div>
-    <p className="ws-chain-note">Mandate v{mandate.version || '—'} · Every real order opens in your wallet for approval.</p>
+    <p className="ws-chain-note">Your saved limits apply to every purchase. Each real order needs your approval in your wallet.</p>
     <WalletSetup onProvider={receiveProvider} onAddress={receiveAddress} disabled={false}/>
     <InstallReview key={`review-${address}-${mandate.version}`} provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
     <RealOrderPanel key={`orders-${address}-${mandate.version}`} provider={walletProvider} address={address} onOpenMandate={onOpenMandate}/>

@@ -29,12 +29,12 @@ export default function AlertsPanel({mandate}:{mandate:Mandate}){
   <div className="ws-alert-layout">
    <form className="ws-alert-form" onSubmit={e=>{e.preventDefault();void create();}}>
     <div className="ws-alert-fields">
-     <div className="ws-alert-stock-field"><label htmlFor="ws-alert-stock-search">Stock to watch</label><p>Alerts can watch any supported stock. Your Mandate still controls what you can buy.</p><div className="ws-stock-search"><Search size={16} aria-hidden="true"/><input id="ws-alert-stock-search" type="search" value={stockSearch} onChange={event=>setStockSearch(event.target.value)} placeholder="Search by company or ticker" aria-controls="ws-alert-stock-results"/></div><div className="ws-alert-stock-choice">Selected: <strong>{stockLoading?'Loading…':symbol}</strong></div>{stockLoading?<small role="status">Loading available stocks…</small>:stockError?<small role="alert">{stockError} <button type="button" onClick={()=>{setStockLoading(true);setStockRetry(value=>value+1);}}>Try again</button></small>:<div id="ws-alert-stock-results" className="ws-alert-stock-results" role="group" aria-label="Available stocks">{matchingStocks.length?matchingStocks.map(stock=><button type="button" key={stock.symbol} aria-pressed={symbol===stock.symbol} onClick={()=>setSymbol(stock.symbol)}><strong>{stock.symbol}</strong><span>{stock.name}</span>{symbol===stock.symbol&&<Check size={15} aria-hidden="true"/>}</button>):<small>No match. Try another name or ticker.</small>}</div>}</div>
+     <div className="ws-alert-stock-field"><label htmlFor="ws-alert-stock-search">Stock to watch</label><p>Alerts can watch any supported stock. Your buying limits still decide which stocks you can buy.</p><div className="ws-stock-search"><Search size={16} aria-hidden="true"/><input id="ws-alert-stock-search" type="search" value={stockSearch} onChange={event=>setStockSearch(event.target.value)} placeholder="Search by company or ticker" aria-controls="ws-alert-stock-results"/></div><div className="ws-alert-stock-choice">Selected: <strong>{stockLoading?'Loading…':symbol}</strong></div>{stockLoading?<small role="status">Loading available stocks…</small>:stockError?<small role="alert">{stockError} <button type="button" onClick={()=>{setStockLoading(true);setStockRetry(value=>value+1);}}>Try again</button></small>:<div id="ws-alert-stock-results" className="ws-alert-stock-results" role="group" aria-label="Available stocks">{matchingStocks.length?matchingStocks.map(stock=><button type="button" key={stock.symbol} aria-pressed={symbol===stock.symbol} onClick={()=>setSymbol(stock.symbol)}><strong>{stock.symbol}</strong><span>{stock.name}</span>{symbol===stock.symbol&&<Check size={15} aria-hidden="true"/>}</button>):<small>No match. Try another name or ticker.</small>}</div>}</div>
      <label>Alert me when the price is<select value={direction} onChange={e=>setDirection(e.target.value as 'above'|'below')}><option value="above">at or above</option><option value="below">at or below</option></select></label>
      <label>Target price · USD<input required inputMode="decimal" value={price} onChange={e=>setPrice(e.target.value)} placeholder="e.g. 175.00"/></label>
     </div>
     <button className="ws-action-primary" disabled={busy||stockLoading||!!stockError||!stocks.some(stock=>stock.symbol===symbol)||!price.trim()}>Set alert <BellRing size={16}/></button>
-    <small>Compared with the latest bid price. Indicative only, it may differ from what you would actually pay.</small>
+    <small>Based on the regular share price. A stock token may cost something different.</small>
    </form>
    <div className="ws-alert-list">
     <div className="ws-alert-list-head"><div><span className="ws-label">YOUR ALERTS</span><small>{lastChecked?`Last checked ${lastChecked.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`:'Not checked this visit'}</small></div><button className="ws-action-secondary" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check prices now'}</button></div>
@@ -47,6 +47,6 @@ export default function AlertsPanel({mandate}:{mandate:Mandate}){
     </div>)}
    </div>
   </div>
-  <p className="ws-alert-footnote">Alerts use indicative stock bid prices. Scheduled checks run about every 15 minutes, so a brief price move may be missed. Alerts never place orders.</p>
+  <p className="ws-alert-footnote">We check regular share prices about every 15 minutes. Short price moves may be missed. Alerts never buy or sell for you.</p>
  </section>;
 }
