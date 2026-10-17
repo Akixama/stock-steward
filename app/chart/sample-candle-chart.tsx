@@ -36,12 +36,13 @@ export default function SampleCandleChart({history,period,symbol}:{history:Marke
  const latest=candles.at(-1);
  const readout=active??latest;
  const lastY=latest?y(latest.closeCents):0;
- const horizontalTicks=width<520?[0,2,4]:[0,1,2,3,4];
+ const tickCount=Math.min(width<520?3:5,candles.length);
+ const horizontalTicks=Array.from({length:tickCount},(_,index)=>tickCount===1?0:Math.round((candles.length-1)*index/(tickCount-1)));
  return <div ref={ref} className="market-candles">
   <div className="market-candles-label"><span>PRICE HISTORY</span>{readout&&<span className="market-candle-readout">{clock(readout.startAt,period)} <b>{money(readout.closeCents)}</b></span>}</div>
   <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${symbol} price history from periodic checks; prices between checks are not shown`}>
    {[0,1,2,3,4].map(index=>{const value=min+(max-min)*(index/4),vertical=y(value);return <g key={index}><line x1={left} x2={width-right+4} y1={vertical} y2={vertical} stroke="#29292e" strokeWidth="1"/><text x={width-right+9} y={vertical+4} fill="#a8a8b0" fontSize="11" fontFamily="var(--market-mono)">{money(Math.round(value))}</text></g>;})}
-   {horizontalTicks.map(index=>{const candleIndex=Math.min(candles.length-1,Math.round((candles.length-1)*index/4)),candle=candles[candleIndex],horizontal=x(candleIndex);return candle?<g key={index}><line x1={horizontal} x2={horizontal} y1={top} y2={height-bottom} stroke="#202024" strokeWidth="1"/><text x={horizontal} y={height-12} textAnchor={index===0?'start':index===4?'end':'middle'} fill="#a0a0aa" fontSize="11" fontFamily="var(--market-mono)">{clock(candle.startAt,period)}</text></g>:null;})}
+   {horizontalTicks.map((candleIndex,index)=>{const candle=candles[candleIndex],horizontal=x(candleIndex);return candle?<g key={candleIndex}><line x1={horizontal} x2={horizontal} y1={top} y2={height-bottom} stroke="#202024" strokeWidth="1"/><text x={horizontal} y={height-12} textAnchor={index===0?'start':index===horizontalTicks.length-1?'end':'middle'} fill="#a0a0aa" fontSize="11" fontFamily="var(--market-mono)">{clock(candle.startAt,period)}</text></g>:null;})}
    {candles.map((candle,index)=>{
     const center=x(index),up=candle.closeCents>candle.openCents,down=candle.closeCents<candle.openCents;
     const color=up?'#37d4a0':down?'#f06472':'#babac4';
