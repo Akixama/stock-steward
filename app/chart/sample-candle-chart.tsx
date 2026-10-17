@@ -4,9 +4,9 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import type {MarketSample} from '@/lib/market-chart';
 import {sampledCandles} from '@/lib/market-candles';
 
-type Period='1D'|'7D'|'30D';
+type Period='4H'|'12H'|'1D'|'3D'|'7D'|'30D';
 const money=(cents:number)=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(cents/100);
-const clock=(time:number,period:Period)=>new Date(time).toLocaleString([],period==='1D'?{hour:'numeric',minute:'2-digit'}:{month:'short',day:'numeric'});
+const clock=(time:number,period:Period)=>new Date(time).toLocaleString([],period==='4H'||period==='12H'||period==='1D'?{hour:'numeric',minute:'2-digit'}:{month:'short',day:'numeric'});
 
 export default function SampleCandleChart({history,period,symbol}:{history:MarketSample[];period:Period;symbol:string}){
  const ref=useRef<HTMLDivElement>(null);
