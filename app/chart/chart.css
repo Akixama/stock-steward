@@ -125,6 +125,12 @@
 .market-center{padding:0 clamp(22px,2.3vw,42px) 23px}
 .market-instrument{height:88px}
 .market-asset-icon-large{width:46px;height:46px;border-radius:10px;font-size:1.15rem}
+.market-asset-icon{position:relative;overflow:hidden;flex:none}
+.market-asset-icon img{position:absolute;inset:0;width:100%;height:100%;padding:4px;object-fit:contain;border-radius:inherit;background:#f3f3f5}
+.market-asset-icon img[hidden]{display:none}
+.market-asset-icon-large img{padding:6px}
+.market-footer-links{display:flex;align-items:center;flex-wrap:wrap;gap:10px 20px}
+.market-footer-links a:first-child{color:#aaaab5!important;font-size:.68rem}
 .market-ticker-row h1{font-size:1.57rem;letter-spacing:-.055em}
 .market-ticker-row span{padding:4px 6px;border:1px solid #3c3c44;border-radius:4px;color:#a9a9b3;font-size:.57rem}
 .market-instrument p{font-size:.82rem}
