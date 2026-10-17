@@ -184,6 +184,7 @@
 
 .market-plot{height:clamp(305px,31vw,440px)}
 .market-chart-foot{align-items:center;margin:8px 0 14px;line-height:1.5}
+.market-range-coverage{margin:-2px 0 16px;padding:10px 12px;border:1px solid #494635;border-radius:6px;background:#1b1a13;color:#d8d0ac;font-size:.72rem;line-height:1.5}
 .market-metrics>div{padding:14px 16px}
 .market-context{gap:14px;padding:16px;background:#0b0b0d}
 .market-context-top,.market-context-actions{min-width:0;border:1px solid #2b2b31;border-radius:11px;background:#111114}
