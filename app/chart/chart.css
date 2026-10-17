@@ -161,6 +161,13 @@
 @media(max-width:760px){.market-header{height:58px}.market-header nav a,.market-header nav span{height:58px}.market-ribbon-label{padding:0 13px}.market-ribbon-caption{display:none}.market-layout{display:block;min-height:0}.market-list-scroll{max-height:none}.market-list-item{flex-basis:185px}.market-list-more{flex:0 0 185px}.market-center{padding:0 17px 20px}.market-plot{height:390px}.market-instrument{height:76px}.market-quote-strip{min-height:108px}}
 @media(max-width:520px){.market-header{padding:0 13px}.market-topline{padding:0 13px}.market-ribbon{height:45px}.market-ribbon-label{font-size:.58rem}.market-ribbon-scroll button{height:44px;min-width:112px;padding:0 11px;font-size:.68rem}.market-center{padding:0 12px 17px}.market-quote-strip{grid-template-columns:1fr 1fr;gap:12px;min-height:0;padding:19px 0}.market-primary-quote strong{font-size:2.1rem}.market-quote-status{grid-column:1/-1}.market-plot{height:340px}.market-view-label{font-size:.65rem}.market-chart-toolbar{min-height:56px}.market-chart-foot{font-size:.64rem}.market-metrics>div{padding:13px 7px}}
 @media(max-width:620px){.market-chart-toolbar{flex-wrap:wrap;padding:10px 0}.market-chart-controls{width:100%;justify-content:space-between}.market-periods{flex:1}.market-periods button{flex:1;min-width:0;padding:8px 4px}}
+.market-plot-limited{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:24px;text-align:center;border:1px solid #292a32;border-radius:10px;background:radial-gradient(ellipse at 50% 90%,#1a1b25 0%,#0d0d10 58%)}
+.market-plot-limited-kicker{color:#a3a7bd;font:700 .66rem var(--market-mono);letter-spacing:.12em}
+.market-plot-limited strong{color:#eeeef3;font-size:clamp(1.15rem,2.2vw,1.75rem);letter-spacing:-.04em}
+.market-plot-limited-price{color:#d4d8ff;font:700 clamp(1.8rem,3.5vw,2.65rem) var(--market-mono);font-variant-numeric:tabular-nums;letter-spacing:-.065em}
+.market-plot-limited p{max-width:39ch;margin:0;color:#a9a9b4;font-size:.76rem;line-height:1.6}
+.market-plot-limited button{display:inline-flex;align-items:center;gap:9px;margin-top:6px;padding:10px 13px;border:1px solid #4b4c5b;border-radius:7px;background:#202129;color:#ececf3;font-size:.72rem;font-weight:700;cursor:pointer}
+.market-plot-limited button:hover{border-color:#bdc4ff;background:#292b37}
 @media(hover:hover) and (pointer:fine){.market-ribbon-scroll button:active,.market-icon-action:active,.market-chart-expand:active,.market-alert-link:active{transform:scale(.97)}}
 
 /* A quiet scrolling market strip. Quote values still update only when sampled. */
