@@ -8,7 +8,7 @@ const cdn='https://cdn.tickerlogos.com/';
 const pause=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 const skipWords=new Set(['inc','corp','corporation','company','companies','holdings','holding','class','common','stock','shares','limited','group','fund','trust','technologies','technology','etf','the']);
 // Current company domains for symbols where the search index is missing or stale.
-const domainOverrides={AUR:'aurora.tech',CRDO:'credosemi.com',P:'everpuredata.com',XOM:'exxonmobil.com',FIG:'figma.com',SPMO:'invesco.com',IONQ:'ionq.com',IREN:'irenlimited.com',JOBY:'jobyaviation.com',KSS:'kohls.com',NNE:'nanonuclearenergy.com',NVTS:'navitassemi.com',NU:'nu.com',PR:'permianres.com',POET:'poet-technologies.com',RDW:'redwirespace.com',RGTI:'rigetti.com',RIVN:'rivian.com',RKLB:'rocketlabcorp.com',SOUN:'soundhound.com',SPCX:'spacex.com',MSTR:'strategy.com',WULF:'terawulf.com',SMH:'vaneck.com',XNDU:'xanadu.ai'};
+const domainOverrides={AUR:'aurora.tech',CRDO:'credosemi.com',P:'everpuredata.com',XOM:'exxonmobil.com',FIG:'figma.com',SPMO:'invesco.com',IONQ:'ionq.com',IREN:'iren.com',JOBY:'jobyaviation.com',KSS:'kohls.com',NNE:'nanonuclearenergy.com',NVTS:'navitassemi.com',NU:'nu.com',PR:'permianres.com',POET:'poet-technologies.com',RDW:'redwirespace.com',RGTI:'rigetti.com',RIVN:'rivian.com',RKLB:'rocketlabcorp.com',SOUN:'soundhound.com',SPCX:'spacex.com',MSTR:'strategy.com',WULF:'terawulf.com',SMH:'vaneck.com',XNDU:'xanadu.ai'};
 const words=(name)=>new Set(name.toLowerCase().replace(/[^a-z0-9]+/g,' ').split(' ').filter(word=>word.length>=3&&!skipWords.has(word)));
 const matches=(expected,actual)=>{
  const expectedWords=words(expected),actualWords=words(actual);
@@ -52,10 +52,34 @@ for(const [position,stock] of catalog.entries()){
  let type=logo.headers.get('content-type')??'';
  if(!logo.ok||!type.startsWith('image/')){
   // A verified company's own favicon is preferable to a guessed logo.
-  try{logo=await get(`https://${domain}/favicon.ico`);type=logo.headers.get('content-type')??'';}catch{skipped++;continue;}
+  try{logo=await get(`https://${domain}/favicon.ico`);type=logo.headers.get('content-type')??'';}catch{/* Try the icon linked from the home page. */}
+ }
+ if(!logo.ok||!type.startsWith('image/')){
+  try{
+   const home=await get(`https://${domain}`);
+   const html=await home.text();
+   const tags=[...html.matchAll(/<link\b[^>]*>/gi)].map(match=>match[0]);
+   const paths=tags.filter(tag=>/\brel\s*=\s*["'][^"']*icon/i.test(tag))
+    .map(tag=>tag.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1]).filter(Boolean);
+   paths.push('/apple-touch-icon.png');
+   for(const path of paths){
+    const url=new URL(path,home.url);
+    if(url.hostname!==domain&&url.hostname!==`www.${domain}`&&!url.hostname.endsWith(`.${domain}`))continue;
+    const candidate=await get(url.toString());
+    const candidateType=candidate.headers.get('content-type')??'';
+    if(candidate.ok&&/image\/(png|webp|jpeg|x-icon|vnd\.microsoft\.icon)/i.test(candidateType)){logo=candidate;type=candidateType;break;}
+   }
+  }catch{/* Keep the symbol if the company site does not expose an image. */}
+ }
+ if((!logo.ok||!/image\/(png|webp|jpeg|x-icon|vnd\.microsoft\.icon)/i.test(type))&&domainOverrides[stock.symbol]){
+  try{logo=await get(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);type=logo.headers.get('content-type')??'';}catch{/* Keep the symbol if no icon is available. */}
  }
  if(!logo.ok||!type.startsWith('image/')){skipped++;continue;}
- const bytes=Buffer.from(await logo.arrayBuffer());
+ let bytes=Buffer.from(await logo.arrayBuffer());
+ if(bytes.length<100&&domainOverrides[stock.symbol]){
+  const fallback=await get(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`);
+  if(fallback.ok){logo=fallback;type=fallback.headers.get('content-type')??'';bytes=Buffer.from(await fallback.arrayBuffer());}
+ }
  if(bytes.length<100||bytes.length>500_000){skipped++;continue;}
  const extension=type.includes('png')?'png':type.includes('webp')?'webp':type.includes('jpeg')?'jpg':type.includes('icon')?'ico':null;
  if(!extension){skipped++;continue;}
