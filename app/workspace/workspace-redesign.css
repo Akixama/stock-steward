@@ -153,6 +153,72 @@
 .ws-action-secondary, .ws-action-quiet, .ws-recheck { border-color: #444953; color: #e2e3e7; background: #20242b; }
 .ws input, .ws select, .ws textarea { border-color: #454a55; background: #0c0e11; color: #f3f4f6; }
 .ws input::placeholder, .ws textarea::placeholder { color: #888e99; }
+
+/* Make approval details scannable before a wallet prompt. */
+.ws-order-plan, .ws-previous-recovery-review {
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #737d8d;
+  border-radius: 16px;
+  background: #1a1e25;
+  animation: none;
+}
+.ws-order-plan>span, .ws-previous-recovery-review>span { color: #c8cdd7; font-size: 11px; }
+.ws-order-plan>strong, .ws-previous-recovery-review>strong { color: #fff; font-size: clamp(18px, 2.4vw, 24px); line-height: 1.25; }
+.ws-order-plan>p, .ws-previous-recovery-review>p { color: #c4c7cf; font-size: 13px; line-height: 1.6; }
+.ws-exact-order-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; margin: 0; border-top: 1px solid #454b55; }
+.ws-exact-order-facts>div { min-width: 0; padding: 12px 0; border-bottom: 1px solid #454b55; }
+.ws-exact-order-facts dt { color: #aeb4c0; font-size: 12px; }
+.ws-exact-order-facts dd { margin: 5px 0 0; color: #f7f8fa; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.ws-previous-recovery { border-color: #343a43; background: #111419; border-radius: 14px; padding: 20px; }
+.ws-previous-recovery p { color: #b8bec9; }
+.ws-previous-recovery-assets button, .ws-previous-recovery-review button {
+  border-color: #4a515d;
+  border-radius: 10px;
+  background: #232832;
+  color: #e7eaf0;
+  min-height: 43px;
+}
+.ws-previous-recovery-review button:first-child { border-color: #f0f1f3; background: #f0f1f3; color: #111317; }
+.ws-previous-recovery-review code { color: #e1e4eb; }
+.ws-previous-wallet { border-color: #3e4750; background: #171c22; color: #eef0f3; }
+.ws-previous-wallet>.ws-label, .ws-previous-wallet>a, .ws-previous-recovery>a { color: #d5dce6; }
+.ws-previous-wallet p { color: #b6bbc5; }
+.ws-previous-balances span { border-color: #3b424c; background: #191d23; color: #bac0ca; }
+.ws-previous-balances b { color: #f5f6f7; }
+
+/* The rest of the workspace uses the same neutral controls and clear state colors. */
+.ws-editor, .ws-policy-preview, .ws-alert-form, .ws-alert-row,
+.ws-strategy-types, .ws-strategy-fields, .ws-start-path, .ws-practice-tools {
+  border-color: #303640;
+  background: #121519;
+}
+.ws-policy-preview { background: #181c22; }
+.ws-policy-preview h2, .ws-editor h2, .ws-check-panel h2 { color: #f4f5f6; }
+.ws-policy-sentence, .ws-editor-intro p { color: #c0c4cc; }
+.ws-order-rule, .ws-permission-explainer, .ws-strategy-review-action {
+  border-color: #46505d;
+  background: #1b2129;
+}
+.ws-order-rule .ws-label, .ws-permission-explainer-title .ws-label { color: #b7c4d5; }
+.ws-permission-explainer-icon { border-color: #576579; background: #293443; color: #edf1f7; }
+.ws-permission-explainer-points span { border-color: #3b4652; background: #202731; color: #e2e7ee; }
+.ws-permission-explainer-points svg { color: #a9cfb3; }
+.ws-permission-explainer>p { border-color: #3b4652; color: #bac4d1; }
+.ws-install-review { border-radius: 18px; background: #121519; }
+.ws-install-review .ws-label, .permission-eyebrow { color: #aeb5c1; }
+.ws-install-review .ws-account-head p { color: #afb6c0; }
+.ws-alert-fields select, .ws-alert-fields input { border-color: #4a505b; background: #0d0f12; }
+.ws-alert-row { border-radius: 13px; }
+.ws-alert-row small, .ws-alert-price span { color: #aeb5bf; }
+.ws-strategy-types .ws-strategy-group-options button,
+.ws-strategy-fields>label, .ws-strategy-fields input, .ws-strategy-fields select { border-color: #3c424c !important; background: #1a1e24 !important; }
+.ws-strategy-types .ws-strategy-group-options button[aria-pressed="true"],
+.ws-strategy-types button[aria-pressed="true"] { border-color: #a8b5c7 !important; background: #28323e !important; box-shadow: none; }
+.ws-strategy-types button small, .ws-strategy-fields>label small { color: #aeb5bf; }
+.ws-symbol-chips i { border-color: #536172; background: #202a35; color: #dce6f2; }
+.ws-save, .ws .ws-order-rule button { border-color: #f0f1f3; background: #f0f1f3; color: #111317; }
+.ws-nav button:active, .ws-action-primary:active:not(:disabled), .ws-action-secondary:active:not(:disabled) { transform: scale(.97); }
 @media (hover: hover) and (pointer: fine) {
   .ws-path button:hover { border-color: #8c939f; background: #232831; transform: translateY(-2px); }
   .ws-practice-callout:hover { background: #1b1e24; }
@@ -188,6 +254,9 @@
   .ws-path-count { font-size: 10px; }
   .ws-status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ws-status-strip>div:last-child { grid-column: 1 / -1; }
+  .ws-exact-order-facts { grid-template-columns: 1fr; }
+  .ws-order-plan, .ws-previous-recovery-review { padding: 17px; }
+  .ws-previous-recovery-review>div button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ws-view[data-animate="true"] { animation: none; }

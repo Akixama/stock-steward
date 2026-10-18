@@ -201,7 +201,13 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
     {prepared && <div className="ws-order-plan">
       <span>REVIEW IN YOUR WALLET SOON</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>
-      <p>The quote expires in seconds. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
+      <dl className="ws-exact-order-facts">
+        <div><dt>Amount to pay</dt><dd>{dollars(prepared.amountCents)} USDG</dd></div>
+        <div><dt>Minimum output</dt><dd>{tokens(prepared.minimumOutputRaw)} {prepared.symbol}</dd></div>
+        <div><dt>Network fee estimate</dt><dd>Shown in your wallet before approval</dd></div>
+        <div><dt>Quote expires</dt><dd>{new Date(prepared.expiresAt).toLocaleTimeString()}</dd></div>
+      </dl>
+      <p>The output is a minimum estimate, not a guaranteed market price. The network fee may change. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
       <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>
       <button type="button" className="ws-action-quiet" onClick={() => setPrepared(null)} disabled={busy}>Discard</button></div>}
     {hash && <div className="ws-order-events"><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · CHECKING FINAL STATUS' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
