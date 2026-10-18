@@ -105,14 +105,14 @@ export function buildInstall(input: {
   const moduleCall = rolesDeploymentCall(setup.account as Address, moduleSalt);
   const stepsA: InstallStep[] = [
     {
-      key: "create_safe", label: "Create your owner-controlled Steward wallet",
+      key: "create_safe", label: "Create your Steward wallet",
       to: setup.call.to as Address, data: setup.call.data,
-      verify: "A ProxyCreation event names the new wallet; it is owned only by you.",
+      verify: "This wallet is controlled by you. Your earlier holdings stay in their original wallet.",
     },
     {
-      key: "create_module", label: "Create the bounded-permission module",
+      key: "create_module", label: "Add your buying limits",
       to: moduleCall.to as Address, data: moduleCall.data as Hex,
-      verify: "A ModuleProxyCreation event names the module that will enforce your limits.",
+      verify: "This adds the contract that checks purchases against your saved limits.",
     },
   ];
   const phaseB = (module: Address, skipEnable = false) => {
@@ -190,7 +190,7 @@ export function buildInstall(input: {
         abi: safeAbi, functionName: "execTransaction",
         args: [MULTISEND.address as Address, 0n, encodeBatch(inners), 1, 0n, 0n, 0n, ZERO, ZERO, ownerSignature],
       }),
-      verify: "Every configuration lands in one transaction; the readback below verifies each one.",
+      verify: "This applies your saved limits and approves USDG spending up to your total limit. Review the transaction and network fee in your wallet.",
     };
     return { policy, steps, batched, compiled };
   };
