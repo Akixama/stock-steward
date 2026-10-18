@@ -68,6 +68,95 @@
 .ws-overview-mode { color: #c9cbd1; border-color: #373b44; background: #181b20; border-radius: 999px; padding: 9px 14px; }
 .ws :is(button, a, input, select, summary):focus-visible { outline: 2px solid #e9ebef; outline-offset: 3px; }
 .ws :is(input, select, textarea) { color-scheme: dark; }
+
+/* Put the next action, account state and balances in a quieter shared rhythm. */
+.ws-path {
+  margin: 0 0 16px;
+  padding: 22px;
+  border: 1px solid #30343b;
+  border-radius: 20px;
+  background: #111317;
+}
+.ws-path-head p { color: #b7bac2; font-size: 13px; }
+.ws-path-count { border-color: #424751; background: #1a1d23; color: #e0e1e5; }
+.ws-path ol { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 18px; }
+.ws-path button,
+.ws-path button[data-state="upcoming"],
+.ws-path button[data-state="done"],
+.ws-path button[data-state="current"] {
+  min-height: 124px;
+  padding: 14px;
+  border: 1px solid #343840;
+  border-radius: 12px;
+  background: #181b20;
+  box-shadow: none;
+  color: #eceef2;
+}
+.ws-path button[data-state="done"] { border-color: #49544d; background: #1c2420; }
+.ws-path button[data-state="current"] { border-color: #aab5c4; background: #242a33; box-shadow: inset 0 0 0 1px #aab5c435; }
+.ws-path-number { border-color: #5a606b; color: #d9dce3; background: #242830; }
+.ws-path button[data-state="done"] .ws-path-number { border-color: #7c9e87; background: #354c3e; color: #e8f3e9; }
+.ws-path button[data-state="current"] .ws-path-number { border-color: #c0c8d3; color: #fff; }
+.ws-path-state, .ws-path button[data-state="done"] .ws-path-state, .ws-path button[data-state="current"] .ws-path-state { color: #b9bec8; }
+.ws-path button strong { color: #f1f2f5; font-size: 13px; }
+.ws-path button small { color: #b0b4bf; font-size: 11px; }
+.ws-practice-callout {
+  margin: 0 0 16px;
+  border-color: #30343b;
+  background: #111317;
+  color: #e9eaee;
+  border-radius: 14px;
+}
+.ws-practice-callout small { color: #aaadb8; }
+.ws-status-strip { margin: 0 0 18px; padding: 12px 0; border-color: #30343b; }
+.ws-status-strip .ws-label { color: #989da7; }
+.ws-status-strip strong { color: #e4e5e9; }
+.ws-wallet-overview .ws-mandate-preview,
+.ws-overview-trail,
+.ws-editor,
+.ws-policy-preview,
+.ws-check-panel,
+.ws-install-review {
+  border-color: #30343b;
+  background: #121418;
+  box-shadow: none;
+}
+.ws-wallet-overview .ws-mandate-preview { border-radius: 18px; }
+.ws-wallet-overview .ws-preview-body h2 { color: #f5f5f3; font-size: 23px; font-weight: 650; }
+.ws-wallet-overview .ws-preview-body>p,
+.ws-wallet-overview .ws-preview-rule span,
+.ws-wallet-overview .ws-preview-rule small { color: #aeb2bc; }
+.ws-wallet-overview .ws-preview-rule strong { color: #f2f3f5; }
+.ws-wallet-overview .ws-text-action { background: #1a1d23; border-color: #30343b; }
+.ws-overview-trail { border-radius: 16px; }
+.ws-trail-monogram { color: #f2f3f5; border-color: #474c56; background: #252932; }
+.ws-overview-trail p { color: #acb0ba; }
+.ws-overview-more { border-color: #30343b; background: #111317; }
+.ws-overview-more>summary { color: #d4d6db; }
+.ws-check-panel { border-radius: 18px; }
+.ws-account-head h2, .ws-check-panel h2 { font-family: Inter, "Segoe UI", Arial, sans-serif; font-weight: 650; }
+.ws-account-head p, .ws-check-panel p { color: #b5b8c1; }
+.ws-live-balances { border-color: #343840; background: #191c22; }
+.ws-live-balances span, .ws-live-balances>small { color: #aeb2bc; }
+.ws-live-balances strong { color: #f5f5f3; }
+.ws-action-primary,
+.ws-check-fields button,
+.ws-install-review .ws-action-primary,
+.ws-install-review .permission-actions .ws-action-primary {
+  background: #f0f1f3 !important;
+  border-color: #f0f1f3 !important;
+  color: #111317 !important;
+  box-shadow: none !important;
+}
+.ws-action-primary:hover:not(:disabled),
+.ws-check-fields button:hover:not(:disabled) { background: #fff !important; }
+.ws-action-secondary, .ws-action-quiet, .ws-recheck { border-color: #444953; color: #e2e3e7; background: #20242b; }
+.ws input, .ws select, .ws textarea { border-color: #454a55; background: #0c0e11; color: #f3f4f6; }
+.ws input::placeholder, .ws textarea::placeholder { color: #888e99; }
+@media (hover: hover) and (pointer: fine) {
+  .ws-path button:hover { border-color: #8c939f; background: #232831; transform: translateY(-2px); }
+  .ws-practice-callout:hover { background: #1b1e24; }
+}
 @media (hover: hover) and (pointer: fine) {
   .ws-nav button:hover:not(.selected) { background: #202329; color: #f0f1f4; }
 }
@@ -81,6 +170,7 @@
   .ws-nav button { min-width: 0; min-height: 42px; padding: 0 12px; font-size: 12px; }
   .ws-nav button svg { width: 15px; height: 15px; }
   .ws-main { padding-top: 26px; }
+  .ws-path ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 480px) {
   .ws-brand { gap: 6px; }
@@ -91,8 +181,17 @@
   .ws-nav button svg { width: 14px; height: 14px; }
   .ws .ws-page-head h1, .ws-page-head.ws-overview-heading h1 { font-size: clamp(36px, 10vw, 44px) !important; }
   .ws .ws-page-head { gap: 16px; }
+  .ws-path { padding: 16px; }
+  .ws-path ol { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .ws-path button, .ws-path button[data-state="upcoming"], .ws-path button[data-state="done"], .ws-path button[data-state="current"] { min-height: 118px; padding: 12px; }
+  .ws-path-head { align-items: flex-start; }
+  .ws-path-count { font-size: 10px; }
+  .ws-status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ws-status-strip>div:last-child { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ws-view[data-animate="true"] { animation: none; }
   .ws-nav button, .ws-nav button svg { transition: none; animation: none; }
+  .ws-path button, .ws-practice-callout { transition: none; animation: none; }
+  .ws-path button:hover { transform: none; }
 }
