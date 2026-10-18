@@ -19,6 +19,7 @@ import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
 import StockSelector from './stock-selector';
 import "./workspace.css";
+import "./workspace-redesign.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
 const initial: Mandate = {

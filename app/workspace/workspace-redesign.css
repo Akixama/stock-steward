@@ -1,0 +1,98 @@
+/* Workspace presentation only. Trading and wallet behavior remain in their existing components. */
+.ws {
+  --ws-bg: #08090b;
+  --ws-panel: #111317;
+  --ws-panel-2: #181a1f;
+  --ws-line: #292d34;
+  --ws-text: #f5f5f3;
+  --ws-muted: #b8bac1;
+  --ws-soft: #8e929c;
+  background: #08090b;
+  color: var(--ws-text);
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.ws-header {
+  height: 68px;
+  padding-inline: clamp(18px, 3.5vw, 54px);
+  background: #0a0b0d;
+  border-bottom-color: #292d34;
+  backdrop-filter: none;
+}
+.ws-header-caption { color: #a9acb6; letter-spacing: .12em; }
+.ws-guide-link { color: #e2e3e7; font-size: 13px; }
+.ws-toolbar {
+  min-height: 66px;
+  padding: 10px clamp(18px, 3.5vw, 54px);
+  background: #0d0f12f2;
+  border-bottom-color: #292d34;
+}
+.ws-nav { gap: 2px; background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+.ws-nav button {
+  min-height: 42px;
+  border-radius: 10px;
+  color: #a8abb4;
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 180ms ease, background-color 180ms ease, transform 140ms ease;
+}
+.ws-nav button.selected,
+.ws-nav button[aria-current="page"] {
+  background: #272b32;
+  border-color: #454a53;
+  color: #fff;
+  box-shadow: inset 0 1px #ffffff12;
+}
+.ws-nav button.selected svg { color: #f1f2f4; }
+.ws-nav-indicator { display: none; }
+.ws-main { padding: 36px clamp(18px, 3.5vw, 54px) 100px; }
+.ws-view { max-width: 1360px; }
+.ws .ws-page-head { align-items: flex-start; margin-bottom: 30px; }
+.ws .ws-page-head h1,
+.ws .ws-page-head h2,
+.ws .goal-heading.ws-page-head h1,
+.ws .ws-account-head.ws-page-head h2 {
+  color: #f5f5f3;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 650;
+  letter-spacing: -.055em;
+  line-height: 1.02;
+}
+.ws .ws-page-head h1 { font-size: clamp(40px, 4.7vw, 68px); }
+.ws .ws-page-head em,
+.ws .ws-account-head.ws-page-head em { color: #a6aab4; font-style: normal; font-weight: 500; }
+.ws .ws-page-head p,
+.ws .ws-account-head.ws-page-head p { color: #b4b7bf; font-size: 15px; line-height: 1.6; }
+.ws-eyebrow, .ws-label, .ws-page-index, .ws-panel-index { color: #aeb1bb; letter-spacing: .12em; }
+.ws-overview-mode { color: #c9cbd1; border-color: #373b44; background: #181b20; border-radius: 999px; padding: 9px 14px; }
+.ws :is(button, a, input, select, summary):focus-visible { outline: 2px solid #e9ebef; outline-offset: 3px; }
+.ws :is(input, select, textarea) { color-scheme: dark; }
+@media (hover: hover) and (pointer: fine) {
+  .ws-nav button:hover:not(.selected) { background: #202329; color: #f0f1f4; }
+}
+@media (max-width: 800px) {
+  .ws-header { height: 58px; }
+  .ws-header-actions { gap: 14px; }
+  .ws-header-caption { display: none; }
+  .ws-toolbar { display: block; padding: 7px 12px; overflow-x: auto; scrollbar-width: thin; }
+  .ws-toolbar-title { display: none; }
+  .ws-nav { display: flex; width: max-content; min-width: 100%; gap: 2px; }
+  .ws-nav button { min-width: 0; min-height: 42px; padding: 0 12px; font-size: 12px; }
+  .ws-nav button svg { width: 15px; height: 15px; }
+  .ws-main { padding-top: 26px; }
+}
+@media (max-width: 480px) {
+  .ws-brand { gap: 6px; }
+  .ws-header-actions { gap: 10px; }
+  .ws-guide-link { font-size: 12px; }
+  .ws-nav { display: flex; width: max-content; border: 0; border-radius: 0; }
+  .ws-nav button { padding-inline: 12px; min-height: 43px; font-size: 12px; gap: 6px; }
+  .ws-nav button svg { width: 14px; height: 14px; }
+  .ws .ws-page-head h1, .ws-page-head.ws-overview-heading h1 { font-size: clamp(36px, 10vw, 44px) !important; }
+  .ws .ws-page-head { gap: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-view[data-animate="true"] { animation: none; }
+  .ws-nav button, .ws-nav button svg { transition: none; animation: none; }
+}
