@@ -314,6 +314,8 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         if (cause instanceof Error && /Short of network fees/.test(cause.message)) throw cause;
         /* Gas price unreadable: let the wallet decide. */
       }
+      const gate = await fetch('/api/workspace/trading-check', { cache: 'no-store' });
+      if (!gate.ok) throw new Error('Trading is paused. No wallet request was made.');
       const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: address, to: step.to, data: step.data }] }) as string;
       if (!/^0x[0-9a-f]{64}$/i.test(hash)) throw new Error('Wallet returned no transaction hash.');
       say(`${step.label}: sent to Robinhood Chain. Waiting for confirmation.`);

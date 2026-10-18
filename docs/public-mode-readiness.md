@@ -1,0 +1,23 @@
+# Public trading switch — staged, disabled
+
+## Current access and enforcement
+
+`PUBLIC_MODE` is **false by default** and is explicitly written as `false` by `scripts/audit-deploy-config.mjs` for the stocksteward.app deployment. With it off, `STEWARD_LIVE_BUY_PILOT_WALLETS` admits only the verified owner wallet named in deployment configuration. A missing or malformed list denies admission. `lib/trading-controls.ts` makes the decision; the buy prepare/status, permission plan/install, and sell routes enforce it on the server. Transfer is an owner-recovery action: it has no pilot allowlist, but requires a signed-in user, verified ownership, a matching Safe owner, and a recipient fixed to that owner.
+
+Enabling `PUBLIC_MODE=true` in a future deployment would bypass the pilot wallet allowlist for signed-in, verified owners on buy, sell and permission setup. It does not bypass Mandate limits, the order simulations, Safe ownership checks, exact wallet approval, or the global pause. This flag **must remain off in production** until the release issues below are resolved. Sign-in and a wallet signature alone do not determine product eligibility by country or person status.
+
+## Controls in the staged mode
+
+- `STEWARD_PUBLIC_MAX_ORDER_CENTS` defaults to `500` ($5); `STEWARD_PUBLIC_MAX_DAILY_CENTS` defaults to `2000` ($20). Invalid cap values fail closed. Buy limits are also bounded by the saved Mandate and onchain Roles permission. Sell and transfer use a quote-derived USDG value (transfer uses exact USDG balance). They currently move the full holding; if its value exceeds the cap, the action is refused rather than split.
+- `trading_controls.disabled=1` stops new buy, sell, transfer and permission preparations on the next server request. `STEWARD_TRADING_KILL_SWITCH=true` is an environment override. The D1 control can be changed without a code deployment. Example operator SQL: `UPDATE trading_controls SET disabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=1;`. Restore with `disabled=0` only after investigating the incident. The app checks again immediately before asking the wallet to send. It cannot cancel a wallet popup already open, a submitted transaction, or an existing onchain permission. Revocation remains an owner-signed onchain action.
+- Buy attempts use `execution_attempts` and are reserved before wallet send. Sell and transfer use `wallet_action_attempts`, reserved on the final confirmation request before wallet send. No path automatically retries a wallet transaction. Hashes and chain receipt status are owner scoped and visible after a reload. Sell and transfer receipts label successful outer transactions as **unverified** until balances are checked; they are not marked as verified fills.
+
+## Still unverified or incomplete for real users
+
+1. **Eligibility:** No server-side country or U.S.-person decision, identity verification, sanctions check or approved operator path is implemented. The current pilot list is admission, not legal eligibility. See `public-buying-release-status-2026-10-18.md`.
+2. **Fees:** Setup and sale gas are estimates. The actual network fee, gas spikes, venue price impact and total economic cost are not fully reconciled for every action. No fee guarantee is shown.
+3. **Accounting:** Buy receipts verify fills, but sell and transfer receipts only establish the exact outer transaction and its chain status. The UI reads balances after sale, but that evidence is not a durable, finality-aware accounting record. The public-mode sell/Stock Token transfer cap uses the quoted USDG value, not a guaranteed maximum realized value. The shared daily admission check counts buy reservations and sell/transfer reservations together, but does not reconcile actual realized sale value.
+4. **Recovery:** An attempt with no returned hash remains unresolved after a wallet closes, a browser crash or RPC delay. There is no operator-reviewed release/reconciliation flow for an orphaned sell or transfer reservation. The app does not resend it automatically. Hash persistence can fail after a wallet has sent; the user must retain the wallet/explorer hash for support.
+5. **End-to-end evidence:** One earlier AAPL purchase was confirmed. The current wallet buy, a real owner-signed sell and transfer, high-latency wallet/RPC cases, and public multi-user load have not been verified end to end. An independent security review has not been recorded.
+
+Because of these gaps, `PUBLIC_MODE` is staged for implementation review and remains **off**. Do not present this as a public real-money launch.

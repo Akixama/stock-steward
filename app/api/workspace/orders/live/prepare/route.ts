@@ -2,7 +2,6 @@ import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, parseAbi, type Address } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getOwnership } from "@/db/wallet-ownership";
-import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
 import { reserveAttempt, type AttemptPlan } from "@/db/execution-attempts";
 import { VENUE, inspectRoute } from "@/lib/chain-route";
 import { routerCandidate } from "@/lib/router-candidate";
@@ -10,7 +9,7 @@ import { rolesOperation } from "@/lib/roles-operation";
 import { selectStoredFloor, validateLiveAmount } from "@/lib/live-order";
 import { PERMIT2 } from "@/lib/install-flow";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
-import { PILOT_MAX_DAILY_CENTS } from "@/lib/pilot-policy";
+import { assertTradingEnabled, publicDailySpend, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
 import { assembleActivePolicyFor, rpcCall, spendTodayCents } from "../_shared";
 
 const ercAllowanceAbi = parseAbi(["function allowance(address owner,address spender) view returns (uint256)"]);
@@ -28,9 +27,10 @@ export async function POST(request: Request) {
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
     const ownership = await getOwnership(env.DB, user.userId);
-    if (!ownership?.verifiedAt || !liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS)) {
-      return Response.json({ error: LIVE_BUY_PILOT_MESSAGE }, { status: 403 });
-    }
+    const access = tradingAdmission(ownership?.verifiedAt ? ownership.address : undefined, env);
+    if (!access.ok) return Response.json({ error: access.error }, { status: 403 });
+    await assertTradingEnabled(env.DB, env);
+    const limits = tradingLimits(env);
     const body = await request.json() as { symbol?: unknown; amountCents?: unknown };
     const symbol = typeof body.symbol === "string" ? body.symbol.toUpperCase() : "";
     const amountCents = typeof body.amountCents === "number" ? body.amountCents : NaN;
@@ -39,8 +39,9 @@ export async function POST(request: Request) {
     if (!live.plan.outputs.some((output) => output.symbol === symbol)) {
       return Response.json({ error: "That stock is not in your approved mandate." }, { status: 422 });
     }
-    const spent = await spendTodayCents(env.DB, user.userId, live.safe);
-    const amount = validateLiveAmount(amountCents, live.mandate, spent);
+    const buySpent = await spendTodayCents(env.DB, user.userId, live.safe);
+    const spent = limits.publicMode ? await publicDailySpend(env.DB,user.userId,live.safe,buySpent) : buySpent;
+    const amount = validateLiveAmount(amountCents, live.mandate, spent, limits);
     if (!amount.ok) return Response.json({ error: amount.error }, { status: 422 });
 
     // Orders carry the prices locked at activation: the onchain conditions pin
@@ -124,7 +125,8 @@ export async function POST(request: Request) {
     const plan: AttemptPlan = {
       owner: user.userId, address: live.safe, intentDigest: candidate.intentDigest,
       mandateVersion: live.mandate.version, day: now.toISOString().slice(0, 10), amountCents,
-      dailyCapCents: Math.min(live.mandate.maxDailyBuyCents, PILOT_MAX_DAILY_CENTS),
+      publicMode: limits.publicMode,
+      dailyCapCents: Math.min(live.mandate.maxDailyBuyCents, limits.maxDailyCents),
       candidate, route: ordered, livePolicy: policy,
     };
     const reserved = await reserveAttempt(env.DB, plan, now);

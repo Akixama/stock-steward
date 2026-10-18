@@ -10,6 +10,7 @@ import { chainTransport } from "@/lib/chain-transport";
 import { inspectRoute, type RouteEvidence } from "@/lib/chain-route";
 import { planFromMandate } from "@/lib/permission-plan";
 import { validatePilotMandate } from "@/lib/pilot-policy";
+import { tradingLimits } from "@/lib/trading-controls";
 import { installSalts } from "@/lib/install-flow";
 import { safeFactoryAbi, safeSetupPlan, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
@@ -83,7 +84,7 @@ export async function locateSafe(db: D1Database, userId: string) {
 // pool prices for every output. Read-only: nothing is signed or sent.
 export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateSafe>>, lockedOutputs?: PolicyBase['outputs'], installedWindow?: {startsAt:number;expiresAt:number}) {
   const { owner, safe, mandate, transport } = located;
-  const pilot = validatePilotMandate(mandate);
+  const pilot = validatePilotMandate(mandate, tradingLimits(env));
   if (!pilot.ok) throw new Error(pilot.error);
   const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store", signal: AbortSignal.timeout(10000) });
   if (!registryResponse.ok) throw new Error('Registry unavailable');

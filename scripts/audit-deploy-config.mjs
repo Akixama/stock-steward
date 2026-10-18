@@ -5,5 +5,5 @@ config.d1_databases[0].database_name='stock-steward-demo-db';
 config.d1_databases[0].database_id='c020cd5a-f6cc-4d9c-a9c6-1d2e5fa704f7';
 config.routes=[{pattern:'stocksteward.app',custom_domain:true},{pattern:'www.stocksteward.app',custom_domain:true}];
 config.ai={binding:'AI'};
-config.vars={...config.vars,STEWARD_AI_ENABLED:'true',STEWARD_AUTONOMOUS_SHADOW_ENABLED:'false',STEWARD_LIVE_BUY_PILOT_WALLETS:'0xdc7f175bca1c29a77286a52c857e7fef12f3f662'};
+config.vars={...config.vars,STEWARD_AI_ENABLED:'true',STEWARD_AUTONOMOUS_SHADOW_ENABLED:'false',PUBLIC_MODE:'false',STEWARD_PUBLIC_MAX_ORDER_CENTS:'500',STEWARD_PUBLIC_MAX_DAILY_CENTS:'2000',STEWARD_TRADING_KILL_SWITCH:'false',STEWARD_LIVE_BUY_PILOT_WALLETS:'0xdc7f175bca1c29a77286a52c857e7fef12f3f662'};
 fs.writeFileSync(file,JSON.stringify(config,null,2)+'\n');

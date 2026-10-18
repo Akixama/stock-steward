@@ -2,7 +2,8 @@ import { env } from 'cloudflare:workers';
 import { decodeFunctionResult, encodeFunctionData, formatUnits, keccak256, parseAbi, type Address, type Hex } from 'viem';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { getOwnership } from '@/db/wallet-ownership';
-import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from '@/lib/live-buy-access';
+import { reserveWalletAction } from '@/db/wallet-action-attempts';
+import { assertTradingEnabled, tradingAdmission, tradingLimits } from '@/lib/trading-controls';
 import { D1DecisionLedger } from '@/db/ledger';
 import { locateSafe, getCode, rpcCall, CHAIN_RPC } from '@/app/api/workspace/orders/live/_shared';
 import { chainTransport } from '@/lib/chain-transport';
@@ -40,15 +41,16 @@ export async function POST(request: Request) {
   try {
     const text = await request.text();
     if (text.length > 200) return Response.json({error:'Request too large.'},{status:413,headers});
-    const body = JSON.parse(text) as {symbol?:unknown;wallet?:unknown};
+    const body = JSON.parse(text) as {symbol?:unknown;wallet?:unknown;commit?:unknown;expectedQuantity?:unknown;expectedMinimumUsdgRaw?:unknown};
     const symbol = typeof body.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';
     if (!/^[A-Z][A-Z0-9.]{0,7}$/.test(symbol) || !['current','previous'].includes(String(body.wallet)))
       return Response.json({error:'Choose a supported holding and wallet.'},{status:400,headers});
     const [current,ownership] = await Promise.all([new D1DecisionLedger(env.DB).getMandate(user.userId),getOwnership(env.DB,user.userId)]);
     if (!current || !ownership?.verifiedAt || !/^0x[0-9a-f]{40}$/i.test(ownership.address))
       return Response.json({error:'Verify your owner wallet first.'},{status:403,headers});
-    if (!liveBuyPilotAllowed(ownership.address,env.STEWARD_LIVE_BUY_PILOT_WALLETS))
-      return Response.json({error:LIVE_BUY_PILOT_MESSAGE},{status:403,headers});
+    const access = tradingAdmission(ownership.address,env);
+    if (!access.ok) return Response.json({error:access.error},{status:403,headers});
+    await assertTradingEnabled(env.DB, env);
     const previous = body.wallet === 'previous' ? await env.DB.prepare(`SELECT a.safe, a.mandate_version AS version, m.policy_json AS policy FROM active_modules a JOIN mandates m ON m.owner_ref=a.owner_ref AND m.version=a.mandate_version WHERE a.owner_ref=? AND a.mandate_version<? ORDER BY a.mandate_version DESC LIMIT 1`).bind(user.userId,current.version).first<{safe:string;version:number;policy:string}>() : null;
     if (body.wallet === 'previous' && (!previous || !/^0x[0-9a-f]{40}$/i.test(previous.safe))) throw Error('Earlier wallet unavailable.');
     const located = body.wallet === 'current' ? await locateSafe(env.DB,user.userId) : null;
@@ -92,7 +94,19 @@ export async function POST(request: Request) {
     const gasRaw = await rpc('eth_estimateGas',[{from:transaction.from,to:transaction.to,value:transaction.value,data:transaction.data},'latest'],transport);
     if (!/^0x[0-9a-f]+$/i.test(gasRaw) || BigInt(gasRaw) <= 0n) throw Error('Network fee estimate unavailable. No transaction was sent.');
     if (Date.parse(route.expiresAt) <= Date.now()) throw Error('The quote expired during simulation. Review again.');
-    return Response.json({symbol,safe,owner,quantity:formatUnits(amount,18),estimatedUsdg:formatUnits(BigInt(route.best.outputRaw!),6),minimumUsdg:formatUnits(BigInt(route.minimumOutputRaw),6),minimumUsdgRaw:route.minimumOutputRaw,gasEstimate:BigInt(gasRaw).toString(),expiresAt:executionRoute.expiresAt,transaction:{from:transaction.from,to:transaction.to,value:transaction.value,data:transaction.data},simulated:true},{headers});
+    const estimatedCents = Number((BigInt(route.best.outputRaw!)+9999n)/10000n);
+    const limits = tradingLimits(env);
+    if (limits.publicMode && estimatedCents > limits.maxOrderCents) throw Error(`This sale is above the $${(limits.maxOrderCents/100).toFixed(2)} public action limit. Change the cap or use a smaller holding.`);
+    const exactTransaction = {from:transaction.from,to:transaction.to,value:transaction.value,data:transaction.data};
+    let attemptId: string | null = null;
+    if (body.commit === true) {
+      if(body.expectedQuantity!==formatUnits(amount,18)||body.expectedMinimumUsdgRaw!==route.minimumOutputRaw)
+        return Response.json({error:'The balance or minimum return changed. Review the new quote before signing.'},{status:409,headers});
+      await assertTradingEnabled(env.DB, env);
+      attemptId = await reserveWalletAction(env.DB,{owner:user.userId,ownerAddress:owner,safe,kind:'sell',symbol,quantity:formatUnits(amount,18),amountCents:limits.publicMode?estimatedCents:0,transaction:exactTransaction},limits.publicMode?limits.maxDailyCents:100_000_000);
+      if (!attemptId) return Response.json({error:'This sale is already prepared or the daily action limit is spent. Check your saved attempt before trying again.'},{status:409,headers});
+    }
+    return Response.json({symbol,safe,owner,quantity:formatUnits(amount,18),estimatedUsdg:formatUnits(BigInt(route.best.outputRaw!),6),minimumUsdg:formatUnits(BigInt(route.minimumOutputRaw),6),minimumUsdgRaw:route.minimumOutputRaw,gasEstimate:BigInt(gasRaw).toString(),expiresAt:executionRoute.expiresAt,transaction:exactTransaction,attemptId,simulated:true},{headers});
   } catch (error) {
     return Response.json({error:error instanceof Error?error.message:'Sale review unavailable. No transaction was sent.'},{status:409,headers});
   }

@@ -2,6 +2,9 @@ import {env} from 'cloudflare:workers';
 import {decodeFunctionResult,encodeFunctionData,formatUnits,keccak256,parseAbi,type Address,type Hex} from 'viem';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {getOwnership} from '@/db/wallet-ownership';
+import {reserveWalletAction} from '@/db/wallet-action-attempts';
+import {assertTradingEnabled,tradingLimits} from '@/lib/trading-controls';
+import {inspectTradeRoute} from '@/lib/chain-route';
 import {D1DecisionLedger} from '@/db/ledger';
 import {chainTransport} from '@/lib/chain-transport';
 import {getCode,locateSafe,rpcCall,CHAIN_RPC} from '@/app/api/workspace/orders/live/_shared';
@@ -26,7 +29,8 @@ export async function POST(request:Request){
  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid request origin.'},{status:403});
  if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
  try{
-  const body=await request.json() as {symbol?:unknown;wallet?:unknown};
+  const body=await request.json() as {symbol?:unknown;wallet?:unknown;commit?:unknown;expectedQuantity?:unknown};
+  await assertTradingEnabled(env.DB,env);
   const symbol=typeof body.symbol==='string'?body.symbol.trim().toUpperCase():'';
   if(symbol!=='USDG'&&!/^[A-Z][A-Z0-9.]{0,7}$/.test(symbol))return Response.json({error:'Choose a listed asset.'},{status:400});
   if(body.wallet!==undefined&&body.wallet!=='current')return Response.json({error:'Choose a valid wallet.'},{status:400});
@@ -59,11 +63,30 @@ export async function POST(request:Request){
   }
   const raw=await rpcCall(token,encodeFunctionData({abi:balanceAbi,functionName:'balanceOf',args:[safe]}),'latest',transport);
   const amount=decodeFunctionResult({abi:balanceAbi,functionName:'balanceOf',data:raw}) as bigint;
+  const limits=tradingLimits(env);
+  let amountCents=0;
+  if(limits.publicMode){
+   if(symbol==='USDG')amountCents=Number((amount+9999n)/10000n);
+   else{
+    const quote=await inspectTradeRoute(safe,symbol,formatUnits(amount,decimals),'sell',50,transport);
+    if(!quote.best?.outputRaw)throw Error('Transfer value cannot be checked right now. Try again when a quote is available.');
+    amountCents=Number((BigInt(quote.best.outputRaw)+9999n)/10000n);
+   }
+   if(!Number.isSafeInteger(amountCents)||amountCents>limits.maxOrderCents)throw Error(`This balance is above the $${(limits.maxOrderCents/100).toFixed(2)} public action limit.`);
+  }
   const tx=ownerTransferTransaction({safe,owner,token,amount});
   const direct=await simulate(safe,token,encodeFunctionData({abi:transferAbi,functionName:'transfer',args:[owner,amount]}),transport);
   if(decodeFunctionResult({abi:transferAbi,functionName:'transfer',data:direct})!==true)throw Error('Token transfer did not simulate successfully.');
   const safeResult=await simulate(owner,safe,tx.data,transport);
   if(decodeFunctionResult({abi:ownerSafeAbi,functionName:'execTransaction',data:safeResult})!==true)throw Error('Safe execution did not simulate successfully.');
-  return Response.json({symbol,quantity:formatUnits(amount,decimals),safe,owner,token,transaction:{from:tx.from,to:tx.to,value:tx.value,data:tx.data},simulated:true},{headers:{'Cache-Control':'no-store'}});
+  const transaction={from:tx.from,to:tx.to,value:tx.value,data:tx.data};
+  let attemptId:string|null=null;
+  if(body.commit===true){
+   if(body.expectedQuantity!==formatUnits(amount,decimals))return Response.json({error:'The balance changed. Review the transfer again.'},{status:409});
+   await assertTradingEnabled(env.DB,env);
+   attemptId=await reserveWalletAction(env.DB,{owner:user.userId,ownerAddress:owner,safe,kind:'transfer',symbol,quantity:formatUnits(amount,decimals),amountCents,transaction},limits.publicMode?limits.maxDailyCents:100_000_000);
+   if(!attemptId)return Response.json({error:'This transfer is already prepared or the daily action limit is spent. Check your saved attempt before trying again.'},{status:409});
+  }
+  return Response.json({symbol,quantity:formatUnits(amount,decimals),safe,owner,token,transaction,attemptId,simulated:true},{headers:{'Cache-Control':'no-store'}});
  }catch(error){return Response.json({error:error instanceof Error?error.message:'Transfer review unavailable. No transaction was sent.'},{status:409,headers:{'Cache-Control':'no-store'}});}
 }

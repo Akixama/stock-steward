@@ -7,7 +7,7 @@ import { chainTransport } from "@/lib/chain-transport";
 import { planFromMandate, planSummary } from "@/lib/permission-plan";
 import { reviewSetupFees, type SetupFeeEvidence } from "@/lib/setup-fees";
 import { validatePilotMandate } from "@/lib/pilot-policy";
-import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
+import { assertTradingEnabled, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
 
 // Compiles the owner's saved mandate into the exact onchain spending policy activation
 // would create, with the complete setup-fee review in dollars. Read-only: nothing is signed,
@@ -100,7 +100,9 @@ export async function GET() {
     const mandate = await new D1DecisionLedger(env.DB).getMandate(user.userId);
     const ownership = await getOwnership(env.DB, user.userId);
     if (!ownership?.verifiedAt) return Response.json({ error: "Verify your wallet ownership first." }, { status: 409 });
-    if (!liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS)) return Response.json({ error: LIVE_BUY_PILOT_MESSAGE }, { status: 403 });
+    const access = tradingAdmission(ownership.address, env);
+    if (!access.ok) return Response.json({ error: access.error }, { status: 403 });
+    await assertTradingEnabled(env.DB, env);
     const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store" });
     const tokens = registry(await registryResponse.json());
     const outputs = tokens
@@ -111,7 +113,7 @@ export async function GET() {
     if ("error" in plan) return Response.json({ error: plan.error }, { status: 422 });
     // Pilot lock: activation refuses any mandate above $10 a trade, $50 a day
     // ($100 total), or without approval on every order.
-    const pilot = validatePilotMandate(mandate);
+    const pilot = validatePilotMandate(mandate, tradingLimits(env));
     if (!pilot.ok) return Response.json({ error: pilot.error }, { status: 422 });
     const now = Date.now();
     const evidence = await feeEvidence(now);

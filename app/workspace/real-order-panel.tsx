@@ -118,6 +118,8 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
     try {
       if (prepared.from.toLowerCase() !== address.toLowerCase()) throw new Error('Reconnect the wallet that prepared this order.');
       await matchingWallet(provider, address);
+      const gate = await fetch('/api/workspace/trading-check', { cache: 'no-store' });
+      if (!gate.ok) throw new Error('Trading is paused. No wallet request was made.');
       const txHash = await provider.request({ method: 'eth_sendTransaction',
         params: [{ from: address, to: prepared.to, data: prepared.data, value: prepared.value }] }) as string;
       if (!/^0x[0-9a-f]{64}$/i.test(txHash)) throw new Error('Wallet returned no transaction hash.');

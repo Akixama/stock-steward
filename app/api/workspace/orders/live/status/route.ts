@@ -2,11 +2,11 @@ import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseAbi, type Address } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getOwnership } from "@/db/wallet-ownership";
-import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
+import { LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
 import { assembleActivePolicyFor, locateSafe, rpcCall, spendTodayCents } from "../_shared";
 import { VENUE } from "@/lib/chain-route";
 import { planSummary } from "@/lib/permission-plan";
-import { PILOT_MAX_DAILY_CENTS, PILOT_MAX_ORDER_CENTS } from "@/lib/pilot-policy";
+import { publicDailySpend, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
 import { listSpendEvidence } from "@/db/execution-attempts";
 
 const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -18,7 +18,7 @@ export async function GET() {
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
     const ownership = await getOwnership(env.DB, user.userId);
-    if (!ownership?.verifiedAt || !liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS)) {
+    if (!tradingAdmission(ownership?.verifiedAt ? ownership.address : undefined, env).ok) {
       return Response.json({ permissionActive: false as const, blocked: "pilot" as const, detail: LIVE_BUY_PILOT_MESSAGE });
     }
     const live = await assembleActivePolicyFor(env.DB, user.userId);
@@ -28,9 +28,11 @@ export async function GET() {
     if (!live.recordedOutputs?.length) {
       throw new Error("No active Steward permission with locked prices. Turn it on once more above (one signature), then order.");
     }
-    const spent = await spendTodayCents(env.DB, user.userId, live.safe);
+    const buySpent = await spendTodayCents(env.DB, user.userId, live.safe);
     const spending = await listSpendEvidence(env.DB, user.userId, live.safe);
-    const dailyCap = Math.min(live.mandate.maxDailyBuyCents, PILOT_MAX_DAILY_CENTS);
+    const limits = tradingLimits(env);
+    const spent = limits.publicMode ? await publicDailySpend(env.DB,user.userId,live.safe,buySpent) : buySpent;
+    const dailyCap = Math.min(live.mandate.maxDailyBuyCents, limits.maxDailyCents);
     // One read-only balance check so the page can say whether the wallet is
     // funded yet. A failed read leaves the card neutral instead of blocking.
     let balanceCents: number | null = null;
@@ -63,8 +65,8 @@ export async function GET() {
       permissionActive: true,
       safe: live.safe,
       symbols: live.plan.outputs.map((output) => output.symbol),
-      perTrade: dollars(Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS)),
-      perTradeCents: Math.min(live.mandate.maxOrderCents, PILOT_MAX_ORDER_CENTS),
+      perTrade: dollars(Math.min(live.mandate.maxOrderCents, limits.maxOrderCents)),
+      perTradeCents: Math.min(live.mandate.maxOrderCents, limits.maxOrderCents),
       balanceCents,
       daily: dollars(dailyCap),
       total: planSummary(live.plan).total,

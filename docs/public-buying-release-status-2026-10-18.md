@@ -2,6 +2,8 @@
 
 ## What works
 
+- A default-off `PUBLIC_MODE` switch and server-side trading pause are staged in source. They have not been enabled for public buying or selling. See [public-mode-readiness.md](public-mode-readiness.md) for controls and remaining gaps.
+
 - An earlier owner-approved AAPL Stock Token purchase was confirmed and reconciled on Robinhood Chain. This proves that specific purchase, not every future wallet or account.
 - The current owner wallet's permission has passed its onchain setup checks. Its next real purchase and a transfer out of that same wallet still need an owner-signed end-to-end check.
 - The site prepares owner-approved transfers of USDG and approved Stock Tokens from either the current or earlier Steward wallet to its verified owner. It also prepares a pilot-only, owner-signed sale of the entire Stock Token balance back to USDG in that same wallet, with a live quote, fixed minimum payout, full Safe transaction simulation and fee estimate. A prepared sale still requires the owner's wallet signature and a successful chain receipt; no sale has been submitted by the agent.

@@ -129,18 +129,19 @@ export function validateLiveAmount(
   amountCents: number,
   mandate: { maxOrderCents: number; maxDailyBuyCents: number },
   spentTodayCents: number,
+  limits = { maxOrderCents: PILOT_MAX_ORDER_CENTS, maxDailyCents: PILOT_MAX_DAILY_CENTS },
 ): { ok: true } | { ok: false; error: string } {
   const dollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   if (!Number.isSafeInteger(amountCents) || amountCents < 1) {
     return { ok: false, error: "Enter an amount of at least $0.01." };
   }
-  if (amountCents > PILOT_MAX_ORDER_CENTS) {
-    return { ok: false, error: "Pilot trades stay at or under $10 each." };
+  if (amountCents > limits.maxOrderCents) {
+    return { ok: false, error: `Orders stay at or under ${dollars(limits.maxOrderCents)} each.` };
   }
   if (amountCents > mandate.maxOrderCents) {
     return { ok: false, error: `Above your ${dollars(mandate.maxOrderCents)} single-trade limit.` };
   }
-  const dailyCap = Math.min(mandate.maxDailyBuyCents, PILOT_MAX_DAILY_CENTS);
+  const dailyCap = Math.min(mandate.maxDailyBuyCents, limits.maxDailyCents);
   if (amountCents + spentTodayCents > dailyCap) {
     return { ok: false, error: `That would pass your ${dollars(dailyCap)} daily limit (${dollars(Math.max(0, dailyCap - spentTodayCents))} left today).` };
   }

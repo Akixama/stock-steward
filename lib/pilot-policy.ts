@@ -12,19 +12,19 @@ export type PilotMandate = {
   executionPreference?: "approval" | "automatic" | undefined;
 };
 
-export function validatePilotMandate(mandate: PilotMandate | null): { ok: true } | { ok: false; error: string } {
+export function validatePilotMandate(mandate: PilotMandate | null, limits = { maxOrderCents: PILOT_MAX_ORDER_CENTS, maxDailyCents: PILOT_MAX_DAILY_CENTS }): { ok: true } | { ok: false; error: string } {
   if (!mandate) return { ok: false, error: "Save your limits in Mandate first." };
   if (mandate.executionPreference !== "approval" || mandate.requireApproval !== true) {
-    return { ok: false, error: "Pilot activation needs approval on every order. Turn off automatic mode first." };
+    return { ok: false, error: "Real-money buying needs approval on every order. Turn off automatic mode first." };
   }
   if (!Number.isSafeInteger(mandate.maxOrderCents) || !Number.isSafeInteger(mandate.maxDailyBuyCents)) {
     return { ok: false, error: "Your saved limits are inconsistent; review Mandate." };
   }
-  if (mandate.maxOrderCents < 1 || mandate.maxOrderCents > PILOT_MAX_ORDER_CENTS) {
-    return { ok: false, error: "Pilot trades stay at or under $10 each. Lower your single-trade limit." };
+  if (mandate.maxOrderCents < 1 || mandate.maxOrderCents > limits.maxOrderCents) {
+    return { ok: false, error: `Set your single-trade limit at or below $${(limits.maxOrderCents / 100).toFixed(2)}.` };
   }
-  if (mandate.maxDailyBuyCents < mandate.maxOrderCents || mandate.maxDailyBuyCents > PILOT_MAX_DAILY_CENTS) {
-    return { ok: false, error: "Pilot buys stay at or under $50 a day ($100 total). Lower your daily limit." };
+  if (mandate.maxDailyBuyCents < mandate.maxOrderCents || mandate.maxDailyBuyCents > limits.maxDailyCents) {
+    return { ok: false, error: `Set your daily limit at or below $${(limits.maxDailyCents / 100).toFixed(2)}.` };
   }
   return { ok: true };
 }
