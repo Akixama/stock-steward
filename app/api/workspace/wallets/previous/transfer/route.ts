@@ -4,7 +4,7 @@ import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {getOwnership} from '@/db/wallet-ownership';
 import {D1DecisionLedger} from '@/db/ledger';
 import {chainTransport} from '@/lib/chain-transport';
-import {getCode,rpcCall,CHAIN_RPC} from '@/app/api/workspace/orders/live/_shared';
+import {getCode,locateSafe,rpcCall,CHAIN_RPC} from '@/app/api/workspace/orders/live/_shared';
 import {ownerSafeAbi,ownerTransferTransaction,transferAbi} from '@/lib/previous-wallet-transfer';
 import {SAFE_CONTRACTS,SAFE_RUNTIME_HASHES} from '@/lib/safe-setup';
 import {registry,USDG} from '@/lib/robinhood-chain';
@@ -23,21 +23,25 @@ async function simulate(from:Address,to:Address,data:Hex,transport:typeof fetch)
 // verified owner of this account; the browser cannot choose a different one.
 export async function POST(request:Request){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
+ if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid request origin.'},{status:403});
  if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
  try{
-  const body=await request.json() as {symbol?:unknown};
+  const body=await request.json() as {symbol?:unknown;wallet?:unknown};
   const symbol=typeof body.symbol==='string'?body.symbol.trim().toUpperCase():'';
   if(symbol!=='USDG'&&!/^[A-Z][A-Z0-9.]{0,7}$/.test(symbol))return Response.json({error:'Choose a listed asset.'},{status:400});
+  if(body.wallet!==undefined&&body.wallet!=='current')return Response.json({error:'Choose a valid wallet.'},{status:400});
   const [current,ownership]=await Promise.all([new D1DecisionLedger(env.DB).getMandate(user.userId),getOwnership(env.DB,user.userId)]);
   if(!current||!ownership?.verifiedAt||!/^0x[0-9a-f]{40}$/i.test(ownership.address))return Response.json({error:'Verify your owner wallet first.'},{status:403});
-  const previous=await env.DB.prepare(`SELECT a.safe, a.mandate_version AS version, m.policy_json AS policy FROM active_modules a JOIN mandates m ON m.owner_ref=a.owner_ref AND m.version=a.mandate_version WHERE a.owner_ref=? AND a.mandate_version<? ORDER BY a.mandate_version DESC LIMIT 1`).bind(user.userId,current.version).first<{safe:string;version:number;policy:string}>();
-  if(!previous||!/^0x[0-9a-f]{40}$/i.test(previous.safe))return Response.json({error:'Earlier wallet unavailable.'},{status:404});
-  const safe=previous.safe as Address,owner=ownership.address as Address,transport=chainTransport(env.ALCHEMY_API_KEY);
+  const previous=body.wallet==='current'?null:await env.DB.prepare(`SELECT a.safe, a.mandate_version AS version, m.policy_json AS policy FROM active_modules a JOIN mandates m ON m.owner_ref=a.owner_ref AND m.version=a.mandate_version WHERE a.owner_ref=? AND a.mandate_version<? ORDER BY a.mandate_version DESC LIMIT 1`).bind(user.userId,current.version).first<{safe:string;version:number;policy:string}>();
+  if(body.wallet!=='current'&&(!previous||!/^0x[0-9a-f]{40}$/i.test(previous.safe)))return Response.json({error:'Earlier wallet unavailable.'},{status:404});
+  const located=body.wallet==='current'?await locateSafe(env.DB,user.userId):null;
+  if(located&&located.owner.toLowerCase()!==ownership.address.toLowerCase())throw Error('Verified owner changed. Transfer is blocked.');
+  const safe=(located?.safe??previous!.safe) as Address,owner=ownership.address as Address,transport=chainTransport(env.ALCHEMY_API_KEY);
   const code=await getCode(safe,transport);
-  if(keccak256(code as Hex).toLowerCase()!==SAFE_RUNTIME_HASHES.proxy.toLowerCase())throw Error('Earlier wallet code does not match the verified Safe proxy.');
+  if(keccak256(code as Hex).toLowerCase()!==SAFE_RUNTIME_HASHES.proxy.toLowerCase())throw Error('Wallet code does not match the verified Safe proxy.');
   const implementationRaw=await rpcCall(safe,encodeFunctionData({abi:proxyAbi,functionName:'masterCopy'}),'latest',transport);
   const implementation=decodeFunctionResult({abi:proxyAbi,functionName:'masterCopy',data:implementationRaw}) as Address;
-  if(implementation.toLowerCase()!==SAFE_CONTRACTS.singleton.toLowerCase())throw Error('Earlier wallet implementation changed. Transfer is blocked.');
+  if(implementation.toLowerCase()!==SAFE_CONTRACTS.singleton.toLowerCase())throw Error('Wallet implementation changed. Transfer is blocked.');
   const [ownerRaw,thresholdRaw]=await Promise.all([rpcCall(safe,encodeFunctionData({abi:ownerSafeAbi,functionName:'getOwners'}),'latest',transport),rpcCall(safe,encodeFunctionData({abi:ownerSafeAbi,functionName:'getThreshold'}),'latest',transport)]);
   const owners=decodeFunctionResult({abi:ownerSafeAbi,functionName:'getOwners',data:ownerRaw}) as readonly Address[];
   const threshold=decodeFunctionResult({abi:ownerSafeAbi,functionName:'getThreshold',data:thresholdRaw}) as bigint;
@@ -45,8 +49,8 @@ export async function POST(request:Request){
   let token:Address,decimals:number;
   if(symbol==='USDG'){token=USDG.contract;decimals=USDG.decimals;}
   else{
-   const mandate=JSON.parse(previous.policy) as Mandate;
-   if(!mandate.allowedSymbols.includes(symbol))throw Error('This asset was not in the earlier mandate.');
+   const mandate=located?.mandate??JSON.parse(previous!.policy) as Mandate;
+   if(!mandate.allowedSymbols.includes(symbol))throw Error('This asset was not in the wallet mandate.');
    const response=await fetch('https://api.robinhood.com/rhj/assets',{cache:'no-store',signal:AbortSignal.timeout(8000)});
    if(!response.ok)throw Error('Official asset registry unavailable.');
    const match=registry(await response.json()).find(asset=>asset.symbol===symbol);

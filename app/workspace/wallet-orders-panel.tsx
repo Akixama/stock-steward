@@ -8,6 +8,7 @@ import InstallReview from './install-review';
 import OwnershipPanel from './ownership-panel';
 import RealOrderPanel from './real-order-panel';
 import WalletSetup from './wallet-setup';
+import CurrentWalletRecovery from './current-wallet-recovery';
 
 export default function WalletOrdersPanel({mandate,onOpenMandate}:{mandate:Mandate;onOpenMandate:()=>void}) {
   const [walletProvider,setWalletProvider]=useState<WalletProvider|null>(null);
@@ -23,6 +24,7 @@ export default function WalletOrdersPanel({mandate,onOpenMandate}:{mandate:Manda
     <WalletSetup onProvider={receiveProvider} onAddress={receiveAddress} disabled={false}/>
     <InstallReview key={`review-${address}-${mandate.version}`} provider={walletProvider} address={address} policyVersion={mandate.version} onOpenMandate={onOpenMandate}/>
     <RealOrderPanel key={`orders-${address}-${mandate.version}`} provider={walletProvider} address={address} onOpenMandate={onOpenMandate}/>
+    <CurrentWalletRecovery key={`funds-${address}-${mandate.version}`} provider={walletProvider} address={address} mandateVersion={mandate.version}/>
     <details className="ws-developer-details"><summary>Advanced</summary>
       <details id="ws-ownership" className="ws-next-steps"><summary>Wallet verification records</summary><OwnershipPanel address={address} provider={walletProvider}/></details>
       <details className="ws-next-steps"><summary>How the limits are enforced</summary>
