@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, parseAbi, type Address } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getOwnership } from "@/db/wallet-ownership";
+import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
 import { reserveAttempt, type AttemptPlan } from "@/db/execution-attempts";
 import { VENUE, inspectRoute } from "@/lib/chain-route";
 import { routerCandidate } from "@/lib/router-candidate";
@@ -25,6 +27,10 @@ export async function POST(request: Request) {
   }
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
+    const ownership = await getOwnership(env.DB, user.userId);
+    if (!ownership?.verifiedAt || !liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS)) {
+      return Response.json({ error: LIVE_BUY_PILOT_MESSAGE }, { status: 403 });
+    }
     const body = await request.json() as { symbol?: unknown; amountCents?: unknown };
     const symbol = typeof body.symbol === "string" ? body.symbol.toUpperCase() : "";
     const amountCents = typeof body.amountCents === "number" ? body.amountCents : NaN;

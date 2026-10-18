@@ -17,6 +17,7 @@ import { VENUE } from "@/lib/chain-route";
 import { MULTISEND, safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { installedOutputs } from "@/lib/installed-outputs";
+import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
 
 // Assembles the exact owner-signed install transactions. The server never signs: every
 // step is sent by the owner's own wallet and every effect is read back before the next.
@@ -79,12 +80,16 @@ export async function GET(request: Request) {
     const mandate = await new D1DecisionLedger(env.DB).getMandate(user.userId);
     const ownership = await getOwnership(env.DB, user.userId);
     if (!ownership?.verifiedAt) return Response.json({ error: "Verify your wallet ownership first." }, { status: 409 });
+    // Existing owners still need the readback and revocation controls if their
+    // pilot admission is later removed. Order preparation remains blocked.
+    const existingForAccess = mandate ? await getActiveModule(env.DB, user.userId, mandate.version) : null;
+    if (!liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS) && !existingForAccess) return Response.json({ error: LIVE_BUY_PILOT_MESSAGE }, { status: 403 });
     const owner = ownership.address as Address;
 
     const registryResponse = await fetch("https://api.robinhood.com/rhj/assets", { cache: "no-store" });
     const tokens = registry(await registryResponse.json());
     const inspecting = url.searchParams.get("inspect") === "1";
-    const existing = inspecting && mandate ? await getActiveModule(env.DB, user.userId, mandate.version) : null;
+    const existing = inspecting ? existingForAccess : null;
     const saved = existing?.module.toLowerCase() === moduleParam?.toLowerCase() ? existing : null;
     const plan = planFromMandate(mandate, owner, tokens.map((token) => ({ symbol: token.symbol, token: token.contract })), saved ? new Date(saved.startsAt * 1000) : new Date());
     if ("error" in plan) return Response.json({ error: plan.error }, { status: 422 });

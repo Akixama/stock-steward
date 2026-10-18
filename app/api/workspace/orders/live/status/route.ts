@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, formatUnits, parseAbi, type Address } from "viem";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getOwnership } from "@/db/wallet-ownership";
+import { liveBuyPilotAllowed, LIVE_BUY_PILOT_MESSAGE } from "@/lib/live-buy-access";
 import { assembleActivePolicyFor, locateSafe, rpcCall, spendTodayCents } from "../_shared";
 import { VENUE } from "@/lib/chain-route";
 import { planSummary } from "@/lib/permission-plan";
@@ -15,6 +17,10 @@ export async function GET() {
   if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
+    const ownership = await getOwnership(env.DB, user.userId);
+    if (!ownership?.verifiedAt || !liveBuyPilotAllowed(ownership.address, env.STEWARD_LIVE_BUY_PILOT_WALLETS)) {
+      return Response.json({ permissionActive: false as const, blocked: "pilot" as const, detail: LIVE_BUY_PILOT_MESSAGE });
+    }
     const live = await assembleActivePolicyFor(env.DB, user.userId);
     // A recorded permission without locked prices can never execute: its
     // onchain conditions pin install-time bytes no fresh quote can satisfy.
