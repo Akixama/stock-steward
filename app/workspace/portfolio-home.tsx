@@ -40,6 +40,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
   const [refreshMessage,setRefreshMessage]=useState('');
   const activeRefresh=useRef<AbortController|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
+  const [copied,setCopied]=useState(false);
   const [refresh,setRefresh]=useState(0);
   useEffect(()=>()=>{activeRefresh.current?.abort();},[address]);
   useEffect(()=>{
@@ -98,6 +99,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
       </div>
       <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
     </section>
+    <section className="ws-v4-funding" aria-label="Fund your Steward wallet"><div><span>FUND THIS WALLET</span><h2>Add USDG</h2><p>Send USDG to your current Steward wallet before buying. Keep some ETH in your owner wallet for network fees.</p></div>{wallet?.verified&&wallet.safe?<div className="ws-v4-funding-address"><code>{wallet.safe}</code><button type="button" onClick={()=>{void navigator.clipboard.writeText(wallet.safe).then(()=>{setCopied(true);window.setTimeout(()=>setCopied(false),1500);}).catch(()=>setCopied(false));}}>{copied?'Copied':'Copy address'}</button></div>:<button type="button" onClick={()=>onAction('setup')}>Connect wallet <ChevronRight size={16}/></button>}</section>
     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>
       {loading?<div className="ws-v2-holding-skeleton"><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/></div>:!address||!wallet?.verified?<div className="ws-v2-empty"><strong>Your assets will appear here.</strong><p>Connect and verify your wallet to see USDG and supported stock tokens.</p><button type="button" onClick={()=>onAction('setup')}>Set up wallet <ChevronRight size={16}/></button></div>:<div className="ws-v2-holding-list">
         <button type="button" className="ws-v2-holding" aria-expanded={selected==='USDG'} onClick={()=>setSelected(selected==='USDG'?null:'USDG')}><span className="ws-v2-asset-mark">$</span><span className="ws-v2-asset-name"><strong>USDG</strong><small>Available to buy</small></span><span className="ws-v2-asset-figures"><strong>{cash===null?'—':money(cash)}</strong><small>{quantity(wallet.usdg)} USDG</small></span><ChevronRight size={17}/></button>

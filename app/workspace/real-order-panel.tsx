@@ -39,7 +39,6 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
   const [receiptState, setReceiptState] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
   const [note, setNote] = useState('');
   const recovered = useRef(false);
   const dismissedIntent = useRef('');
@@ -170,7 +169,10 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
     return () => window.clearTimeout(timer);
   }, [hash, intent, busy, receiptState]);
 
-  return <section className="ws-install-review" id="ws-real-orders" aria-busy={busy}>
+  const viewStep = hash ? 'status' : prepared ? busy ? 'sign' : 'review' : 'amount';
+  return <section className="ws-install-review" id="ws-real-orders" aria-busy={busy} data-step={viewStep} data-connected={Boolean(provider)}>
+    <nav className="ws-v4-steps" aria-label="Buy steps">{(['amount','review','sign','status'] as const).map((step,index)=><span key={step} data-active={viewStep===step} data-past={['amount','review','sign','status'].indexOf(viewStep)>index}>{index+1}. {step[0].toUpperCase()+step.slice(1)}</span>)}</nav>
+    {!provider&&!hash&&<p className="ws-v4-connect-hint">Connect above to choose a stock and review a quote.</p>}
     <div className="ws-account-head"><div><span className="ws-label">BUY WITH REAL FUNDS</span>
       <h3>Buy stock tokens.</h3>
       <p>You review and approve every purchase in your wallet.</p></div>
@@ -178,14 +180,6 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
     {status?.permissionActive && <p className="ws-chain-note">
       Used from today’s limit {dollars(status.spentTodayCents)} (including orders in progress) · {dollars(status.remainingTodayCents)} left for today.</p>}
     {status?.permissionActive && <div className="ws-live-balances" aria-label="Steward wallet balances"><div><span>USDG available</span><strong>{status.balanceCents === null ? 'Unavailable' : dollars(status.balanceCents)}</strong></div>{status.holdings?.map(holding => <div key={holding.symbol}><span>{holding.symbol} tokens held</span><strong>{holding.tokens === null ? 'Unavailable' : holding.tokens}</strong></div>)}<small>Balances shown are in your wallet. Orders in progress count toward your daily limit; they do not charge you twice.</small></div>}
-    {status?.permissionActive && !hash && <div className="ws-fund-card">
-      <span className="ws-label">FUND THIS WALLET</span>
-      <p>{status.balanceCents == null
-        ? 'Send USDG here before ordering. Keep some ETH in your own wallet for gas.'
-        : status.balanceCents >= status.perTradeCents
-          ? `Holding ${dollars(status.balanceCents)} — enough for your ${status.perTrade} order. Keep some ETH in your own wallet for gas.`
-          : `Holding ${dollars(status.balanceCents)} — send ${dollars(status.perTradeCents - status.balanceCents)} more USDG here, then press Refresh. Keep some ETH in your own wallet for gas.`}</p>
-      <div className="ws-fund-row"><code>{status.safe}</code><button type="button" disabled={busy} onClick={async () => { try { await navigator.clipboard.writeText(status.safe); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { setError('Could not copy the address. Select and copy it manually.'); } }}>{copied ? 'Copied' : 'Copy'}</button></div></div>}
     {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan ws-order-blocked" role="status">
       <div className="ws-order-blocked-heading"><span className="ws-order-blocked-icon"><Clock3 size={20} aria-hidden="true" /></span><div><span className="ws-label">ORDER PAUSED</span><strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired':'Your limits need an update'}</strong><p>{/window ended|expired/i.test(status.detail??'') ? 'The saved limits above are a proposal for a new permission. They have not extended the old one.' : status.detail ?? 'Review and save your purchase limits before ordering.'}</p></div></div>
       <div className="ws-order-blocked-next"><div><span>1</span> Save your updated limits</div><div><span>2</span> Approve the new permission in your wallet</div></div>
