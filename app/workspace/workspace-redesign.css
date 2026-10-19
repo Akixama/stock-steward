@@ -21,7 +21,7 @@
   backdrop-filter: none;
 }
 .ws-header-caption { color: #a9acb6; letter-spacing: .12em; }
-.ws-guide-link { color: #e2e3e7; font-size: 13px; }
+.ws-guide-link { display: inline-flex; color: #e2e3e7; font-size: 13px; white-space: nowrap; flex: none; }
 .ws-toolbar {
   min-height: 66px;
   padding: 10px clamp(18px, 3.5vw, 54px);
@@ -234,6 +234,7 @@
   .ws-toolbar-title { display: none; }
   .ws-nav { display: flex; width: max-content; min-width: 100%; gap: 2px; }
   .ws-nav button { min-width: 0; min-height: 42px; padding: 0 12px; font-size: 12px; }
+  .ws-nav button { flex: 0 0 auto; }
   .ws-nav button svg { width: 15px; height: 15px; }
   .ws-main { padding-top: 26px; }
   .ws-path ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -242,6 +243,8 @@
   .ws-brand { gap: 6px; }
   .ws-header-actions { gap: 10px; }
   .ws-guide-link { font-size: 12px; }
+  .ws-guide-link { display: inline-flex; width: auto; height: auto; }
+  .ws-guide-link svg { display: none; }
   .ws-nav { display: flex; width: max-content; border: 0; border-radius: 0; }
   .ws-nav button { padding-inline: 12px; min-height: 43px; font-size: 12px; gap: 6px; }
   .ws-nav button svg { width: 14px; height: 14px; }
