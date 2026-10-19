@@ -25,10 +25,13 @@ export default function WalletOrdersPanel({mandate,onOpenMandate,progress}:{mand
   const open=(next:Sheet)=>{returnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSheet(next);};
   const close=()=>{setSheet(null);requestAnimationFrame(()=>returnFocus.current?.focus());};
   useEffect(()=>{
-    if(!sheet)return;
-    const previous=document.body.style.overflow;document.body.style.overflow='hidden';
+    const root=document.documentElement;
+    if(!sheet){root.classList.remove('ws-v2-scroll-locked');return;}
+    root.classList.add('ws-v2-scroll-locked');
     const frame=requestAnimationFrame(()=>dialog.current?.querySelector<HTMLElement>('.ws-v2-sheet-head button')?.focus());
     const keys=(event:KeyboardEvent)=>{
+      // The wallet chooser is a separate portal and owns its own focus and Escape key.
+      if(document.querySelector('.ws-wallet-dialog[data-state="open"]'))return;
       if(event.key==='Escape'){event.preventDefault();close();return;}
       if(event.key!=='Tab')return;
       const focusable=Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary')??[]).filter(item=>item.getClientRects().length>0);
@@ -38,7 +41,9 @@ export default function WalletOrdersPanel({mandate,onOpenMandate,progress}:{mand
       else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     };
     document.addEventListener('keydown',keys);
-    return()=>{cancelAnimationFrame(frame);document.body.style.overflow=previous;document.removeEventListener('keydown',keys);};
+    const release=()=>root.classList.remove('ws-v2-scroll-locked');
+    window.addEventListener('pagehide',release);
+    return()=>{cancelAnimationFrame(frame);release();document.removeEventListener('keydown',keys);window.removeEventListener('pagehide',release);};
   },[sheet]);
   const progressAction=()=>progress.action==='limits'?onOpenMandate():open(progress.action);
   return <section id="ws-wallet-orders" className="ws-v2-shell">

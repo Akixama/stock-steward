@@ -1,7 +1,8 @@
-.route-stage:has(.ws) {transform:none!important}
+.route-stage:has(.ws) {animation:none!important;transform:none!important}
+html.ws-v2-scroll-locked,html.ws-v2-scroll-locked body {overflow:hidden;overscroll-behavior:none}
 .ws {background:#08090d;color:#f5f3f5;min-height:100vh}
 .ws-shell {max-width:none}
-.ws-v2-overview {max-width:1440px;margin:0 auto;padding:28px clamp(20px,5vw,84px) 132px}
+.ws-v2-overview {max-width:1440px;margin:0 auto;padding:28px clamp(20px,5vw,84px) 132px;animation:none!important;transform:none!important}
 .ws-v2-shell {max-width:1280px;margin:auto;animation:none!important;transform:none!important}
 .ws-v2-home {display:grid;gap:32px}
 .ws-v2-portfolio {display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:36px;min-height:390px;padding:clamp(28px,4vw,58px);border:1px solid #2a2b35;border-radius:28px;background:radial-gradient(circle at 78% 20%,#222132 0,#121319 37%,#111217 74%);overflow:hidden;position:relative}
@@ -77,7 +78,7 @@
 .ws-v2-sheet-head small {color:#aaa4d3}
 .ws-v2-sheet-head h2 {margin:5px 0 0;font-size:29px;letter-spacing:-.045em;font-weight:580}
 .ws-v2-sheet-head button {width:40px;height:40px;display:grid;place-items:center;border:1px solid #494957;border-radius:50%;background:#23242e;color:#dddce7;cursor:pointer}
-.ws-v2-sheet-scroll {overflow-y:auto;overscroll-behavior:contain;padding:25px 38px 80px}
+.ws-v2-sheet-scroll {flex:1 1 auto;min-height:0;max-height:calc(100dvh - 106px);overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;padding:25px 38px 80px}
 .ws-v2-sheet-content[hidden] {display:none!important}
 .ws-v2-sheet-intro {margin:0 0 24px;color:#b0b0bf;font-size:14px;line-height:1.6}
 .ws-v2-sheet .ws-install-review,.ws-v2-sheet .ws-previous-wallet,.ws-v2-sheet #ws-wallet-setup {width:100%;max-width:none;margin:0 0 18px}
@@ -100,6 +101,6 @@
  .ws-v2-below {display:block;margin-top:12px}.ws-v2-below p {font-size:11px}.ws-v2-more {margin-top:8px}
  .ws-v2-mobile-nav {display:flex;position:fixed;z-index:50;top:calc(100dvh - 64px - env(safe-area-inset-bottom));bottom:auto;left:0;right:0;height:calc(64px + env(safe-area-inset-bottom));padding:0 8px env(safe-area-inset-bottom);align-items:center;justify-content:space-around;border-top:1px solid #373743;background:#15161bf2;backdrop-filter:blur(20px)}
  .ws-v2-mobile-nav>a,.ws-v2-mobile-nav>button,.ws-v2-mobile-nav summary {flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;height:58px;border:0;background:transparent;color:#8c8d9b;text-decoration:none;font-size:10px;font-weight:600;cursor:pointer;list-style:none}.ws-v2-mobile-nav [aria-current=page] {color:#d0c9f4}.ws-v2-nav-more {flex:1;position:relative}.ws-v2-nav-more summary::-webkit-details-marker {display:none}.ws-v2-nav-more>div {position:absolute;bottom:66px;right:0;width:160px;display:grid;padding:8px;background:#252630;border:1px solid #454553;border-radius:12px;box-shadow:0 14px 32px #0008}.ws-v2-nav-more>div>* {padding:10px;border:0;background:transparent;text-align:left;color:#f0eef8;text-decoration:none;font-size:13px}
- .ws-v2-sheet {top:9dvh;bottom:auto;width:100%;height:91dvh;border-left:0;border-top:1px solid #555466;border-radius:22px 22px 0 0;transform:translateY(18px) scale(.99)}.ws-v2-sheet[data-open=true] {transform:translateY(0) scale(1)}.ws-v2-sheet-grip {display:block;align-self:center;width:36px;height:4px;background:#5e5d69;border-radius:6px;margin-top:10px}.ws-v2-sheet-head {padding:15px 20px 18px}.ws-v2-sheet-head h2 {font-size:24px}.ws-v2-sheet-scroll {padding:20px 18px calc(36px + env(safe-area-inset-bottom))}
+ .ws-v2-sheet {top:9dvh;bottom:auto;width:100%;height:91dvh;border-left:0;border-top:1px solid #555466;border-radius:22px 22px 0 0;transform:translateY(18px) scale(.99)}.ws-v2-sheet[data-open=true] {transform:translateY(0) scale(1)}.ws-v2-sheet-grip {display:block;align-self:center;width:36px;height:4px;background:#5e5d69;border-radius:6px;margin-top:10px}.ws-v2-sheet-head {padding:15px 20px 18px}.ws-v2-sheet-head h2 {font-size:24px}.ws-v2-sheet-scroll {max-height:calc(91dvh - 84px);padding:20px 18px calc(36px + env(safe-area-inset-bottom))}
 }
 @media(prefers-reduced-motion:reduce){.ws-v2-skeleton,.ws-v2-holding-detail {animation:none}.ws-v2-sheet,.ws-v2-backdrop,.ws-v2-action-bar button,.ws-v2-holding,.ws-v2-progress {transition:none}}
