@@ -33,3 +33,11 @@ export async function latestWalletAction(db: D1Database, owner: string, safe?: s
     : db.prepare('SELECT id,safe,kind,symbol,quantity,state,transaction_hash AS hash,created_at AS createdAt FROM wallet_action_attempts WHERE owner_ref=? ORDER BY updated_at DESC LIMIT 1').bind(owner);
   return statement.first<{id:string;safe:string;kind:string;symbol:string;quantity:string;state:string;hash:string|null;createdAt:string}>();
 }
+
+export async function walletActionView(db:D1Database,owner:string,safe?:string,kind?:'sell'|'transfer'){
+ const scope='owner_ref=? AND (? IS NULL OR safe=?) AND (? IS NULL OR kind=?)';
+ const args=[owner,safe?.toLowerCase()??null,safe?.toLowerCase()??null,kind??null,kind??null];
+ const latest=await db.prepare(`SELECT id,safe,kind,symbol,quantity,state,transaction_hash AS hash,created_at AS createdAt FROM wallet_action_attempts WHERE ${scope} AND state IN ('prepared','submitted','unknown') AND transaction_hash IS NOT NULL ORDER BY updated_at DESC LIMIT 1`).bind(...args).first();
+ const history=await db.prepare(`SELECT id,safe,kind,symbol,quantity,state,transaction_hash AS hash,created_at AS createdAt FROM wallet_action_attempts WHERE ${scope} AND state IN ('confirmed','reverted') AND transaction_hash IS NOT NULL ORDER BY updated_at DESC LIMIT 10`).bind(...args).all();
+ return {latest,history:history.results};
+}
