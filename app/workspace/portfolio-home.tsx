@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
 import {parseUnits} from 'viem';
 import type {PricedObservation} from '@/lib/chain-analysis';
@@ -36,8 +36,12 @@ export default function PortfolioHome({address,onAction,progress,onProgress,publ
   const [walletAddress,setWalletAddress]=useState('');
   const [records,setRecords]=useState<PricedObservation[]>([]);
   const [loading,setLoading]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
+  const [refreshMessage,setRefreshMessage]=useState('');
+  const activeRefresh=useRef<AbortController|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
   const [refresh,setRefresh]=useState(0);
+  useEffect(()=>()=>{activeRefresh.current?.abort();},[address]);
   useEffect(()=>{
     if(!address)return;
     const controller=new AbortController();queueMicrotask(()=>{if(!controller.signal.aborted)setLoading(true);});
@@ -48,6 +52,27 @@ export default function PortfolioHome({address,onAction,progress,onProgress,publ
     return()=>controller.abort();
   },[address,refresh]);
   useEffect(()=>{const update=()=>setRefresh(n=>n+1);window.addEventListener('steward-order-updated',update);window.addEventListener('steward-permission-updated',update);return()=>{window.removeEventListener('steward-order-updated',update);window.removeEventListener('steward-permission-updated',update);};},[]);
+  async function refreshValuation(){
+    if(!address||refreshing)return;
+    const controller=new AbortController();activeRefresh.current=controller;
+    setRefreshing(true);setRefreshMessage('Checking your wallet and saving a new value…');
+    try{
+      const walletResponse=await fetch('/api/workspace/wallets/previous?wallet=current',{cache:'no-store',signal:controller.signal});
+      const walletBody=await walletResponse.json() as {wallet?:Wallet|null;error?:string};
+      if(!walletResponse.ok)throw new Error(walletBody.error||'Wallet balances could not be loaded.');
+      if(!walletBody.wallet?.verified||!walletBody.wallet.safe)throw new Error('Verify your wallet and finish setup before checking its value.');
+      const response=await fetch('/api/workspace/chain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:walletBody.wallet.safe}),cache:'no-store',signal:controller.signal});
+      const result=await response.json() as {saved?:boolean;error?:string;warning?:string};
+      if(!response.ok)throw new Error(result.error||'Could not check your wallet value.');
+      if(!result.saved)throw new Error(result.warning||'The new value could not be saved. Try again later.');
+      if(!controller.signal.aborted){setRefresh(n=>n+1);setRefreshMessage('New value saved. Balances are updating.');}
+    }catch(error){
+      if(!controller.signal.aborted)setRefreshMessage(error instanceof Error?error.message:'Could not check your wallet value.');
+    }finally{
+      setRefreshing(false);
+      if(activeRefresh.current===controller)activeRefresh.current=null;
+    }
+  }
   const wallet=walletAddress===address?walletState:null;
   const matching=useMemo(()=>records.filter(item=>wallet&&item.address.toLowerCase()===wallet.safe.toLowerCase()).sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt)),[records,wallet]);
   const latest=matching.at(-1);
@@ -71,7 +96,7 @@ export default function PortfolioHome({address,onAction,progress,onProgress,publ
         <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
       </div>
-      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>setRefresh(n=>n+1)} disabled={!address||loading} aria-label="Reload saved wallet checks" title="Reload saved wallet checks"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small></div>
+      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
     </section>
     {!progress.complete&&<button type="button" className="ws-v2-progress" onClick={onProgress}><span className="ws-v2-progress-icon">{progress.done+1}</span><span><small>SETUP · {progress.done} OF {progress.total} COMPLETE</small><strong>{progress.next}</strong></span><span className="ws-v2-progress-track" aria-hidden="true"><i style={{width:`${Math.round(progress.done/progress.total*100)}%`}}/></span><ChevronRight size={18}/></button>}
     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>
