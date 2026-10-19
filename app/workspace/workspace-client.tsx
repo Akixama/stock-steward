@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   ArrowRight, ArrowUpRight, Check, CircleDot, Clock3,
-  FileText, LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal, Play, BellRing,
+  LockKeyhole, RotateCcw, ShieldCheck, SlidersHorizontal, Play, BellRing,
 } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
 import {flushSync} from 'react-dom';
@@ -20,6 +20,7 @@ import { useWalletSession } from "./wallet-session";
 import StockSelector from './stock-selector';
 import "./workspace.css";
 import "./workspace-redesign.css";
+import "./workspace-v2.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
 const initial: Mandate = {
@@ -121,10 +122,6 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
     if(enabled&&panel)motion.current=panel.animate([{opacity:.7,transform:'translateX('+(direction*12)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'cubic-bezier(.23,1,.32,1)'});
   }
 
-  function scrollToId(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth', block: "start" });
-  }
-
   function resetDraft() {
     setSymbols(mandate.allowedSymbols.join(", "));
     setMaxOrder(String(mandate.maxOrderCents / 100));
@@ -169,7 +166,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
   }
 
   const limitsReady = Boolean(mandate.version) && !overviewState.limitIssue;
-  const completedSteps = [limitsReady, overviewState.ownership, overviewState.permission, overviewState.funded, overviewState.bought, overviewState.receiptVerified].filter(Boolean).length;
+  const completedSteps = [limitsReady, overviewState.ownership, overviewState.permission].filter(Boolean).length;
 
   return <div className="ws">
     <header className="ws-header">
@@ -200,34 +197,10 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/></div>
         {view === 'goal' && <GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Check prices now, or enable device notifications for scheduled checks while the site is closed. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate}/></div>}
-        {view === "overview" && <div className="ws-view" data-animate={animateView} key="overview">
-          <div className="ws-page-head ws-overview-heading"><div><span className="ws-eyebrow">YOUR WORKSPACE</span><h1>Stay in control.<br/><em>Approve every move.</em></h1><p>Your limits, wallet and purchases in one place.</p></div><span className="ws-overview-mode"><LockKeyhole size={14}/> Wallet approval required</span></div>
-          <nav className="ws-path" aria-label="What to do next"><div className="ws-path-head"><div><span className="ws-label">DO NEXT</span><p>Set your limits, connect your wallet, then make a buy.</p></div><span className="ws-path-count">{completedSteps} of 6 complete</span></div><ol>
-            <li><button type="button" data-state={limitsReady?'done':'current'} aria-current={!limitsReady?'step':undefined} onClick={()=>navigate('mandate')}><span className="ws-path-meta"><span className="ws-path-number">{limitsReady?<Check size={15}/>:1}</span><span className="ws-path-state">{limitsReady?'Done':overviewState.limitIssue?'Update':'Now'}</span></span><strong>Set your limits</strong><small>{overviewState.limitIssue==='expired'?'Save your limits again to renew expired buying access':overviewState.limitIssue==='invalid'?'Update your limits before buying':mandate.version?"Your limits are saved":'Choose stocks and spending limits'}</small></button></li>
-            <li><button type="button" data-state={overviewState.ownership?'done':limitsReady?'current':'upcoming'} aria-current={limitsReady&&!overviewState.ownership?'step':undefined} onClick={()=>scrollToId('ws-wallet-setup')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.ownership?<Check size={15}/>:2}</span><span className="ws-path-state">{overviewState.ownership?'Done':limitsReady?'Now':'Later'}</span></span><strong>Verify your wallet</strong><small>{overviewState.ownership?'Wallet verified':'Connect on Robinhood Chain and sign a free message'}</small></button></li>
-            <li><button type="button" data-state={overviewState.permission?'done':overviewState.ownership&&limitsReady?'current':'upcoming'} aria-current={overviewState.ownership&&limitsReady&&!overviewState.permission?'step':undefined} onClick={()=>scrollToId('ws-activation')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.permission?<Check size={15}/>:3}</span><span className="ws-path-state">{overviewState.permission?'Done':overviewState.ownership&&limitsReady?'Now':'Later'}</span></span><strong>Allow purchases</strong><small>{overviewState.permission?'Purchase limits active':'Approve your limits once in your wallet'}</small></button></li>
-            <li><button type="button" data-state={overviewState.funded?'done':overviewState.permission?'current':'upcoming'} aria-current={overviewState.permission&&!overviewState.funded?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.funded?<Check size={15}/>:4}</span><span className="ws-path-state">{overviewState.funded?'Done':overviewState.permission?'Now':'Later'}</span></span><strong>Add USDG</strong><small>{overviewState.funded?'Enough USDG for one order':'Add USDG to your trading wallet'}</small></button></li>
-            <li><button type="button" data-state={overviewState.bought?'done':overviewState.funded?'current':'upcoming'} aria-current={overviewState.funded&&!overviewState.bought?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.bought?<Check size={15}/>:5}</span><span className="ws-path-state">{overviewState.bought?'Done':overviewState.funded?'Now':'Later'}</span></span><strong>Approve a buy</strong><small>{overviewState.bought?'Transaction sent':'Review the exact order in your wallet'}</small></button></li>
-            <li><button type="button" data-state={overviewState.receiptVerified?'done':overviewState.bought?'current':'upcoming'} aria-current={overviewState.bought&&!overviewState.receiptVerified?'step':undefined} onClick={()=>scrollToId('ws-real-orders')}><span className="ws-path-meta"><span className="ws-path-number">{overviewState.receiptVerified?<Check size={15}/>:6}</span><span className="ws-path-state">{overviewState.receiptVerified?'Done':overviewState.bought?'Now':'Later'}</span></span><strong>Check your buy</strong><small>{overviewState.receiptVerified?'Purchase confirmed':'Wait for confirmation before another buy'}</small></button></li>
-          </ol></nav>
-          <button type="button" className="ws-practice-callout" onClick={()=>navigate('practice')}><Play size={18}/><span><strong>Try it with fake funds first</strong><small>Practice uses pretend money and needs no wallet approval.</small></span><ArrowRight size={17}/></button>
-          <div className="ws-status-strip" role="status">
-            <div><span className="ws-label">YOUR LIMITS</span><strong>{mandate.version ? `${mandate.allowedSymbols.join(", ") || "No stocks"} approved` : "Not saved yet"}</strong></div>
-            <div><span className="ws-label">BUYING</span><strong>{(mandate.executionPreference ?? "approval") === "automatic" ? "Check only · no orders" : "Ask me every time"}</strong></div>
-            <div><span className="ws-label">NEXT STEP</span><strong>{!mandate.version ? "Set your limits" : "Review your wallet and buys below"}</strong></div>
-          </div>
-          <div className="ws-overview-grid ws-wallet-overview">
-            <section className="ws-mandate-preview">
-              <div className="ws-panel-top"><span className="ws-label">YOUR LIMITS</span><span className="ws-panel-index">{mandate.version?'SAVED':'NOT SAVED'}</span></div>
-              <div className="ws-preview-body"><h2>{mandate.version ? "Your saved limits" : "Set your first limits"}</h2><p>{mandate.version ? `${mandate.allowedSymbols.length} approved ${mandate.allowedSymbols.length===1?'stock':'stocks'}. Buying access is shown below.` : "Choose stocks and spending limits before you turn on buying."}</p><div className="ws-preview-rules"><div className="ws-preview-rule"><span>Per purchase</span><strong>{mandate.version ? usd(mandate.maxOrderCents) : "—"}</strong></div><div className="ws-preview-rule"><span>Per day</span><strong>{mandate.version ? usd(mandate.maxDailyBuyCents) : "—"}</strong></div><div className="ws-preview-rule"><span>Over two days</span><strong>{mandate.version ? usd(mandate.maxDailyBuyCents*2) : "—"}</strong><small>Twice your daily limit.</small></div><div className="ws-preview-rule"><span>Max in one stock</span><strong>{mandate.version ? `${mandate.maxPositionBps / 100}%` : "—"}</strong></div></div></div>
-              <button type="button" className="ws-text-action" onClick={() => navigate("mandate")}>{mandate.version ? "Review your limits" : "Set your limits"}<ArrowUpRight size={17} /></button>
-            </section>
-          </div>
-          <button type="button" className="ws-overview-trail" onClick={() => navigate("trail")}><div className="ws-trail-monogram"><FileText size={19}/></div><div><span className="ws-label">PRACTICE HISTORY</span><strong>See what Steward did.</strong><p>See practice buys and why some were stopped.</p></div></button>
-          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} />
-          <details className="ws-overview-more"><summary>More wallet details</summary><ChainPanel mandate={mandate} /></details>
+        {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
+          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} progress={{done:completedSteps,total:3,complete:completedSteps===3,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <details className="ws-v2-more"><summary>More wallet details</summary><ChainPanel mandate={mandate} /></details>
         </div>}
-
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">
           <div className="ws-page-head"><div><span className="ws-eyebrow">YOUR LIMITS</span><h1>Decide the limits.<br /><em>Keep the control.</em></h1><p>Choose which stocks you can buy and how much you can spend. Saving alone does not buy anything.</p></div><OverviewMotion variant="mandate" caption={mandate.version ? "LIMITS SAVED" : "UNSAVED DRAFT"}/></div>
           {legacyDraft && <p className="ws-import-note">Earlier device-only limits were found. Review these fields, then save to move them into your signed-in workspace.</p>}
@@ -251,6 +224,13 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
 
         {view === "trail" && <div className="ws-view" data-animate={animateView} key="trail"><div className="ws-page-head"><div><span className="ws-eyebrow">DECISION TRAIL</span><h1>See the reason.<br/><em>See the result.</em></h1><p>Trail currently shows Practice decisions only. See why Steward bought, sold or held using simulated funds.</p></div><OverviewMotion variant="trail" caption="PRACTICE RECEIPTS"/></div><PracticeTrail mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate("practice")}/></div>}
       </main>
+      <nav className="ws-v2-mobile-nav" aria-label="Mobile workspace navigation">
+        <button type="button" aria-current={view==='overview'?'page':undefined} onClick={event=>navigate('overview',event)}><CircleDot size={20}/><span>Home</span></button>
+        <RouteLink href="/chart"><ArrowUpRight size={20}/><span>Markets</span></RouteLink>
+        <button type="button" aria-current={view==='alerts'?'page':undefined} onClick={event=>navigate('alerts',event)}><BellRing size={20}/><span>Alerts</span></button>
+        <button type="button" aria-current={view==='practice'?'page':undefined} onClick={event=>navigate('practice',event)}><Play size={20}/><span>Practice</span></button>
+        <details className="ws-v2-nav-more"><summary><SlidersHorizontal size={20}/><span>More</span></summary><div><button type="button" onClick={event=>navigate('goal',event)}>My plan</button><button type="button" onClick={event=>navigate('mandate',event)}>Limits</button><button type="button" onClick={event=>navigate('strategy',event)}>Strategy</button><button type="button" onClick={event=>navigate('trail',event)}>Trail</button><RouteLink href="/guide">Guide</RouteLink></div></details>
+      </nav>
     </div>
   </div>;
 }

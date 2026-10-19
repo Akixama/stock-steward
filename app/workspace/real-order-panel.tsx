@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { matchingWallet, type WalletProvider } from '@/lib/browser-wallet';
 import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wallet-receipt';
 import { ArrowRight, Clock3 } from 'lucide-react';
+import OrderStatusTimeline from './order-status-timeline';
 
 // Stage 3: one real order at a time, each prepared server-side, signed in the
 // owner's own wallet, and reconciled against exact onchain evidence. The server
@@ -210,7 +211,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
       <p>The output is a minimum estimate, not a guaranteed market price. The network fee may change. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
       <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>
       <button type="button" className="ws-action-quiet" onClick={() => setPrepared(null)} disabled={busy}>Discard</button></div>}
-    {hash && <div className="ws-order-events"><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · CHECKING FINAL STATUS' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
+    {hash && <div className="ws-order-events"><OrderStatusTimeline stage={receiptState==='verified'?'verified':receiptState==='confirmed'||receiptState==='included'?'confirming':'submitted'}/><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · CHECKING FINAL STATUS' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
       <div><b>{receiptState === 'confirmed' ? 'Stock-token purchase confirmed' : receiptState === 'included' ? 'Payment sent; checking your purchase' : receiptState === 'verified' ? 'Purchase verified' : receiptState === 'reverted' ? 'No purchase completed' : 'Transaction sent'}</b><small>{hash.slice(0, 18)}…</small></div>
       <a className="ws-recheck" href={`https://robinhoodchain.blockscout.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">View transaction ↗</a>
       <p className="ws-chain-note">No additional funds are needed for this submitted order.</p>

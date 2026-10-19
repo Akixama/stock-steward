@@ -2,6 +2,7 @@
 import {useEffect,useState} from 'react';
 import {parseUnits} from 'viem';
 import {matchingWallet,type WalletProvider} from '@/lib/browser-wallet';
+import OrderStatusTimeline from './order-status-timeline';
 
 type Draft={symbol:string;safe:string;owner:string;quantity:string;estimatedUsdg:string;minimumUsdg:string;minimumUsdgRaw:string;expiresAt:string;gasEstimate:string;transaction:{from:string;to:string;value:string;data:string};attemptId:string|null;simulated:boolean};
 type Wallet={wallet:{usdg:string|null;holdings:{symbol:string;tokens:string|null}[]}|null};
@@ -39,6 +40,6 @@ export default function OwnerSale({provider,address,safe,wallet,assets,usdg,onCo
  return <div className="ws-previous-recovery"><div><strong>Sell a holding for USDG</strong><p>Review a live quote for your entire holding. The trade stays in your Steward wallet; you approve the exact sale in your own wallet.</p></div>
   <div className="ws-previous-recovery-assets">{stocks.map(asset=><button key={asset.symbol} type="button" disabled={!provider||busy||Boolean(hash)} onClick={()=>void review(asset.symbol)}>Review {asset.symbol} sale</button>)}</div>
   {draft&&<div className="ws-previous-recovery-review"><span>SELL REVIEW</span><strong>Sell {draft.quantity} {draft.symbol}</strong><dl className="ws-exact-order-facts"><div><dt>Amount to sell</dt><dd>{draft.quantity} {draft.symbol}</dd></div><div><dt>Estimated return</dt><dd>{draft.estimatedUsdg} USDG</dd></div><div><dt>Minimum output</dt><dd>{draft.minimumUsdg} USDG</dd></div><div><dt>Network fee estimate</dt><dd>Shown in your wallet before approval</dd></div><div><dt>Wallet approval deadline</dt><dd>{new Date(draft.expiresAt).toLocaleTimeString()}</dd></div></dl><p>The return is an estimate. The quote is refreshed when you press Approve. USDG stays in your Steward wallet. Your connected wallet pays the network fee.</p><div><button type="button" disabled={busy} onClick={()=>void submit()}>Review and approve in wallet</button><button type="button" disabled={busy} onClick={()=>setDraft(null)}>Cancel</button></div></div>}
-  {message&&<p role="status">{message}</p>}{error&&<p role="alert" className="ws-previous-recovery-error">{error}</p>}{hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">View sale transaction ↗</a>}
+  {hash&&<OrderStatusTimeline stage={message.startsWith('Sale confirmed.')?'verified':message.startsWith('Transaction confirmed')?'confirming':'submitted'}/>}{message&&<p role="status">{message}</p>}{error&&<p role="alert" className="ws-previous-recovery-error">{error}</p>}{hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">View sale transaction ↗</a>}
  </div>;
 }
