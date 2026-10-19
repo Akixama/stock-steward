@@ -32,7 +32,7 @@ const oldDeviceStore = "stock-steward-brokerage-mandate-v1";
 const usd = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 2,
 }).format(cents / 100);
-export default function WorkspaceClient({initialMandate,storageError}:{initialMandate:Mandate|null;storageError:string|null}) {
+export default function WorkspaceClient({initialMandate,storageError,publicMode}:{initialMandate:Mandate|null;storageError:string|null;publicMode:boolean}) {
   const walletSession = useWalletSession();
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
@@ -198,7 +198,7 @@ export default function WorkspaceClient({initialMandate,storageError}:{initialMa
         {view === 'goal' && <GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Check prices now, or enable device notifications for scheduled checks while the site is closed. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
-          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} progress={{done:completedSteps,total:3,complete:completedSteps===3,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} progress={{done:completedSteps,total:3,complete:completedSteps===3,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
           <details className="ws-v2-more"><summary>More wallet details</summary><ChainPanel mandate={mandate} /></details>
         </div>}
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">

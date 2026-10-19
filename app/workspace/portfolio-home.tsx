@@ -31,7 +31,7 @@ function HistoryLine({points}:{points:number[]}){
   return <svg className="ws-v2-chart" viewBox="0 0 100 80" preserveAspectRatio="none" role="img" aria-label="Saved portfolio value observations"><polyline points={coordinates}/></svg>;
 }
 
-export default function PortfolioHome({address,onAction,progress,onProgress}:{address:string;onAction:(action:Action)=>void;progress:{done:number;total:number;next:string;complete:boolean};onProgress:()=>void}){
+export default function PortfolioHome({address,onAction,progress,onProgress,publicMode}:{address:string;onAction:(action:Action)=>void;progress:{done:number;total:number;next:string;complete:boolean};onProgress:()=>void;publicMode:boolean}){
   const [walletState,setWallet]=useState<Wallet|null>(null);
   const [walletAddress,setWalletAddress]=useState('');
   const [records,setRecords]=useState<PricedObservation[]>([]);
@@ -65,13 +65,13 @@ export default function PortfolioHome({address,onAction,progress,onProgress}:{ad
   };
   return <div className="ws-v2-home">
     <section className="ws-v2-portfolio" aria-label="Portfolio overview">
-      <div className="ws-v2-portfolio-copy"><div className="ws-v2-overline"><span>YOUR STEWARD WALLET</span><span className="ws-v2-pilot">PRIVATE PILOT</span></div>
+      <div className="ws-v2-portfolio-copy"><div className="ws-v2-overline"><span>YOUR STEWARD WALLET</span>{!publicMode&&<span className="ws-v2-pilot">PRIVATE PILOT</span>}</div>
         <span className="ws-v2-value-label">Portfolio value <span>· indicative</span></span>
         {loading?<div className="ws-v2-skeleton ws-v2-skeleton-value" aria-label="Loading portfolio value"/>:<CountedValue value={total}/>}
         <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
       </div>
-      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>setRefresh(n=>n+1)} disabled={!address||loading} aria-label="Refresh portfolio balances"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small></div>
+      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>setRefresh(n=>n+1)} disabled={!address||loading} aria-label="Reload saved wallet checks" title="Reload saved wallet checks"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small></div>
     </section>
     {!progress.complete&&<button type="button" className="ws-v2-progress" onClick={onProgress}><span className="ws-v2-progress-icon">{progress.done+1}</span><span><small>SETUP · {progress.done} OF {progress.total} COMPLETE</small><strong>{progress.next}</strong></span><span className="ws-v2-progress-track" aria-hidden="true"><i style={{width:`${Math.round(progress.done/progress.total*100)}%`}}/></span><ChevronRight size={18}/></button>}
     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>

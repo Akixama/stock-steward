@@ -13,8 +13,9 @@ import type { OwnershipChallenge } from '@/lib/wallet-ownership';
 // finished setup collapses to a status bar; verification persists server-side so
 // it never repeats across visits. Only the connection itself repeats per visit,
 // because wallets deliberately forget connections when the page closes.
-export default function WalletSetup({ onAddress, onProvider, disabled }: {
-  onAddress: (address: string) => void; onProvider: (provider: WalletProvider | null) => void; disabled: boolean;
+export default function WalletSetup({ onAddress, onProvider, onVerified, disabled, view = 'all' }: {
+  onAddress: (address: string) => void; onProvider: (provider: WalletProvider | null) => void;
+  onVerified?: (verified: boolean) => void; disabled: boolean; view?: 'all' | 'connect' | 'verify';
 }) {
   const session = useWalletSession();
   const [chainId, setChainId] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function WalletSetup({ onAddress, onProvider, disabled }: {
   const onChain = chainId != null && /^(0x[0-9a-f]+|\d+)$/i.test(chainId) && BigInt(chainId) === 4663n;
   const ownershipMatches=!!session&&verifiedAddress===session.address.toLowerCase()&&!!verifiedAt;
   const done = !!session && onChain && ownershipMatches;
+  useEffect(() => { onVerified?.(done); }, [done, onVerified]);
 
   async function verify(provider: WalletProvider, address: string, current: number) {
     setStep('Requesting the ownership message…');
@@ -106,6 +108,20 @@ export default function WalletSetup({ onAddress, onProvider, disabled }: {
     } finally { if(current===generation.current)setBusy(false); }
   }
 
+  if (view === 'connect') return <div id="ws-wallet-setup" className="ws-v2-setup-stage" aria-busy={busy}>
+    <span className="ws-label">STEP 1 · CONNECT</span>
+    <h3>Connect your wallet</h3>
+    <p>Your wallet stays in your control. Connecting does not approve a purchase.</p>
+    {session ? <div className="ws-v2-step-success" role="status"><Check size={17}/><span>Connected · {session.address.slice(0, 6)}…{session.address.slice(-4)}</span></div>
+      : <WalletConnect disabled={disabled || busy} onConnected={() => { setError(''); setStep(''); }} />}
+    {error && <p className="ws-error" role="alert">{error}</p>}
+  </div>;
+
+  if (view === 'verify' && !session) return <div id="ws-wallet-setup" className="ws-v2-setup-stage">
+    <span className="ws-label">STEP 2 · VERIFY</span><h3>Connect first</h3>
+    <p>Go to Connect, then return here to switch networks and sign the free ownership message.</p>
+  </div>;
+
   if (done) return <div id="ws-wallet-setup" className="ws-wallet-connected" role="status">
     <span className="ws-wallet-dot" aria-hidden="true" />
     <div><strong>Wallet ready · {session!.address.slice(0, 6)}…{session!.address.slice(-4)}</strong>
@@ -115,8 +131,8 @@ export default function WalletSetup({ onAddress, onProvider, disabled }: {
   </div>;
 
   return <div id="ws-wallet-setup" className="ws-wallet-setup" aria-busy={busy}>
-    <span className="ws-label">YOUR WALLET / ONE SETUP</span>
-    <h3>{session?'Finish connecting your wallet.':'Start with your wallet.'}</h3>
+    <span className="ws-label">{view === 'verify' ? 'STEP 2 · VERIFY' : 'YOUR WALLET / ONE SETUP'}</span>
+    <h3>{session?'Verify your wallet.':'Start with your wallet.'}</h3>
     <p>Connect, switch to Robinhood Chain, then sign a free ownership message. Your keys stay in your wallet.</p>
     {!session
       ? <WalletConnect disabled={disabled || busy} onConnected={() => { setError(''); setStep(''); }} />

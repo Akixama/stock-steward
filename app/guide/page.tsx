@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { env } from 'cloudflare:workers';
 import { ArrowRight, ArrowUpRight, BookOpen, CircleDot, ShieldCheck } from 'lucide-react';
 import { BrandMark, BrandName } from '@/components/brand';
 import { RouteLink } from '@/components/route-transition';
@@ -6,6 +7,7 @@ import { guideRevision } from '@/lib/product-guide';
 import './guide.css';
 
 export const metadata: Metadata = {title:'Stock Steward guide',description:'A practical guide to limits, strategies, Practice, wallet permissions, real orders and receipts.'};
+export const dynamic = 'force-dynamic';
 
 const chapters = [
  {id:'start',title:'Start here',text:'Stock Steward separates planning, simulated decisions and real wallet actions so you always know what can move money.',points:[['Set your limits','Choose approved stocks, a per-purchase maximum, a daily maximum and an exposure limit.'],['Practice first','Choose a strategy and test it with simulated cash using indicative market quotes.'],['Connect when ready','Verify your wallet, activate the exact limits you reviewed, fund with USDG and approve an exact order.']]},
@@ -22,11 +24,20 @@ const chapters = [
 
 const flow=[['01','Save limits','Mandate'],['02','Choose rules','Strategy'],['03','Test safely','Practice'],['04','Verify wallet','Overview'],['05','Approve orders','Overview']];
 
-export default function Guide(){return <div className="guide">
+export default function Guide(){
+ const publicMode=env.PUBLIC_MODE==='true';
+ const displayedChapters=chapters.map(chapter=>{
+   if(!publicMode)return chapter;
+   if(chapter.id==='orders')return {...chapter,text:'Real orders are available to signed-in, verified owners within the configured caps and saved limits. Each action still needs exact wallet approval. Availability restrictions still apply.',points:chapter.points.map(([title,detail])=>title==='Current pilot'?['Order limits','Public mode caps each action at $5 and each day at $20, subject to tighter saved limits. Every purchase needs exact wallet approval.']:title==='Availability'?[title,'Stock Tokens cannot be offered or delivered in the United States or to U.S. persons. Sign-in alone does not establish eligibility.']:[title,detail])};
+   if(chapter.id==='move-funds')return {...chapter,points:chapter.points.map(([title,detail])=>title==='Sell a Stock Token'?[title,detail.replace('The pilot can','The app can')]:[title,detail])};
+   if(chapter.id==='public-mode')return {...chapter,text:'PUBLIC_MODE is on. Technical access does not determine whether a person is eligible to trade.',points:chapter.points.map(([title,detail])=>title==='Limits if enabled'?['Limits','$5 per action and $20 per day, subject to tighter saved limits. A paused server stops new preparations.']:title==='Eligibility'?[title,'Sign-in and wallet ownership do not establish residence, U.S.-person status or permission to use Stock Tokens in a location.']:[title,detail])};
+   return chapter;
+ });
+ return <div className="guide">
  <header className="guide-header"><RouteLink href="/" className="guide-brand" aria-label="Stock Steward home"><BrandMark/><BrandName/></RouteLink><div className="guide-header-right"><span>Product guide</span><RouteLink href="/workspace">Open workspace <ArrowUpRight size={15}/></RouteLink></div></header>
- <div className="guide-layout"><aside className="guide-sidebar"><div className="guide-sidebar-inner"><span className="guide-overline">DOCUMENTATION</span><h2>How it works</h2><nav aria-label="Guide chapters">{chapters.map((chapter,index)=><a key={chapter.id} href={'#'+chapter.id}><span>{String(index+1).padStart(2,'0')}</span>{chapter.title}</a>)}</nav><div className="guide-sidebar-foot"><CircleDot size={15}/> Reviewed {guideRevision}</div></div></aside>
+ <div className="guide-layout"><aside className="guide-sidebar"><div className="guide-sidebar-inner"><span className="guide-overline">DOCUMENTATION</span><h2>How it works</h2><nav aria-label="Guide chapters">{displayedChapters.map((chapter,index)=><a key={chapter.id} href={'#'+chapter.id}><span>{String(index+1).padStart(2,'0')}</span>{chapter.title}</a>)}</nav><div className="guide-sidebar-foot"><CircleDot size={15}/> Reviewed {guideRevision}</div></div></aside>
  <main className="guide-main"><div className="guide-hero"><span className="guide-overline"><BookOpen size={14}/> STOCK STEWARD / GUIDE</span><h1>Know the rules.<br/><em>Keep the control.</em></h1><p>A practical guide to planning, testing, wallet permissions and approving real orders.</p><div className="guide-hero-meta"><span><ShieldCheck size={14}/> Wallet-enforced limits</span><span>Updated {guideRevision}</span></div></div>
  <section className="guide-quick" aria-label="Product flow">{flow.map(item=><div key={item[0]}><span>{item[0]}</span><strong>{item[1]}</strong><small>{item[2]}</small></div>)}</section>
- {chapters.map((chapter,index)=><section className="guide-chapter" id={chapter.id} key={chapter.id}><div className="guide-chapter-head"><span>CHAPTER {String(index+1).padStart(2,'0')}</span><h2>{chapter.title}</h2><p>{chapter.text}</p></div><ul className="guide-checks">{chapter.points.map(([title,detail])=><li key={title}><strong>{title}</strong><span>{detail}</span></li>)}</ul></section>)}
+ {displayedChapters.map((chapter,index)=><section className="guide-chapter" id={chapter.id} key={chapter.id}><div className="guide-chapter-head"><span>CHAPTER {String(index+1).padStart(2,'0')}</span><h2>{chapter.title}</h2><p>{chapter.text}</p></div><ul className="guide-checks">{chapter.points.map(([title,detail])=><li key={title}><strong>{title}</strong><span>{detail}</span></li>)}</ul></section>)}
  <section className="guide-chapter guide-last" id="terms"><div className="guide-chapter-head"><span>REFERENCE</span><h2>Plain-language terms</h2></div><dl className="guide-glossary"><div><dt>Mandate</dt><dd>A saved, versioned set of limits.</dd></div><div><dt>Strategy</dt><dd>The conditions Steward checks before deciding to buy, sell or hold.</dd></div><div><dt>Permission</dt><dd>Time-limited onchain authority restricted by the limits you approve.</dd></div><div><dt>Finality</dt><dd>The stronger chain checkpoint Steward waits for before treating a receipt as fully settled.</dd></div></dl></section>
  <div className="guide-end"><span>Ready to use your workspace?</span><RouteLink href="/workspace">Go to workspace <ArrowRight size={16}/></RouteLink></div></main></div></div>}

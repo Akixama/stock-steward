@@ -21,8 +21,9 @@ export type PlanResponse = {
 };
 
 
-export default function InstallReview({ provider, address, policyVersion, onOpenMandate }: {
+export default function InstallReview({ provider, address, policyVersion, onOpenMandate, onVerifyWallet, view = 'all', onContinue, publicMode = false }: {
   provider: WalletProvider | null; address: string; policyVersion: number; onOpenMandate: () => void;
+  onVerifyWallet?: () => void; view?: 'all' | 'review' | 'activate'; onContinue?: () => void; publicMode?: boolean;
 }) {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -44,26 +45,29 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
   useEffect(() => { generation.current++;const timer = setTimeout(() => {setPlan(null);void load();}, 0); return () => {clearTimeout(timer);generation.current++;}; }, [policyVersion,address,provider,load]);
   useEffect(()=>{const changed=()=>{void load();};window.addEventListener('stock-steward:ownership-changed',changed);return()=>window.removeEventListener('stock-steward:ownership-changed',changed);},[load]);
   const needsLimits = /mandate|limits|symbol|token contract/i.test(error);
-  const needsWallet = /ownership|verify your wallet/i.test(error);
+  const needsWallet = !address || /ownership|verify your wallet/i.test(error);
+  const pilotBlocked = /private pilot|pilot wallet|pilot access/i.test(error);
   const step = needsLimits
     ? { n: '1', title: 'Set your limits first', why: 'There is nothing to turn on until your limits are saved.', action: 'Set limits', go: onOpenMandate }
     : needsWallet
-      ? { n: '2', title: 'Prove the wallet is yours', why: 'A free signature proves you control it. Activation needs that proof first.', action: 'Verify wallet', go: () => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth', block: 'start' }) }
+      ? { n: '2', title: address ? 'Prove the wallet is yours' : 'Connect your wallet first', why: address ? 'A free signature proves you control it. Activation needs that proof first.' : 'Connect before reviewing or activating buying access.', action: address ? 'Verify wallet' : 'Connect wallet', go: onVerifyWallet ?? (() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth', block: 'start' })) }
       : null;
   return <section className="ws-install-review" id="ws-activation">
-    <div className="ws-account-head"><div><span className="ws-label">REVIEW BUYING ACCESS</span>
-      <h3>Review what buying would allow.</h3>
-      <p>Check your limits and estimated fees before approving setup.</p></div>
+    <div className="ws-account-head"><div><span className="ws-label">{view === 'activate' ? 'BUYING ACCESS' : 'REVIEW BUYING ACCESS'}</span>
+      <h3>{view === 'activate' ? 'Activate buying permission' : 'Review what buying would allow.'}</h3>
+      <p>{view === 'activate' ? 'See the current status before asking your wallet to sign.' : 'Check your limits and estimated fees before approving setup.'}</p></div>
       {plan && <button type="button" className="ws-recheck" onClick={load} disabled={busy}>{busy ? 'Compiling…' : 'Refresh review'}</button>}</div>
     {busy && !plan && <p className="ws-chain-note">Checking what is ready…</p>}
+    {!busy && view === 'activate' && !plan && <div className="ws-v2-access-state" role="status"><small>ACTIVATION STATUS</small><strong>{address && pilotBlocked ? publicMode ? 'Blocked by access rules' : 'Blocked by the private pilot' : 'Disabled'}</strong><p>{!address?'Connect and verify your wallet first.':publicMode && pilotBlocked?'Your wallet cannot activate buying access. Refresh and check the current access settings.':error || 'A buying permission review is not ready yet.'}</p></div>}
     {!busy && step && <div className="ws-install-gate">
       <span className="ws-label">STEP {step.n} OF 2</span>
       <strong>{step.title}</strong>
       <p>{step.why}</p>
       <button type="button" className="ws-action-primary" onClick={step.go}>{step.action}</button>
     </div>}
-    {!busy && error && !step && <p className="ws-error" role="alert">{error}</p>}
+    {!busy && error && !step && view !== 'activate' && <p className="ws-error" role="alert">{error}</p>}
     {plan && <div className="ws-install-body">
+      <div hidden={view === 'activate'}>
       <PermissionReviewDetails plan={plan} />
       <div className="ws-permission-explainer" role="note">
         <div className="ws-permission-explainer-title"><span className="ws-permission-explainer-icon"><ShieldCheck size={19} aria-hidden="true" /></span><div><span className="ws-label">WHAT YOU ALLOW</span><strong>What turning this on allows</strong></div></div>
@@ -74,7 +78,9 @@ export default function InstallReview({ provider, address, policyVersion, onOpen
         </div>
         <p>Ends {plan.summary.expires}. You can turn it off in Permission controls.</p>
       </div>
-      <InstallDriver provider={provider} address={address} policyVersion={policyVersion} feesOk={plan.fees.review.state === 'within_cap'} expires={plan.summary.expires} />
+      </div>
+      {view === 'review' && <button type="button" className="ws-v2-step-next" onClick={onContinue}>Continue to activation <Check size={16}/></button>}
+      <div hidden={view === 'review'}><InstallDriver provider={provider} address={address} policyVersion={policyVersion} feesOk={plan.fees.review.state === 'within_cap'} expires={plan.summary.expires} /></div>
     </div>}
   </section>;
 }

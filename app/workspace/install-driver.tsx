@@ -456,7 +456,19 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     return () => controller.abort();
   }, [provider, address, policyVersion, previousWalletRefresh]);
   const current = phase?.steps?.[next];
+  const activationState = !provider
+    ? { label: 'Disabled', reason: 'Connect and verify your wallet first.' }
+    : !policyVersion
+      ? { label: 'Disabled', reason: 'Save your buying limits first.' }
+      : !feesOk
+        ? { label: 'Disabled', reason: 'The fee review has not passed within your cap.' }
+        : phase?.installed && !revoked
+          ? { label: 'Active', reason: `Permission is active until ${expires}. You still approve each order.` }
+          : busy || chain
+            ? { label: 'Checking', reason: 'Wait for the current wallet or chain check to finish.' }
+            : { label: 'Ready', reason: 'Review the setup in your wallet when you are ready.' };
   return <div className="ws-install-driver">
+    <div className="ws-v2-access-state" role="status"><small>ACTIVATION STATUS</small><strong>{activationState.label}</strong><p>{activationState.reason}</p></div>
     {previousWallet && previousWallet.mandateVersion < policyVersion && <div className="ws-previous-wallet" role="note">
       <span className="ws-label">EARLIER WALLET · MANDATE V{previousWallet.mandateVersion}</span>
       <strong>Your earlier holdings stay in their original wallet.</strong>
@@ -477,7 +489,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     <div className="ws-chain-tools permission-actions">
       {!provider ? <button type="button" className="ws-action-primary" onClick={() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>Connect wallet to continue</button> : <>
         <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !policyVersion || !feesOk || phase?.installed}>
-          {busy ? 'Checking permission…' : revoked ? 'Reactivate permission' : phase?.installed ? 'Permission active' : 'Activate permission'}
+          {busy ? 'Checking permission…' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
         </button>
         <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain}>Refresh status</button>
       </>}
