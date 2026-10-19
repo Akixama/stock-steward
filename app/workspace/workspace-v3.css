@@ -1,0 +1,52 @@
+.ws-v3-shell {--v3-ink:#f5f3fa;--v3-muted:#aaa9b7;--v3-line:#363541;--v3-accent:#c8c1eb}
+.ws-v3-earlier-banner {display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:26px;margin:30px 0 0;padding:18px 20px;border:1px solid #514d65;border-radius:15px;background:#1c1b27;color:var(--v3-ink)}
+.ws-v3-earlier-banner span,.ws-v3-setup header span,.ws-v3-move-head>span,.ws-v3-wallet-route dt {display:block;color:#b8b2d5;font:700 11px/1.4 ui-monospace,SFMono-Regular,monospace;letter-spacing:.11em}
+.ws-v3-earlier-banner strong {display:block;margin-top:5px;font-size:18px;line-height:1.25;letter-spacing:-.02em}
+.ws-v3-earlier-banner p {margin:5px 0 0;color:var(--v3-muted);font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.ws-v3-earlier-banner button {cursor:pointer;color:#e9e4ff}
+.ws-v3-banner-action {display:flex;align-items:center;gap:5px;min-height:42px;padding:0;border:0;background:transparent;font-size:14px;font-weight:700;white-space:nowrap}
+.ws-v3-banner-dismiss {display:grid;place-items:center;width:36px;height:36px;border:1px solid #4c495d;border-radius:50%;background:transparent}
+.ws-v3-setup {scroll-margin-top:100px;margin:48px 0 22px;padding:0;border-top:1px solid var(--v3-line);color:var(--v3-ink)}
+.ws-v3-setup>header {display:flex;align-items:end;justify-content:space-between;gap:24px;padding:28px 0 24px}
+.ws-v3-setup h2 {margin:7px 0 6px;font-size:clamp(28px,3.4vw,44px);font-weight:570;letter-spacing:-.05em;line-height:1.06}
+.ws-v3-setup header p {margin:0;color:var(--v3-muted);font-size:15px;line-height:1.55}
+.ws-v3-setup header>button {display:flex;align-items:center;gap:6px;padding:10px 0;border:0;background:transparent;color:var(--v3-accent);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.ws-v3-setup-stepper {display:flex;gap:0;border-bottom:1px solid var(--v3-line);overflow-x:auto;scrollbar-width:none}
+.ws-v3-setup-stepper button {flex:1;display:flex;align-items:center;gap:12px;min-width:125px;min-height:62px;padding:9px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8f8e9e;text-align:left;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.ws-v3-setup-stepper button span {font:600 11px ui-monospace,SFMono-Regular,monospace;color:#777688}
+.ws-v3-setup-stepper button[aria-current=step] {border-color:var(--v3-accent);color:var(--v3-ink)}
+.ws-v3-setup-stepper button[data-complete=true]:not([aria-current=step]) {color:#c6c2d5}
+.ws-v3-setup-content {max-width:780px;padding:30px 0 6px}
+.ws-v3-setup-content[hidden] {display:none!important}
+.ws-v3-setup .ws-wallet-setup,.ws-v3-setup .ws-wallet-connected,.ws-v3-setup .ws-install-review {max-width:none;margin:0;padding:0;border:0;background:transparent;box-shadow:none}
+.ws-v3-setup .ws-v2-setup-stage,.ws-v3-setup .ws-bridge-steps,.ws-v3-setup .ws-install-driver,.ws-v3-setup .ws-chain-brief,.ws-v3-setup .ws-revoke-confirm {max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.ws-v3-setup .ws-install-body,.ws-v3-setup .permission-review-grid {display:block}
+.ws-v3-setup .permission-limits,.ws-v3-setup .permission-fees,.ws-v3-setup .permission-state,.ws-v3-setup .ws-permission-explainer,.ws-v3-setup .ws-v2-access-state,.ws-v3-setup .ws-install-gate,.ws-v3-setup .ws-order-plan,.ws-v3-setup .ws-activation-status {background:transparent;border:0;border-radius:0;border-top:1px solid var(--v3-line);padding:22px 0;margin:0;box-shadow:none}
+.ws-v3-setup .permission-review-grid>div+div {margin-top:0}
+.ws-v3-setup .ws-account-head h3 {font-size:clamp(24px,2.7vw,32px);letter-spacing:-.035em}
+.ws-v3-setup .ws-account-head p,.ws-v3-setup .ws-install-review p {font-size:15px;line-height:1.6}
+.ws-v3-setup .ws-v2-setup-stage h3 {font-size:clamp(25px,2.8vw,34px)}
+.ws-v3-setup .ws-v2-step-next {max-width:360px;font-size:14px}
+.ws-v3-move-page {max-width:920px;margin:0 auto;padding:36px 0 60px}
+.ws-v3-back {display:flex;align-items:center;gap:9px;padding:9px 0;border:0;background:transparent;color:#c8c1e7;font-size:14px;font-weight:650;cursor:pointer}
+.ws-v3-move-head {margin:38px 0 34px}
+.ws-v3-move-head h1 {margin:10px 0 14px;font-size:clamp(40px,6vw,76px);font-weight:550;letter-spacing:-.065em;line-height:.99}
+.ws-v3-move-head p {max-width:670px;margin:0;color:var(--v3-muted);font-size:17px;line-height:1.6}
+.ws-v3-move-head p strong {color:var(--v3-ink);font-weight:620}
+.ws-v3-wallet-route {display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:0 0 28px;padding:24px 0;border-top:1px solid var(--v3-line);border-bottom:1px solid var(--v3-line)}
+.ws-v3-wallet-route div {min-width:0}.ws-v3-wallet-route dd {margin:8px 0 0;color:#e9e7f0;font-size:13px;overflow-wrap:anywhere}.ws-v3-wallet-route a {color:#d2c9f3;text-decoration:none}
+.ws-v3-fund-list {display:grid;gap:12px}
+.ws-v3-fund-card {display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 26px;border:1px solid #393946;border-radius:16px;background:#171820}
+.ws-v3-fund-card>div {display:grid;gap:5px;min-width:0}.ws-v3-fund-card span {color:#bdb7da;font-size:12px;font-weight:750;letter-spacing:.1em}.ws-v3-fund-card strong {font-size:clamp(25px,3vw,36px);font-weight:570;letter-spacing:-.045em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.ws-v3-fund-card small {color:#9697a5;font-size:13px}
+.ws-v3-fund-card button {display:flex;align-items:center;gap:9px;min-height:44px;padding:11px 16px;border:1px solid #817aab;border-radius:10px;background:#ccc5ed;color:#181722;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}.ws-v3-fund-card button:disabled {opacity:.45;cursor:not-allowed}
+.ws-v3-refresh-earlier {margin-top:22px;padding:9px 0;border:0;background:transparent;color:#c8c1eb;font-size:14px;cursor:pointer}
+.ws-v3-shell .ws-v2-sheet-scroll {padding-top:32px}.ws-v3-shell .ws-v2-sheet-intro {font-size:15px;line-height:1.6;margin-bottom:30px}
+.ws-v3-shell .ws-v2-sheet .ws-previous-wallet,.ws-v3-shell .ws-v2-sheet .ws-previous-recovery,.ws-v3-shell .ws-v2-sheet .ws-fund-card,.ws-v3-shell .ws-v2-sheet .ws-live-balances,.ws-v3-shell .ws-v2-sheet .ws-previous-recovery-review,.ws-v3-shell .ws-v2-sheet .ws-order-plan,.ws-v3-shell .ws-v2-sheet .ws-live-review,.ws-v3-shell .ws-v2-sheet .ws-v2-timeline,.ws-v3-shell .ws-v2-sheet .ws-chain-brief {background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:0 0 24px}
+.ws-v3-shell .ws-v2-sheet .ws-previous-recovery>div+div,.ws-v3-shell .ws-v2-sheet .ws-previous-wallet>div+div {border-top:1px solid var(--v3-line);padding-top:20px}
+.ws-v3-shell .ws-v2-sheet .ws-exact-order-facts {border-top:1px solid var(--v3-line);border-bottom:1px solid var(--v3-line);padding:9px 0;margin:20px 0}
+.ws-v3-shell .ws-v2-sheet .ws-exact-order-facts>div {display:flex;justify-content:space-between;gap:18px;align-items:baseline;padding:11px 0;border-bottom:1px solid #292a34}.ws-v3-shell .ws-v2-sheet .ws-exact-order-facts>div:last-child {border-bottom:0}
+.ws-v3-shell .ws-v2-sheet .ws-exact-order-facts dt {color:#a5a5b4;font-size:13px}.ws-v3-shell .ws-v2-sheet .ws-exact-order-facts dd {margin:0;color:#f3f1fa;font-size:15px;font-weight:650;text-align:right}
+.ws-v3-shell .ws-v2-sheet .ws-previous-recovery-assets {display:grid;gap:10px}.ws-v3-shell .ws-v2-sheet .ws-previous-recovery-assets button {min-height:48px;width:100%;padding:12px 15px;border:1px solid #59566d;border-radius:10px;background:#22212b;color:#e8e3f8;text-align:left;font-size:14px;cursor:pointer}
+.ws-v3-shell .ws-v2-sheet .ws-previous-recovery-review code {overflow-wrap:anywhere}
+@media(max-width:700px){.ws-v3-earlier-banner {grid-template-columns:1fr auto;gap:12px;padding:17px}.ws-v3-earlier-banner>div {grid-column:1 / -1}.ws-v3-earlier-banner strong {font-size:16px}.ws-v3-earlier-banner p {font-size:13px}.ws-v3-banner-action {font-size:13px}.ws-v3-banner-dismiss {grid-column:2;grid-row:2;width:32px;height:32px}.ws-v3-setup {margin-top:35px}.ws-v3-setup>header {display:block;padding:22px 0 18px}.ws-v3-setup h2 {font-size:30px}.ws-v3-setup header p {font-size:14px}.ws-v3-setup-stepper button {flex-direction:column;align-items:flex-start;gap:5px;min-width:100px;min-height:57px;padding:8px 7px;font-size:11px}.ws-v3-setup-content {padding-top:25px}.ws-v3-move-page {padding:20px 0 55px}.ws-v3-move-head {margin:27px 0}.ws-v3-move-head h1 {font-size:48px}.ws-v3-move-head p {font-size:15px}.ws-v3-wallet-route {grid-template-columns:1fr;gap:18px}.ws-v3-fund-card {align-items:flex-start;flex-direction:column;gap:17px;padding:20px}.ws-v3-fund-card strong {font-size:29px}.ws-v3-fund-card button {width:100%;justify-content:space-between}.ws-v3-shell .ws-v2-sheet-scroll {padding-top:22px}}
+@media(prefers-reduced-motion:reduce){.ws-v3-fund-card button,.ws-v3-setup-stepper button,.ws-v3-earlier-banner button {transition:none}}

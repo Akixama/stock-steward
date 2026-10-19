@@ -5,7 +5,6 @@ import { decodeEventLog, parseAbi } from 'viem';
 import { rolesFactoryAbi } from '@/lib/roles-permission';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import { remainingInstallData } from '@/lib/remaining-install';
-import PreviousWalletRecovery from './previous-wallet-recovery';
 
 const FACTORY = '0x000000000000aDdB49795b0f9bA5BC298cDda236';
 const ROLES_MASTER = '0xf2964ce6161ce0e75964fe7927ce114cb0b283d5';
@@ -33,8 +32,6 @@ type Phase = {
   // can carry them verbatim; present on steps responses, absent elsewhere.
   outputs?: { token: string; fee: number; tickSpacing: number; minimumOutputRaw: string }[];
 };
-type PreviousWallet = { safe: string; mandateVersion: number; usdg: string | null;
-  holdings: { symbol: string; tokens: string | null }[]; verified: boolean };
 
 export default function InstallDriver({ provider, address, policyVersion, feesOk, expires }: {
   provider: WalletProvider | null; address: string; policyVersion: number; feesOk: boolean; expires: string;
@@ -52,8 +49,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [chain, setChain] = useState(false);
   const [skipBatch, setSkipBatch] = useState(false);
   const [confirmingRevoke, setConfirmingRevoke] = useState(false);
-  const [previousWallet, setPreviousWallet] = useState<PreviousWallet | null>(null);
-  const [previousWalletRefresh, setPreviousWalletRefresh] = useState(0);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -446,15 +441,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     finally { setBusy(false); }
   }
   useEffect(() => { if (!provider) return; const timer = setTimeout(() => void refreshStatus(), 0); return () => clearTimeout(timer); }, [provider, address, policyVersion]);
-  useEffect(() => {
-    if (policyVersion < 2) return;
-    const controller = new AbortController();
-    void fetch('/api/workspace/wallets/previous', { cache: 'no-store', signal: controller.signal })
-      .then(async response => response.ok ? response.json() as Promise<{ wallet: PreviousWallet | null }> : null)
-      .then(result => { if (!controller.signal.aborted) setPreviousWallet(result?.wallet ?? null); })
-      .catch(() => { /* An unavailable read must not imply an empty old wallet. */ });
-    return () => controller.abort();
-  }, [provider, address, policyVersion, previousWalletRefresh]);
   const current = phase?.steps?.[next];
   const activationState = !provider
     ? { label: 'Disabled', reason: 'Connect and verify your wallet first.' }
@@ -469,21 +455,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
             : { label: 'Ready', reason: 'Review the setup in your wallet when you are ready.' };
   return <div className="ws-install-driver">
     <div className="ws-v2-access-state" role="status"><small>ACTIVATION STATUS</small><strong>{activationState.label}</strong><p>{activationState.reason}</p></div>
-    {previousWallet && previousWallet.mandateVersion < policyVersion && <div className="ws-previous-wallet" role="note">
-      <span className="ws-label">EARLIER WALLET · MANDATE V{previousWallet.mandateVersion}</span>
-      <strong>Your earlier holdings stay in their original wallet.</strong>
-      <p>This mandate uses a separate wallet. Changing your limits did not transfer its funds, and new orders will not use these earlier balances.</p>
-      {previousWallet.verified && <div className="ws-previous-balances">
-        <span>USDG <b>{previousWallet.usdg ?? 'Balance unavailable'}</b></span>
-        {previousWallet.holdings.map(holding => <span key={holding.symbol}>{holding.symbol} tokens <b>{holding.tokens ?? 'Balance unavailable'}</b></span>)}
-      </div>}
-      {!previousWallet.verified && <p>Its owner and balances could not be checked just now. Use the explorer link to inspect it.</p>}
-      {previousWallet.verified && <PreviousWalletRecovery provider={provider} address={address} safe={previousWallet.safe} assets={[
-        { symbol: 'USDG', quantity: previousWallet.usdg },
-        ...previousWallet.holdings.map(holding => ({ symbol: holding.symbol, quantity: holding.tokens })),
-      ]} onComplete={() => setPreviousWalletRefresh(value => value + 1)} />}
-      <a href={`https://robinhoodchain.blockscout.com/address/${previousWallet.safe}`} target="_blank" rel="noopener noreferrer">View earlier wallet on Robinhood Chain ↗</a>
-    </div>}
     {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}
     {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
     <div className="ws-chain-tools permission-actions">

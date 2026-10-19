@@ -21,6 +21,7 @@ import StockSelector from './stock-selector';
 import "./workspace.css";
 import "./workspace-redesign.css";
 import "./workspace-v2.css";
+import "./workspace-v3.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
 const initial: Mandate = {

@@ -31,7 +31,7 @@ function HistoryLine({points}:{points:number[]}){
   return <svg className="ws-v2-chart" viewBox="0 0 100 80" preserveAspectRatio="none" role="img" aria-label="Saved portfolio value observations"><polyline points={coordinates}/></svg>;
 }
 
-export default function PortfolioHome({address,onAction,progress,onProgress,publicMode}:{address:string;onAction:(action:Action)=>void;progress:{done:number;total:number;next:string;complete:boolean};onProgress:()=>void;publicMode:boolean}){
+export default function PortfolioHome({address,onAction,publicMode}:{address:string;onAction:(action:Action)=>void;publicMode:boolean}){
   const [walletState,setWallet]=useState<Wallet|null>(null);
   const [walletAddress,setWalletAddress]=useState('');
   const [records,setRecords]=useState<PricedObservation[]>([]);
@@ -98,7 +98,6 @@ export default function PortfolioHome({address,onAction,progress,onProgress,publ
       </div>
       <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
     </section>
-    {!progress.complete&&<button type="button" className="ws-v2-progress" onClick={onProgress}><span className="ws-v2-progress-icon">{progress.done+1}</span><span><small>SETUP · {progress.done} OF {progress.total} COMPLETE</small><strong>{progress.next}</strong></span><span className="ws-v2-progress-track" aria-hidden="true"><i style={{width:`${Math.round(progress.done/progress.total*100)}%`}}/></span><ChevronRight size={18}/></button>}
     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>
       {loading?<div className="ws-v2-holding-skeleton"><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/></div>:!address||!wallet?.verified?<div className="ws-v2-empty"><strong>Your assets will appear here.</strong><p>Connect and verify your wallet to see USDG and supported stock tokens.</p><button type="button" onClick={()=>onAction('setup')}>Set up wallet <ChevronRight size={16}/></button></div>:<div className="ws-v2-holding-list">
         <button type="button" className="ws-v2-holding" aria-expanded={selected==='USDG'} onClick={()=>setSelected(selected==='USDG'?null:'USDG')}><span className="ws-v2-asset-mark">$</span><span className="ws-v2-asset-name"><strong>USDG</strong><small>Available to buy</small></span><span className="ws-v2-asset-figures"><strong>{cash===null?'—':money(cash)}</strong><small>{quantity(wallet.usdg)} USDG</small></span><ChevronRight size={17}/></button>
