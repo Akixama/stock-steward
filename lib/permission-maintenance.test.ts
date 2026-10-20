@@ -65,7 +65,7 @@ test('renew reuses the exact Safe, module, role and cap; success requires all re
   assert.equal(permitApproval.args[2],BigInt(result.policy.totalRaw));
   assert.equal(permitApproval.args[3],result.policy.expiresAt);
   const funding={tokenRaw:40000000n,permitRaw:40000000n,permitExpiresAt:result.policy.expiresAt};
-  const passing=Array.from({length:6},()=>({ok:true}));
+  const passing=Array.from({length:7},()=>({ok:true}));
   assert.equal(renewalVerified(result.policy,funding,passing),true);
   assert.equal(renewalVerified(result.policy,{...funding,tokenRaw:40000001n},passing),false);
   assert.equal(renewalVerified(result.policy,{...funding,permitRaw:40000001n},passing),false);
