@@ -1,0 +1,49 @@
+.ws-v2-overview {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 928px;
+  margin-inline: auto;
+  padding: 30px 24px 88px;
+}
+.ws-v2-overview .ws-v2-shell,
+.ws-v2-overview .ws-v2-more { width: 100%; max-width: 880px; margin-inline: auto; }
+.ws-v2-overview .ws-v2-portfolio { grid-template-columns: minmax(0, 1fr); gap: 32px; min-height: 0; }
+.ws-v2-overview .ws-v2-value-label { margin-top: 44px; }
+.ws-v2-overview .ws-v2-portfolio-meta { margin-top: 8px; }
+.ws-v2-overview .ws-v2-history { min-height: 156px; height: 156px; padding: 20px 0 0; border-left: 0; border-top: 1px solid #30303b; }
+.ws-v2-overview .ws-v2-chart { min-height: 75px; }
+.ws-v2-overview .ws-v2-chart-empty { min-height: 75px; }
+.ws-v2-overview .ws-v2-action-bar {
+  position: static;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 30px auto 0;
+  padding: 6px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+.ws-v2-overview .ws-v2-action-bar button { flex: 1; min-width: 0; min-height: 42px; padding: 8px 12px; }
+.ws-v3-setup .ws-v5-activation-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; padding: 16px 0; }
+.ws-v5-activation-line strong { color: #f3f0fc; font-size: 17px; font-weight: 650; }
+.ws-v5-activation-line span { color: #aaa9b7; font-size: 14px; line-height: 1.5; }
+.ws-v5-pending-hash { color: #aaa9b7; font-size: 12px; overflow-wrap: anywhere; }
+.ws-v3-setup .permission-state-heading { display: none; }
+.ws-v3-setup .permission-state { padding: 0; border: 0; background: transparent; }
+@media (max-width: 700px) {
+  .ws-v2-overview { padding: 12px 16px calc(88px + env(safe-area-inset-bottom)); }
+  .ws-v2-overview .ws-v2-portfolio { gap: 16px; }
+  .ws-v2-overview .ws-v2-value-label { margin-top: 38px; }
+  .ws-v2-overview .ws-v2-history { min-height: 104px; height: 104px; padding-top: 12px; }
+  .ws-v2-overview .ws-v2-chart, .ws-v2-overview .ws-v2-chart-empty { min-height: 38px; }
+  .ws-v2-overview .ws-v2-action-bar {
+    width: 100%;
+    margin-top: 21px;
+    padding: 5px;
+  }
+  .ws-v2-overview .ws-v2-action-bar button { min-height: 39px; padding: 7px 5px; }
+}

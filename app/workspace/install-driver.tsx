@@ -43,6 +43,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pendingHash, setPendingHash] = useState('');
+  const [confirmedAwaitingChecks, setConfirmedAwaitingChecks] = useState(false);
   // One-click chaining: after Begin, each confirmed step automatically offers
   // the next signature. Every transaction still pops its own wallet approval,
   // and closing a popup or any failure pauses the chain at once.
@@ -352,12 +353,14 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         // Stop chaining before readback so it can never offer another batch.
         setNext(phase.steps.length);
         setChain(false);
+        setConfirmedAwaitingChecks(true);
         setBusy(true);
         const recorded = phase.module ?? module;
         const finalResponse = await fetch(`/api/workspace/permission/install?module=${encodeURIComponent(recorded)}&inspect=1`, { cache: 'no-store' });
         const final = await finalResponse.json() as Phase & { error?: string };
         if (!finalResponse.ok || !final.checks) throw new Error(final.error ?? 'Final status check unavailable.');
         setPhase(final);
+        if (final.installed) setConfirmedAwaitingChecks(false);
         setChain(false);
         say(final.installed
           ? 'Buying access is on. Your saved limits were checked on Robinhood Chain.'
@@ -372,6 +375,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       }
     } catch (cause) {
       setChain(false);
+      if (confirmedOnChain) setConfirmedAwaitingChecks(true);
       setError(confirmedOnChain
         ? 'The transaction confirmed, but the status check did not finish. Press Refresh status. Do not approve the same setup again.'
         : cause instanceof Error ? cause.message : 'The step did not complete.');
@@ -436,13 +440,20 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       const result = await response.json() as Phase & { error?: string };
       if (!response.ok || !result.checks) throw Error(result.error ?? 'Permission status unavailable.');
       setPhase(result); setModule(candidate); setNext(result.steps.length); setChain(false); setLog([]);
+      setConfirmedAwaitingChecks(false);
       window.dispatchEvent(new Event('steward-permission-updated'));
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Permission status unavailable.'); }
     finally { setBusy(false); }
   }
   useEffect(() => { if (!provider) return; const timer = setTimeout(() => void refreshStatus(), 0); return () => clearTimeout(timer); }, [provider, address, policyVersion]);
   const current = phase?.steps?.[next];
-  const activationState = !provider
+  const finalSetupOnChain = !!phase?.checks?.length && phase.checks
+    .filter(check => check.label !== 'Swap funding approvals').every(check => check.ok);
+  const activationState = pendingHash
+    ? { label: 'Setup submitted', reason: 'Waiting for chain confirmation. Do not approve it again.' }
+    : confirmedAwaitingChecks || (finalSetupOnChain && !phase?.installed)
+      ? { label: 'Setup confirmed, final checks running', reason: 'Refresh status to verify buying access before continuing.' }
+      : !provider
     ? { label: 'Disabled', reason: 'Connect and verify your wallet first.' }
     : !policyVersion
       ? { label: 'Disabled', reason: 'Save your buying limits first.' }
@@ -454,25 +465,24 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
             ? { label: 'Checking', reason: 'Wait for the current wallet or chain check to finish.' }
             : { label: 'Ready', reason: 'Review the setup in your wallet when you are ready.' };
   return <div className="ws-install-driver">
-    <div className="ws-v2-access-state" role="status"><small>ACTIVATION STATUS</small><strong>{activationState.label}</strong><p>{activationState.reason}</p></div>
-    {pendingHash && <div className="ws-activation-status" role="status"><span>TRANSACTION SENT</span><strong>{busy ? 'Checking chain confirmation' : 'Confirmation needs checking'}</strong><p>Your wallet has submitted the setup. Do not send it again.</p><code>{pendingHash}</code></div>}
+    <div className="ws-v2-access-state ws-v5-activation-line" role="status"><strong>{activationState.label}</strong><span>{activationState.reason}</span></div>
+    {pendingHash && <p className="ws-v5-pending-hash">Setup transaction <code>{pendingHash}</code></p>}
     {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
     <div className="ws-chain-tools permission-actions">
       {!provider ? <button type="button" className="ws-action-primary" onClick={() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>Connect wallet to continue</button> : <>
-        <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !policyVersion || !feesOk || phase?.installed}>
-          {busy ? 'Checking permission…' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
-        </button>
+        {!(phase?.steps?.[next]) && <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain || !policyVersion || !feesOk || phase?.installed}>
+          {busy ? 'Checking permission…' : pendingHash ? 'Setup submitted' : confirmedAwaitingChecks || (finalSetupOnChain && !phase?.installed) ? 'Awaiting final checks' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
+        </button>}
         <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain}>Refresh status</button>
       </>}
       {phase?.revocation && phase.installed && !revoked && !busy && <button type="button" className="ws-action-revoke" onClick={()=>setConfirmingRevoke(true)}>Revoke permission</button>}
       {chain && !busy && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause setup</button>}
-      <span>{!provider ? 'Connect on Robinhood Chain and sign a free ownership message. No spending permission is requested yet.' : !policyVersion ? 'Save your limits in Mandate first.' : !feesOk ? 'Locked until the fee review above passes within your cap.' : revoked ? 'Permission is off. New orders are blocked.' : phase?.installed ? `Permission active until ${expires}. You still approve each order.` : 'Not activated yet. Approve setup once in your wallet.'}</span>
     </div>
     {phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
       <span>FINAL SETUP · ONE WALLET APPROVAL</span>
       <strong>Turn on buying within your limits</strong>
       <p>{phase!.batched!.verify}</p>
-      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
+      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain}>
         {busy ? 'Checking setup…' : 'Review in wallet'}
       </button>
       <button type="button" className="ws-action-quiet" onClick={() => setSkipBatch(true)} disabled={busy}>
@@ -482,7 +492,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       <span>STEP {next + 1} OF {phase!.steps.length}</span>
       <strong>{current.label}</strong>
       <p>{current.verify}</p>
-      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain}>
+      <button type="button" className="ws-action-primary" onClick={() => { setChain(false); void signCurrent(); }} disabled={busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain}>
         {busy ? 'Working…' : `Sign: ${current.label}`}
       </button>
       {phase?.batched && <button type="button" className="ws-action-quiet" disabled={busy} onClick={() => { setChain(false); setSkipBatch(false); }}>Finish remaining steps in one approval</button>}

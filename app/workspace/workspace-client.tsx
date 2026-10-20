@@ -23,6 +23,7 @@ import "./workspace-redesign.css";
 import "./workspace-v2.css";
 import "./workspace-v3.css";
 import "./workspace-v4.css";
+import "./workspace-v5.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
 const initial: Mandate = {
