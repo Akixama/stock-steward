@@ -5,6 +5,7 @@ import { encodeBatch, PERMIT2 } from './install-flow.ts';
 import { compileRolesPolicy, type RolesPolicy } from './roles-permission.ts';
 import { MULTISEND } from './safe-setup.ts';
 import { permissionWindow, renewalState } from './permission-window.ts';
+import { hasEarlyConfirmations } from './confirmation-status.ts';
 
 const safeAbi = parseAbi(['function execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes) returns (bool)']);
 const tokenAbi = parseAbi(['function approve(address,uint256) returns (bool)','function allowance(address,address) view returns (uint256)']);
@@ -73,7 +74,7 @@ export function revocationVerified(member: boolean, funding: FundingReadback) {
 export function hashMaintenanceTransaction(data: Hex) { return keccak256(data); }
 
 export const safeExecutionSuccessTopic=keccak256(toHex('ExecutionSuccess(bytes32,uint256)'));
-export type MaintenanceReceipt={status?:string;blockNumber?:string;logs?:{address:string;topics:string[]}[]};
+export type MaintenanceReceipt={status?:string;blockNumber?:string;blockHash?:string;logs?:{address:string;topics:string[]}[]};
 export type MaintenanceChainTransaction={from?:string;to?:string;input?:string;value?:string;chainId?:string};
 export function maintenanceReceiptProof(
   expected:{ownerAddress:string;safe:string;transaction:{data:string}},
@@ -93,4 +94,18 @@ export function maintenanceReceiptProof(
       &&log.topics[0]?.toLowerCase()===safeExecutionSuccessTopic.toLowerCase()))return 'success';
   }catch{return 'unknown';}
   return 'unknown';
+}
+
+// Display evidence only. Callers must still use maintenanceReceiptProof with the
+// real finalized checkpoint and onchain readbacks before settling an attempt.
+export function maintenanceEarlyProof(
+  expected:{ownerAddress:string;safe:string;transaction:{data:string}},
+  receipt:MaintenanceReceipt|null, transaction:MaintenanceChainTransaction|null,
+  canonicalHash:string|null, head:string|null, confirmationBlocks:number,
+):'confirmed'|'reverted'|'reorged'|'unknown'{
+  if(!receipt?.blockNumber||!receipt.blockHash||!canonicalHash)return 'unknown';
+  if(receipt.blockHash.toLowerCase()!==canonicalHash.toLowerCase())return 'reorged';
+  if(!hasEarlyConfirmations(head,receipt.blockNumber,confirmationBlocks))return 'unknown';
+  const proof=maintenanceReceiptProof(expected,receipt,transaction,receipt.blockNumber);
+  return proof==='success'?'confirmed':proof==='reverted'?'reverted':'unknown';
 }

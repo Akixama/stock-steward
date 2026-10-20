@@ -6,7 +6,7 @@ import { formatWorkspaceDate } from '@/lib/workspace-date';
 import { PermissionReview, PermissionReviewBoundary, type PermissionReviewPayload } from './permission-review';
 
 type Kind='renew'|'revoke';
-type Attempt={id:string;kind:Kind;state:'prepared'|'submitted'|'unknown'|'confirmed'|'reverted';hash:string|null;safe:string;expiresAt:number};
+type Attempt={id:string;kind:Kind;state:'prepared'|'submitted'|'unknown'|'confirmed'|'reverted';confirmation?:'confirmed'|'reverted'|'reorged'|null;hash:string|null;safe:string;expiresAt:number};
 type Status={safe:string;ownerAddress:string;expiry:number;permissionActive:boolean;
   eligibility:{state:'active'|'soon'|'expired'|'unavailable';mayRenew:boolean;notice:boolean};
   approvals:{tokenRaw:string;permitRaw:string;permitExpiresAt:number};attempt:Attempt|null;
@@ -39,7 +39,8 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
       }catch{/* Keep the attempt unresolved; never submit another transaction. */}
     }
     if(result.attempt?.state==='confirmed'||result.attempt?.state==='reverted')localStorage.removeItem(storageKey);
-    setStatus(result);
+    setStatus(previous=>previous?.attempt?.id===result.attempt?.id&&previous?.attempt?.confirmation==='confirmed'&&result.attempt?.state!=='confirmed'&&!result.attempt?.confirmation
+      ?{...result,attempt:{...result.attempt!,confirmation:'reorged'}}:result);
   },[address,storageKey]);
   useEffect(()=>{if(!address||preview||busy)return;let active=true;
     const update=()=>void load().catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Permission status unavailable.');});
@@ -93,7 +94,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
       {!status&&!error&&<p>Checking the existing Steward wallet…</p>}</div>
       <button type="button" onClick={()=>void load().catch(cause=>setError(String(cause)))} disabled={busy}>Refresh status</button></div>
     {status?.eligibility.state==='soon'&&<p role="status">Renewal is available after this UTC window ends, so today’s buying limit cannot be reset early.</p>}
-    {pending&&<div className="ws-maintenance-pending" role="status"><strong>{pending.hash?'Submitted · waiting for finalized receipt and onchain checks':'Wallet request unresolved'}</strong><p>{pending.hash?'Do not send it again. Refresh to check the saved transaction.':'No transaction hash was saved. Check your wallet activity before taking another action; nothing will be resent automatically.'}</p>{pending.hash&&<a href={link(pending.hash)} target="_blank" rel="noopener noreferrer">View transaction {pending.hash.slice(0,10)}… ↗</a>}</div>}
+    {pending&&<div className="ws-maintenance-pending" role="status"><strong>{pending.confirmation==='confirmed'?'Confirmed now · final in about 15 minutes':pending.confirmation==='reorged'?'Chain changed · outcome unresolved':pending.confirmation==='reverted'?'Reverted onchain · awaiting finality':pending.hash?'Submitted · checking receipt and exact approvals':'Wallet request unresolved'}</strong><p>{pending.hash?'This saved action remains reserved until Finalized. Refresh to check its status; do not send it again.':'No transaction hash was saved. Check your wallet activity before taking another action; nothing will be resent automatically.'}</p>{pending.hash&&<a href={link(pending.hash)} target="_blank" rel="noopener noreferrer">View transaction {pending.hash.slice(0,10)}… ↗</a>}</div>}
     {status?.attempt?.state==='confirmed'&&<p role="status">{status.attempt.kind==='renew'&&status.permissionActive?'Renewal verified onchain. Buying permission is active.':status.attempt.kind==='revoke'?'Revocation verified: the role and both approvals are off.':'Transaction confirmed. Refresh the onchain checks before relying on it.'}{status.attempt.hash&&<> <a href={link(status.attempt.hash)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></>}</p>}
     {status?.attempt?.state==='reverted'&&<p role="status">The saved transaction reverted. No renewal or revocation was claimed. <a href={link(status.attempt.hash!)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></p>}
     {!preview&&!pending&&status&&<div className="ws-maintenance-actions">

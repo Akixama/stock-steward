@@ -5,6 +5,7 @@ import {MULTISEND} from './safe-setup.ts';
 import {PERMIT2} from './install-flow.ts';
 import {EXECUTION_CONTRACTS} from './autonomy.ts';
 import {VENUE} from './chain-route.ts';
+import {earlyConfirmationCount,hasEarlyConfirmations} from './confirmation-status.ts';
 
 const multiAbi=parseAbi(['function multiSend(bytes transactions)']);
 const approveAbi=parseAbi(['function approve(address spender,uint256 amount) returns (bool)']);
@@ -19,7 +20,7 @@ const hash=(value:unknown):value is Hex=>typeof value==='string'&&/^0x[0-9a-f]{6
 const addr=(value:unknown):value is string=>typeof value==='string'&&/^0x[0-9a-f]{40}$/i.test(value);
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 
-export type WalletActionProof={state:'confirmed'|'reverted'|'unknown';reason:string;hash:string;blockNumber?:string;inputRaw?:string;outputRaw?:string};
+export type WalletActionProof={state:'confirmed'|'reverted'|'unknown';confirmation?:'confirmed'|'reverted'|'reorged';reason:string;hash:string;blockNumber?:string;inputRaw?:string;outputRaw?:string};
 export type SavedWalletAction={kind:string;symbol:string;quantity:string;owner_address:string;safe:string;transaction_json:string;transaction_hash:string};
 type ChainTx={hash:string;from:string;to:string;input:Hex;value:Hex;blockHash:string;blockNumber:Hex};
 type Log={address:string;topics:Hex[];data:Hex;removed?:boolean;transactionHash:string;blockHash:string;logIndex:Hex};
@@ -58,7 +59,7 @@ function expectedMovement(row:SavedWalletAction){
  return {inputToken:stock,inputRaw:amount,outputToken:USDG.contract.toLowerCase(),minOutput:swap.amountOutMinimum,destination:row.safe.toLowerCase()};
 }
 
-export async function reconcileWalletAction(row:SavedWalletAction,fetcher:typeof fetch=fetch):Promise<WalletActionProof>{
+export async function reconcileWalletAction(row:SavedWalletAction,fetcher:typeof fetch=fetch,confirmationBlocks=earlyConfirmationCount()):Promise<WalletActionProof>{
  const result:WalletActionProof={state:'unknown',reason:'Chain proof is not available yet. Do not send again.',hash:row.transaction_hash};
  try{
   if(!hash(row.transaction_hash))throw Error('Saved hash invalid');
@@ -72,11 +73,12 @@ export async function reconcileWalletAction(row:SavedWalletAction,fetcher:typeof
   if(!same(receipt.transactionHash,row.transaction_hash)||!same(receipt.blockHash,tx.blockHash)||BigInt(receipt.blockNumber)!==BigInt(tx.blockNumber)||!['0x0','0x1'].includes(receipt.status)||!Array.isArray(receipt.logs)||receipt.logs.length>2000)throw Error('Receipt mismatch');
   const [block,finalized,head]=await Promise.all([rpc('eth_getBlockByNumber',[tx.blockNumber,false]),rpc('eth_getBlockByNumber',['finalized',false]),rpc('eth_blockNumber',[])]);
   const included=block as {hash?:string;number?:string}|null;const final=finalized as {hash?:string;number?:string}|null;
-  if(!included||!same(included.hash??'',tx.blockHash)||!hex(included.number)||BigInt(included.number)!==BigInt(tx.blockNumber)||!final||!hash(final.hash)||!hex(final.number)||!hex(head)||BigInt(final.number)<BigInt(tx.blockNumber)||BigInt(final.number)>BigInt(head as string))throw Error('Waiting for canonical finalized receipt');
-  const anchor=await rpc('eth_getBlockByNumber',[final.number,false]) as {hash?:string}|null;if(!anchor||!same(anchor.hash??'',final.hash))throw Error('Finalized checkpoint changed');
-  const canonical=await rpc('eth_getBlockByNumber',[tx.blockNumber,false]) as {hash?:string}|null;if(!canonical||!same(canonical.hash??'',tx.blockHash))throw Error('Transaction block changed');
+  if(!included||!same(included.hash??'',tx.blockHash)||!hex(included.number)||BigInt(included.number)!==BigInt(tx.blockNumber))return {...result,confirmation:'reorged',reason:'The transaction is no longer in its recorded canonical block. Do not send again until resolved.'};
+  if(!hex(head)||!final||!hash(final.hash)||!hex(final.number)||BigInt(final.number)>BigInt(head as string))throw Error('Chain checkpoint unavailable');
+  const isFinalized=BigInt(final.number)>=BigInt(tx.blockNumber);
+  if(isFinalized){const anchor=await rpc('eth_getBlockByNumber',[final.number,false]) as {hash?:string}|null;if(!anchor||!same(anchor.hash??'',final.hash))throw Error('Finalized checkpoint changed');const canonical=await rpc('eth_getBlockByNumber',[tx.blockNumber,false]) as {hash?:string}|null;if(!canonical||!same(canonical.hash??'',tx.blockHash))throw Error('Transaction block changed');}
   result.blockNumber=tx.blockNumber;
-  if(receipt.status==='0x0')return {...result,state:'reverted',reason:'Saved transaction reverted in a finalized canonical block.'};
+  if(receipt.status==='0x0')return isFinalized?{...result,state:'reverted',reason:'Saved transaction reverted in a finalized canonical block.'}:{...result,confirmation:'reverted',reason:'Transaction reverted onchain; awaiting finality. Do not resend yet.'};
   const movement=expectedMovement(row);if(!movement)throw Error('Saved movement mismatch');
   let inputOut=0n,inputIn=0n,outputIn=0n,outputOut=0n;const indices=new Set<string>();
   for(const log of receipt.logs){if(!addr(log.address))throw Error('Malformed log');const token=log.address.toLowerCase();if(token!==movement.inputToken&&token!==movement.outputToken)continue;
@@ -87,6 +89,7 @@ export async function reconcileWalletAction(row:SavedWalletAction,fetcher:typeof
    else if(token===movement.outputToken){if(same(to,row.safe)){if(!same(from,VENUE.manager))throw Error('Sale output source mismatch');outputIn+=value;}if(same(from,row.safe))outputOut+=value;}
   }
   if(inputOut!==movement.inputRaw||inputIn!==0n||outputOut!==0n||row.kind==='sell'&&outputIn<movement.minOutput)throw Error('Exact token movement proof missing');
+  if(!isFinalized)return {...result,confirmation:hasEarlyConfirmations(head,tx.blockNumber,confirmationBlocks)?'confirmed':undefined,reason:hasEarlyConfirmations(head,tx.blockNumber,confirmationBlocks)?'Confirmed onchain; finality is expected in about 15 minutes. Do not send again.':'Exact token movement found; waiting for more block confirmations.',inputRaw:inputOut.toString(),outputRaw:outputIn.toString()};
   return {...result,state:'confirmed',reason:'Exact token movement verified in a finalized canonical block.',inputRaw:inputOut.toString(),outputRaw:outputIn.toString()};
  }catch(error){return {...result,reason:error instanceof Error?error.message:'Chain proof unavailable'};}
 }

@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getAttempt, settleAttempt, type AttemptPlan } from "@/db/execution-attempts";
 import { reconcileOwnerOrderFill } from "@/lib/chain-fill-proof";
+import { earlyConfirmationCount } from "@/lib/confirmation-status";
 import { rolesOperation } from "@/lib/roles-operation";
 import { verifyPolicyReadback, type ReadbackCall } from "@/lib/live-order";
 import { compileRolesPolicy, type RolesPolicy } from "@/lib/roles-permission";
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     const proof = await reconcileOwnerOrderFill(
       plan.route, attempt.mandate_version, attempt.transaction_hash, policy.routerCodeHash,
       { from: operation.from, to: operation.to, data: operation.data, value: operation.value, verify },
-      transport,
+      transport, earlyConfirmationCount((env as unknown as Record<string,unknown>).EARLY_CONFIRMATION_BLOCKS),
     );
     await settleAttempt(env.DB, user.userId, intentDigest, {
       hash: proof.hash, canonicalFinalized: proof.canonicalFinalized,
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
     return Response.json({
       outcome: proof.outcome,
       confirmedFill: proof.confirmedFill === true,
+      reorged: proof.reorged === true,
       transactionSucceeded: proof.transactionSucceeded === true,
       awaitingFinality: proof.awaitingFinality === true,
       hash: proof.hash,

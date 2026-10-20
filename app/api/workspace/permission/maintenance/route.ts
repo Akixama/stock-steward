@@ -9,11 +9,12 @@ import { withRoleMembership } from '@/lib/role-membership';
 import { verifyPolicyReadback } from '@/lib/live-order';
 import { compileRolesPolicy, type RolesPolicy } from '@/lib/roles-permission';
 import { approvalAddresses, decodeFundingReadback, fundingCalls, maintenanceEligibility, maintenanceTransaction,
-  maintenanceReceiptProof, renewalVerified, revocationVerified,
+  maintenanceReceiptProof, maintenanceEarlyProof, renewalVerified, revocationVerified,
   type MaintenanceChainTransaction, type MaintenanceReceipt } from '@/lib/permission-maintenance';
 import { MULTISEND } from '@/lib/safe-setup';
 import { assertTradingEnabled, tradingAdmission } from '@/lib/trading-controls';
 import { chainReadBatch } from '@/lib/chain-read-batch';
+import { earlyConfirmationCount } from '@/lib/confirmation-status';
 
 const adminAbi = parseAbi(['function owner() view returns (address)','function avatar() view returns (address)','function target() view returns (address)']);
 
@@ -73,7 +74,20 @@ async function reconcile(db: D1Database, attempt: MaintenanceAttempt, transport:
       rpc('eth_getBlockByNumber',['finalized',false],transport) as Promise<{number?:string}|null>,
     ]);
     const proof=maintenanceReceiptProof(attempt,receipt,transaction,finalized?.number??null);
-    if(proof==='unknown')return attempt;
+    if(proof==='unknown'){
+      if(!receipt?.blockNumber||!receipt.blockHash)return attempt;
+      const [head,block]=await Promise.all([rpc('eth_blockNumber',[],transport) as Promise<string>,
+        rpc('eth_getBlockByNumber',[receipt.blockNumber,false],transport) as Promise<{hash?:string}|null>]);
+      const included=maintenanceEarlyProof(attempt,receipt,transaction,block?.hash??null,head,earlyConfirmationCount((env as unknown as Record<string,unknown>).EARLY_CONFIRMATION_BLOCKS));
+      if(included==='reorged'||included==='reverted')return {...attempt,confirmation:included};
+      if(included!=='confirmed')return attempt;
+      const readback=await funding(attempt.safe as Address,transport);
+      const checks=await readChecks(attempt.policy,transport);
+      const verified=attempt.kind==='renew'
+        ?renewalVerified(attempt.policy,readback,checks.checks)
+        :revocationVerified(checks.checks.find(check=>check.label==='Session membership')?.observed==='active',readback);
+      return verified?{...attempt,confirmation:'confirmed' as const}:attempt;
+    }
     if (proof==='reverted') {
       await settleMaintenance(db,attempt.owner,attempt.id,'reverted');
       return {...attempt,state:'reverted' as const};
@@ -95,9 +109,9 @@ async function reconcile(db: D1Database, attempt: MaintenanceAttempt, transport:
   } catch { return attempt; }
 }
 
-function publicAttempt(attempt: MaintenanceAttempt|null) {
+function publicAttempt(attempt: (MaintenanceAttempt&{confirmation?:'confirmed'|'reverted'|'reorged'})|null) {
   return attempt && {id:attempt.id,kind:attempt.kind,state:attempt.state,hash:attempt.hash,
-    safe:attempt.safe,createdAt:attempt.createdAt,expiresAt:attempt.expiresAt};
+    safe:attempt.safe,createdAt:attempt.createdAt,expiresAt:attempt.expiresAt,confirmation:attempt.confirmation??null};
 }
 
 export async function GET() {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from 'viem';
-import { maintenanceEligibility, maintenanceReceiptProof, maintenanceTransaction, renewedPolicy, renewalVerified, revocationVerified, safeExecutionSuccessTopic } from './permission-maintenance.ts';
+import { maintenanceEligibility, maintenanceEarlyProof, maintenanceReceiptProof, maintenanceTransaction, renewedPolicy, renewalVerified, revocationVerified, safeExecutionSuccessTopic } from './permission-maintenance.ts';
 import { PERMIT2 } from './install-flow.ts';
 import { MULTISEND } from './safe-setup.ts';
 import { VENUE } from './chain-route.ts';
@@ -106,4 +106,15 @@ test('renewal receipt stays unresolved until finalized exact Safe success and re
   assert.equal(maintenanceReceiptProof(expected,{...receipt,logs:[]},tx,'0x20'),'unknown');
   assert.equal(maintenanceReceiptProof(expected,{...receipt,status:'0x0'},tx,'0x20'),'reverted');
   assert.equal(maintenanceReceiptProof(expected,receipt,tx,'0x20'),'success');
+});
+test('renewal early status requires blocks, canonical inclusion and exact Safe result',()=>{
+  const result=maintenanceTransaction('renew',owner,policy,now);
+  const expected={ownerAddress:owner,safe,transaction:result.transaction};
+  const tx={from:owner,to:safe,input:result.transaction.data,value:'0x0',chainId:'0x1237'};
+  const receipt={status:'0x1',blockNumber:'0x10',blockHash:'0x'+'a'.repeat(64),logs:[{address:safe,topics:[safeExecutionSuccessTopic]}]};
+  assert.equal(maintenanceEarlyProof(expected,receipt,tx,receipt.blockHash,'0x11',4),'unknown');
+  assert.equal(maintenanceEarlyProof(expected,receipt,tx,receipt.blockHash,'0x13',4),'confirmed');
+  assert.equal(maintenanceEarlyProof(expected,{...receipt,status:'0x0'},tx,receipt.blockHash,'0x13',4),'reverted');
+  assert.equal(maintenanceEarlyProof(expected,receipt,tx,'0x'+'b'.repeat(64),'0x13',4),'reorged');
+  assert.equal(maintenanceEarlyProof(expected,receipt,{...tx,input:'0xabcd'},receipt.blockHash,'0x13',4),'unknown');
 });
