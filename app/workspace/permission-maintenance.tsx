@@ -43,11 +43,11 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
     if(result.attempt?.state==='confirmed'||result.attempt?.state==='reverted')localStorage.removeItem(storageKey);
     setStatus(result);
   },[address,storageKey]);
-  useEffect(()=>{if(!address)return;let active=true;
+  useEffect(()=>{if(!address||preview||busy)return;let active=true;
     const update=()=>void load().catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Permission status unavailable.');});
-    update();const timer=setInterval(update,7000);
+    update();const timer=setInterval(update,30000);
     return()=>{active=false;clearInterval(timer);};
-  },[address,load]);
+  },[address,load,preview,busy]);
   async function action(body:Record<string,unknown>){
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const fallback=body.action==='preview'&&body.kind==='renew'
