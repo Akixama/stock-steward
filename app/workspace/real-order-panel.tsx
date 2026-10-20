@@ -27,8 +27,8 @@ type Prepared = {
   symbol: string; amountCents: number; minimumOutputRaw: string; outputToken: string; expiresAt: string;
 };
 
-export default function RealOrderPanel({ provider, address, onOpenMandate, preferredSymbol }: {
-  provider: WalletProvider | null; address: string; onOpenMandate: () => void; preferredSymbol?: string;
+export default function RealOrderPanel({ provider, address, onOpenMandate, onOpenOverview, preferredSymbol }: {
+  provider: WalletProvider | null; address: string; onOpenMandate: () => void; onOpenOverview?: () => void; preferredSymbol?: string;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [symbol, setSymbol] = useState(preferredSymbol ?? '');
@@ -181,9 +181,9 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, prefe
       Used from today’s limit {dollars(status.spentTodayCents)} (including orders in progress) · {dollars(status.remainingTodayCents)} left for today.</p>}
     {status?.permissionActive && <div className="ws-live-balances" aria-label="Steward wallet balances"><div><span>USDG available</span><strong>{status.balanceCents === null ? 'Unavailable' : dollars(status.balanceCents)}</strong></div>{status.holdings?.map(holding => <div key={holding.symbol}><span>{holding.symbol} tokens held</span><strong>{holding.tokens === null ? 'Unavailable' : holding.tokens}</strong></div>)}<small>Balances shown are in your wallet. Orders in progress count toward your daily limit; they do not charge you twice.</small></div>}
     {status && !status.permissionActive && status.blocked === "limits" && <div className="ws-order-plan ws-order-blocked" role="status">
-      <div className="ws-order-blocked-heading"><span className="ws-order-blocked-icon"><Clock3 size={20} aria-hidden="true" /></span><div><span className="ws-label">ORDER PAUSED</span><strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired':'Your limits need an update'}</strong><p>{/window ended|expired/i.test(status.detail??'') ? 'The saved limits above are a proposal for a new permission. They have not extended the old one.' : status.detail ?? 'Review and save your purchase limits before ordering.'}</p></div></div>
-      <div className="ws-order-blocked-next"><div><span>1</span> Save your updated limits</div><div><span>2</span> Approve the new permission in your wallet</div></div>
-      <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update limits <ArrowRight size={16} aria-hidden="true" /></button></div>}
+      <div className="ws-order-blocked-heading"><span className="ws-order-blocked-icon"><Clock3 size={20} aria-hidden="true" /></span><div><span className="ws-label">ORDER PAUSED</span><strong>{/window ended|expired/i.test(status.detail??'')?'Your permission has expired':'Your limits need an update'}</strong><p>{/window ended|expired/i.test(status.detail??'') ? 'Renew buying access on Overview to keep using this Steward wallet and your saved limits.' : status.detail ?? 'Review and save your purchase limits before ordering.'}</p></div></div>
+      {/window ended|expired/i.test(status.detail??'') ? <div className="ws-order-blocked-next"><div><span>1</span> Open Overview</div><div><span>2</span> Review renewal and approve it in your wallet</div></div> : <div className="ws-order-blocked-next"><div><span>1</span> Save your updated limits</div><div><span>2</span> Approve the new permission in your wallet</div></div>}
+      {/window ended|expired/i.test(status.detail??'') ? <button type="button" className="ws-action-primary" onClick={onOpenOverview??(()=>window.location.assign('/workspace'))} disabled={busy}>Review renewal on Overview <ArrowRight size={16} aria-hidden="true" /></button> : <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update limits <ArrowRight size={16} aria-hidden="true" /></button>}</div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on buying above before placing an order.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}

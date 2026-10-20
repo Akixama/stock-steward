@@ -1,4 +1,5 @@
 import type { Mandate } from "./decision.ts";
+import { PERMISSION_WINDOW_DAYS, permissionWindow } from "./permission-window.ts";
 
 // Compiles a saved mandate into the exact onchain spending policy that an install
 // would create. Pure and inspectable: the same numbers shown to the owner are the
@@ -11,7 +12,7 @@ export type PermissionInstallPlan = {
   perTradeRaw: string;
   dailyRaw: string;
   totalRaw: string;
-  horizonDays: 2;
+  horizonDays: typeof PERMISSION_WINDOW_DAYS;
   expiresAt: number;
   outputs: PlanOutput[];
   session: "owner-wallet";
@@ -22,7 +23,6 @@ export type PlanError = { error: string };
 const CENT_TO_USDG_RAW = 10_000n;
 // The compiled Roles policy refuses longer windows and more than three outputs:
 // short, narrow grants are the safety design, renewed as needed.
-const HORIZON_DAYS = 2;
 const MAX_OUTPUTS = 3;
 
 export function planFromMandate(mandate: Mandate | null, owner: string,
@@ -49,17 +49,17 @@ export function planFromMandate(mandate: Mandate | null, owner: string,
   const perTradeRaw = BigInt(mandate.maxOrderCents) * CENT_TO_USDG_RAW;
   const dailyRaw = BigInt(mandate.maxDailyBuyCents) * CENT_TO_USDG_RAW;
   // The cumulative ceiling covers the short policy window; daily limits still bind every day.
-  const totalRaw = dailyRaw * BigInt(HORIZON_DAYS);
+  const totalRaw = dailyRaw * BigInt(PERMISSION_WINDOW_DAYS);
   // Roles windows start at a UTC midnight and last exactly the horizon.
-  const startsAt = now.getTime() - (now.getTime() % 86_400_000);
+  const window = permissionWindow(now);
   return {
     chainId: 4663,
     owner: owner.toLowerCase(),
     perTradeRaw: perTradeRaw.toString(),
     dailyRaw: dailyRaw.toString(),
     totalRaw: totalRaw.toString(),
-    horizonDays: 2,
-    expiresAt: startsAt + HORIZON_DAYS * 86_400_000,
+    horizonDays: PERMISSION_WINDOW_DAYS,
+    expiresAt: window.expiresAt * 1000,
     outputs: outputs.filter((output) => mandate.allowedSymbols.includes(output.symbol)),
     session: "owner-wallet",
   };

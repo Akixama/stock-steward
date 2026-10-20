@@ -1,3 +1,4 @@
+import { PERMISSION_WINDOW_SECONDS } from '@/lib/permission-window';
 import { withRoleMembership } from "@/lib/role-membership";
 import { env } from "cloudflare:workers";
 import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from "viem";
@@ -122,7 +123,7 @@ export async function GET(request: Request) {
     if (!routerCode || routerCode === "0x") return Response.json({ error: "Trade router code missing at the observed chain." }, { status: 502 });
     const routerCodeHash = keccak256(routerCode as Hex);
 
-    const startsAt = plan.expiresAt / 1000 - 2 * 86400;
+    const startsAt = plan.expiresAt / 1000 - PERMISSION_WINDOW_SECONDS;
     const build = buildInstall({
       owner, policyVersion: mandate!.version,
       proxyCreationCode: proxyCreationCode as Hex,
@@ -168,7 +169,7 @@ export async function GET(request: Request) {
     } catch { batched = undefined; }
     const payload = {
       safe: build.safe, module: moduleParam, roleKey: compiled.roleKey,
-      steps: liveSteps, batched, revocation: revocationStep(compiled, policy.account, policy.session), limitations: compiled.limitations,
+      steps: liveSteps, batched, revocation: batched ? revocationStep(compiled, policy.account, policy.session) : undefined, limitations: compiled.limitations,
       // The exact prices these steps lock in. The wallet posts them back when
       // recording, so orders can carry them verbatim; the onchain conditions
       // pin these install-time bytes and would reject any fresh quote.

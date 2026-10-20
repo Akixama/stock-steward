@@ -1,3 +1,4 @@
+import { PERMISSION_WINDOW_SECONDS } from '@/lib/permission-window';
 import { withRoleMembership } from "@/lib/role-membership";
 import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from "viem";
 import { env } from "cloudflare:workers";
@@ -114,7 +115,7 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
     outputs.push({ token: output.token as Address, fee: route.best.fee, tickSpacing: route.best.tickSpacing,
       minimumOutputRaw: route.minimumOutputRaw });
   }
-  const startsAt = plan.expiresAt / 1000 - 2 * 86400;
+  const startsAt = plan.expiresAt / 1000 - PERMISSION_WINDOW_SECONDS;
   const base: PolicyBase = {
     session: owner,
     grantId: keccak256(toHex(`stock-steward-grant-v1|${owner.toLowerCase()}|${mandate.version}`)),
@@ -133,7 +134,7 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
   const located = await locateSafe(db, userId);
   const saved = await getActiveModule(db, userId, located.mandate.version);
   const built = await buildPolicyBase(located, saved?.outputs?.map(line => ({ ...line, token: line.token as Address })), saved ?? undefined);
-  if (Date.now() >= built.base.expiresAt * 1000) throw new Error('Your permission window ended. Save a new mandate version and activate it before placing another order.');
+  if (Date.now() >= built.base.expiresAt * 1000) throw new Error('Your permission window ended. Renew buying access for this Steward wallet before placing another order.');
   const call = withRoleMembership((to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport), built.transport);
   try {
     const recorded = saved;

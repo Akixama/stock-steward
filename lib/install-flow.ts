@@ -217,14 +217,22 @@ export function installationReadChecks(input: {
   ];
 }
 
-/** The exact owner revocation transaction; calling it removes the bounded role at once. */
+/** Revoke the role and both swap-funding approvals in one owner-signed Safe transaction. */
 export function revocationStep(compiled: ReturnType<typeof compileRolesPolicy>, account: Address, owner: Address): InstallStep {
   const signature = (pad(owner, { size: 32 }) + "0".repeat(64) + "01") as Hex;
+  const calls = [compiled.revocation, {
+    to: VENUE.settlement as Address,
+    data: encodeFunctionData({ abi: ercApproveAbi, functionName: "approve", args: [PERMIT2, 0n] }),
+  }, {
+    to: PERMIT2,
+    data: encodeFunctionData({ abi: permitApproveAbi, functionName: "approve",
+      args: [VENUE.settlement as Address, EXECUTION_CONTRACTS.router as Address, 0n, 0] }),
+  }];
   return {
-    key: "revoke", label: "Revoke the bounded role (owner action)",
+    key: "revoke", label: "Revoke buying permission and swap approvals",
     to: account,
     data: encodeFunctionData({ abi: safeAbi, functionName: "execTransaction",
-      args: [compiled.revocation.to as Address, 0n, compiled.revocation.data as Hex, 0, 0n, 0n, 0n, ZERO, ZERO, signature] }),
-    verify: "The session can no longer execute any approved call after this lands.",
+      args: [MULTISEND.address as Address, 0n, encodeBatch(calls), 1, 0n, 0n, 0n, ZERO, ZERO, signature] }),
+    verify: "The role is removed and both USDG-to-Permit2 and Permit2-to-router approvals read back as zero.",
   };
 }

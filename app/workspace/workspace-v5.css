@@ -47,3 +47,17 @@
   }
   .ws-v2-overview .ws-v2-action-bar button { min-height: 39px; padding: 7px 5px; }
 }
+
+/* Same-wallet permission maintenance */
+.ws-maintenance{max-width:880px;margin:24px auto 0;padding:26px 30px;border:1px solid #30343d;border-radius:20px;background:#111318;color:#f4f5f7}
+.ws-maintenance-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.ws-maintenance-head span{font:700 11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.16em;color:#aeb5c8}
+.ws-maintenance h2{font-size:clamp(23px,3vw,32px);line-height:1.15;letter-spacing:-.035em;margin:8px 0 10px}
+.ws-maintenance p{color:#b2bac9;line-height:1.55;margin:8px 0}
+.ws-maintenance button{border:1px solid #424959;border-radius:12px;background:#222632;color:#f4f5f7;padding:11px 16px;font-size:14px;font-weight:650;cursor:pointer;transition:background .16s ease,transform .16s ease}
+.ws-maintenance button:hover{background:#303647}.ws-maintenance button:active{transform:scale(.98)}.ws-maintenance button:disabled{opacity:.52;cursor:not-allowed}
+.ws-maintenance-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}.ws-maintenance-actions button:first-child,.ws-maintenance-review button:first-child{background:#c5cde2;color:#10131a;border-color:#c5cde2}
+.ws-maintenance-pending{margin-top:18px;border-top:1px solid #353b48;padding-top:18px}.ws-maintenance-pending strong{font-size:17px}.ws-maintenance a{color:#c5cde2;text-decoration:underline;text-underline-offset:3px}
+.ws-maintenance-review{margin-top:20px;border-top:1px solid #353b48;padding-top:18px}.ws-maintenance-review h3{font-size:21px;margin:0 0 15px}.ws-maintenance-review dl{margin:0}.ws-maintenance-review dl>div{display:flex;justify-content:space-between;gap:20px;padding:12px 0;border-bottom:1px solid #292e38}.ws-maintenance-review dt{color:#aeb5c8}.ws-maintenance-review dd{margin:0;text-align:right;font-weight:600;overflow-wrap:anywhere;max-width:64%}.ws-maintenance-review code{font-size:12px}.ws-maintenance-review>div:last-child{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+@media(max-width:767px){.ws-maintenance{margin:18px 16px 0;padding:20px;border-radius:16px}.ws-maintenance-head{display:block}.ws-maintenance-head>button{margin-top:8px}.ws-maintenance-review dl>div{display:block}.ws-maintenance-review dd{text-align:left;max-width:100%;margin-top:5px}.ws-maintenance-actions button{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){.ws-maintenance button{transition:none}}

@@ -49,7 +49,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   // and closing a popup or any failure pauses the chain at once.
   const [chain, setChain] = useState(false);
   const [skipBatch, setSkipBatch] = useState(false);
-  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
   const say = (line: string) => setLog((current) => [...current, line]);
 
   async function waitForReceipt(hash: string): Promise<{ logs: { address: string; topics: string[]; data: string }[]; status: string }> {
@@ -385,35 +384,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     } finally { setBusy(false); }
   }
 
-  async function killSwitch() {
-    if (!provider || !phase?.revocation || busy) return;
-    const step = phase.revocation;
-    setChain(false);
-    setBusy(true); setError('');
-    try {
-      const hash = await provider.request({ method: 'eth_sendTransaction', params: [{ from: address, to: step.to, data: step.data }] }) as string;
-      if (!/^0x[0-9a-f]{64}$/i.test(hash)) throw new Error('Wallet returned no transaction hash.');
-      say(`Sent: ${step.label} (${hash.slice(0, 10)}…) — waiting for confirmation.`);
-      const receipt = await waitForReceipt(hash);
-      if (receipt.status !== '0x1') throw new Error('Revocation reverted onchain. The permission may still be active.');
-      const revokedRole = receipt.logs.some(entry => {
-        try {
-          if (entry.address.toLowerCase() !== phase.module?.toLowerCase()) return false;
-          const event = decodeEventLog({ abi: parseAbi(['event AssignRoles(address module,bytes32[] roleKeys,bool[] memberOf)']), data: entry.data as `0x${string}`, topics: entry.topics as [`0x${string}`, ...`0x${string}`[]] });
-          return event.args.module.toLowerCase() === address.toLowerCase() && event.args.roleKeys.some((key, index) => key.toLowerCase() === phase.roleKey?.toLowerCase() && event.args.memberOf[index] === false);
-        } catch { return false; }
-      });
-      if (!revokedRole) throw Error('Transaction confirmed, but permission removal could not be verified. Refresh status.');
-      setPhase(current => current ? { ...current, installed: false, checks: current.checks?.map(check => check.label === 'Session membership' ? { ...check, expect: 'active', observed: 'revoked', ok: false } : check) } : current);
-      setNext(phase.steps.length);
-      window.dispatchEvent(new Event('steward-permission-updated'));
-      say('Permission turned off. Your balances are unchanged.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The revocation did not complete.');
-      say('Stopped. The permission may still be active; verify before relying on it.');
-    } finally { setBusy(false); }
-  }
-
   // One-click chaining: whenever a next step waits and nothing is running,
   // offer its signature at once. Failures and pauses switch chaining off.
   useEffect(() => {
@@ -451,8 +421,10 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     .filter(check => check.label !== 'Swap funding approvals').every(check => check.ok);
   const activationState = pendingHash
     ? { label: 'Setup submitted', reason: 'Waiting for chain confirmation. Do not approve it again.' }
-    : confirmedAwaitingChecks || (finalSetupOnChain && !phase?.installed)
+    : confirmedAwaitingChecks
       ? { label: 'Setup confirmed, final checks running', reason: 'Refresh status to verify buying access before continuing.' }
+      : finalSetupOnChain && !phase?.installed
+      ? { label: 'Buying approval needs renewal', reason: 'The setup is onchain, but funding approval is missing or expired. Use the Renew review above; refreshing cannot extend an expired approval.' }
       : !provider
     ? { label: 'Disabled', reason: 'Connect and verify your wallet first.' }
     : !policyVersion
@@ -471,11 +443,11 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     <div className="ws-chain-tools permission-actions">
       {!provider ? <button type="button" className="ws-action-primary" onClick={() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>Connect wallet to continue</button> : <>
         {!(phase?.steps?.[next]) && <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain || !policyVersion || !feesOk || phase?.installed}>
-          {busy ? 'Checking permission…' : pendingHash ? 'Setup submitted' : confirmedAwaitingChecks || (finalSetupOnChain && !phase?.installed) ? 'Awaiting final checks' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
+          {busy ? 'Checking permission…' : pendingHash ? 'Setup submitted' : confirmedAwaitingChecks ? 'Awaiting final checks' : finalSetupOnChain && !phase?.installed ? 'Use Renew above' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
         </button>}
         <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain}>Refresh status</button>
       </>}
-      {phase?.revocation && phase.installed && !revoked && !busy && <button type="button" className="ws-action-revoke" onClick={()=>setConfirmingRevoke(true)}>Revoke permission</button>}
+
       {chain && !busy && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause setup</button>}
     </div>
     {phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
@@ -497,7 +469,6 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       </button>
       {phase?.batched && <button type="button" className="ws-action-quiet" disabled={busy} onClick={() => { setChain(false); setSkipBatch(false); }}>Finish remaining steps in one approval</button>}
     </div>}
-    {confirmingRevoke&&phase?.revocation&&!revoked&&!busy&&<div className="ws-revoke-confirm" role="alertdialog" aria-labelledby="revoke-title"><div><span className="ws-label">CONFIRM</span><strong id="revoke-title">Revoke trading permission?</strong><p>New orders will stop. Your balances stay in the wallet. Your wallet will ask you to approve the revocation and network fee.</p></div><div><button type="button" className="ws-action-revoke" onClick={()=>{setConfirmingRevoke(false);void killSwitch();}}>Revoke permission</button><button type="button" className="ws-action-quiet" onClick={()=>setConfirmingRevoke(false)}>Keep active</button></div></div>}
     {!phase?.installed && log.length > 0 && <div className="ws-chain-brief"><strong>Setup progress</strong><p>{log[log.length - 1]}</p>
       {log.length > 1 && <details><summary>Earlier progress ({log.length - 1})</summary>{log.slice(0, -1).map((line, index) => <p key={index}>{line}</p>)}</details>}</div>}
     {error && <div className="ws-toast-wrap" role="alert"><div className="ws-toast"><p>{error}</p><button type="button" onClick={() => setError('')}>Dismiss</button></div></div>}

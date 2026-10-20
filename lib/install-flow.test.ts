@@ -178,9 +178,11 @@ test('readback checks cover admin control, membership and both quotas', () => {
   assert.equal(revoke.to.toLowerCase(), policy.account.toLowerCase());
   const decoded = decodeFunctionData({abi:parseAbi(['function execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes) returns (bool)']),data:revoke.data});
   assert.equal(decoded.functionName,'execTransaction');
-  assert.equal(decoded.args[0].toLowerCase(),moduleAddress.toLowerCase());
+  assert.equal(decoded.args[0].toLowerCase(),MULTISEND.address.toLowerCase());
   assert.equal(decoded.args[1],0n);
-  assert.equal(decoded.args[2],compiled.revocation.data);
-  assert.equal(decoded.args[3],0);
+  const batch=decodeFunctionData({abi:parseAbi(['function multiSend(bytes transactions)']),data:decoded.args[2]});
+  assert.equal(batch.functionName,'multiSend');
+  assert.ok(batch.args[0].toLowerCase().includes(compiled.revocation.data.slice(2).toLowerCase()));
+  assert.equal(decoded.args[3],1);
   assert.equal(decoded.args[9].slice(-2),'01');
 });

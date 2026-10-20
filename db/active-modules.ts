@@ -1,3 +1,4 @@
+import { PERMISSION_WINDOW_SECONDS } from '../lib/permission-window.ts';
 export type StoredOutput = { token: string; fee: number; tickSpacing: number; minimumOutputRaw: string };
 export type ActiveModule = { safe: string; module: string; mandateVersion: number; verifiedAt: string; outputs: StoredOutput[] | null; startsAt: number; expiresAt: number };
 
@@ -49,8 +50,8 @@ export async function getActiveModule(db: D1Database, owner: string, version: nu
     } catch { outputs = null; }
   }
   const originalDay = Math.floor(Date.parse(row.verified_at) / 86400000) * 86400;
-  const startsAt = row.starts_at ?? originalDay, expiresAt = row.expires_at ?? originalDay + 172800;
-  if (!Number.isSafeInteger(startsAt) || startsAt < 1 || startsAt % 86400 || expiresAt !== startsAt + 172800) throw new Error('Invalid installed permission window.');
+  const startsAt = row.starts_at ?? originalDay, expiresAt = row.expires_at ?? originalDay + PERMISSION_WINDOW_SECONDS;
+  if (!Number.isSafeInteger(startsAt) || startsAt < 1 || startsAt % 86400 || expiresAt !== startsAt + PERMISSION_WINDOW_SECONDS) throw new Error('Invalid installed permission window.');
   return { safe: row.safe, module: row.module, mandateVersion: row.mandate_version, verifiedAt: row.verified_at, outputs, startsAt, expiresAt };
 }
 
@@ -58,8 +59,8 @@ export async function saveActiveModule(db: D1Database, owner: string, version: n
   if (!/^0x[0-9a-f]{40}$/i.test(safe) || !/^0x[0-9a-f]{40}$/i.test(module)) throw new Error("Invalid module record.");
   const parsed = outputs === undefined || outputs === null ? null : parseStoredOutputs(outputs);
   if ((outputs !== undefined && outputs !== null) && parsed === null) throw new Error("Invalid locked outputs.");
-  const startsAt = window?.startsAt ?? Math.floor(now.getTime() / 86400000) * 86400, expiresAt = window?.expiresAt ?? startsAt + 172800;
-  if (!Number.isSafeInteger(startsAt) || startsAt < 1 || startsAt % 86400 || expiresAt !== startsAt + 172800) throw new Error('Invalid installed permission window.');
+  const startsAt = window?.startsAt ?? Math.floor(now.getTime() / 86400000) * 86400, expiresAt = window?.expiresAt ?? startsAt + PERMISSION_WINDOW_SECONDS;
+  if (!Number.isSafeInteger(startsAt) || startsAt < 1 || startsAt % 86400 || expiresAt !== startsAt + PERMISSION_WINDOW_SECONDS) throw new Error('Invalid installed permission window.');
   await db.prepare(`INSERT INTO active_modules(owner_ref,mandate_version,safe,module,verified_at,outputs,starts_at,expires_at) VALUES(?,?,?,?,?,?,?,?)
     ON CONFLICT(owner_ref,mandate_version) DO UPDATE SET safe=excluded.safe,module=excluded.module,verified_at=excluded.verified_at,outputs=excluded.outputs,starts_at=excluded.starts_at,expires_at=excluded.expires_at`)
     .bind(owner, version, safe.toLowerCase(), module.toLowerCase(), now.toISOString(), parsed === null ? null : JSON.stringify(parsed), startsAt, expiresAt).run();
