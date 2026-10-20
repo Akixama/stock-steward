@@ -63,7 +63,7 @@ export function maintenanceTransaction(kind: 'renew' | 'revoke', owner: Address,
 
 export function renewalVerified(policy: RolesPolicy, funding: FundingReadback, checks: { ok: boolean }[]) {
   return checks.length === 6 && checks.every(check => check.ok)
-    && funding.tokenRaw >= BigInt(policy.totalRaw) && funding.permitRaw >= BigInt(policy.totalRaw)
+    && funding.tokenRaw === BigInt(policy.totalRaw) && funding.permitRaw === BigInt(policy.totalRaw)
     && funding.permitExpiresAt === policy.expiresAt && Date.now() < policy.expiresAt * 1000;
 }
 export function revocationVerified(member: boolean, funding: FundingReadback) {

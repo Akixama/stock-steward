@@ -11,10 +11,10 @@ import type { RolesPolicy } from './roles-permission.ts';
 
 const owner='0xdc7f175bca1c29a77286a52c857e7fef12f3f662' as Address;
 const safe='0x571223133777f85a738f79a61042ab16157d493d' as Address;
-const module='0x67c56b3715f6d1ef2d6db678660ac207b95e96c9' as Address;
+const moduleAddress='0x67c56b3715f6d1ef2d6db678660ac207b95e96c9' as Address;
 const now=new Date('2026-10-20T01:00:00.000Z');
 const oldWindow=permissionWindow(new Date('2026-10-18T12:00:00.000Z'));
-const policy:RolesPolicy={account:safe,module,session:owner,grantId:keccak256(toHex('renew-test')),
+const policy:RolesPolicy={account:safe,module:moduleAddress,session:owner,grantId:keccak256(toHex('renew-test')),
   routerCodeHash:keccak256(toHex('router-code')),...oldWindow,inputRaw:'5000000',dailyRaw:'20000000',totalRaw:'40000000',
   outputs:[{token:'0x1111111111111111111111111111111111111111',fee:3000,tickSpacing:60,minimumOutputRaw:'1'}]};
 
@@ -23,7 +23,8 @@ function unpack(data:Hex){
   assert.equal(safeCall.args[0].toLowerCase(),MULTISEND.address.toLowerCase());
   assert.equal(safeCall.args[3],1);
   const multi=decodeFunctionData({abi:parseAbi(['function multiSend(bytes transactions)']),data:safeCall.args[2]});
-  let bytes=multi.args[0].slice(2), calls:{to:string;data:Hex}[]=[];
+  let bytes=multi.args[0].slice(2);
+  const calls:{to:string;data:Hex}[]=[];
   while(bytes.length){
     assert.equal(bytes.slice(0,2),'00');
     const to=`0x${bytes.slice(2,42)}`;
@@ -46,7 +47,7 @@ test('renew reuses the exact Safe, module, role and cap; success requires all re
   const result=maintenanceTransaction('renew',owner,policy,now);
   assert.equal(result.transaction.to,safe);
   assert.equal(result.policy.account,safe);
-  assert.equal(result.policy.module,module);
+  assert.equal(result.policy.module,moduleAddress);
   assert.equal(result.policy.grantId,policy.grantId);
   assert.equal(result.policy.totalRaw,policy.totalRaw);
   assert.equal(result.policy.expiresAt,Date.parse('2026-10-22T00:00:00Z')/1000);
@@ -54,6 +55,8 @@ test('renew reuses the exact Safe, module, role and cap; success requires all re
   const funding={tokenRaw:40000000n,permitRaw:40000000n,permitExpiresAt:result.policy.expiresAt};
   const passing=Array.from({length:6},()=>({ok:true}));
   assert.equal(renewalVerified(result.policy,funding,passing),true);
+  assert.equal(renewalVerified(result.policy,{...funding,tokenRaw:40000001n},passing),false);
+  assert.equal(renewalVerified(result.policy,{...funding,permitRaw:40000001n},passing),false);
   assert.equal(renewalVerified(result.policy,{...funding,permitExpiresAt:policy.expiresAt},passing),false);
   assert.equal(renewalVerified(result.policy,funding,passing.map((check,index)=>index===3?{ok:false}:check)),false);
   assert.equal(renewalVerified(result.policy,funding,passing.slice(1)),false);
@@ -63,7 +66,7 @@ test('revoke batches role removal and BOTH zero approvals; proof requires both z
   const result=maintenanceTransaction('revoke',owner,policy,now);
   const calls=unpack(result.transaction.data);
   assert.equal(calls.length,3);
-  assert.equal(calls[0].to.toLowerCase(),module.toLowerCase());
+  assert.equal(calls[0].to.toLowerCase(),moduleAddress.toLowerCase());
   const role=decodeFunctionData({abi:parseAbi(['function assignRoles(address,bytes32[],bool[])']),data:calls[0].data});
   assert.deepEqual(role.args[2],[false]);
   assert.equal(calls[1].to.toLowerCase(),VENUE.settlement.toLowerCase());

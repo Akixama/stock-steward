@@ -107,8 +107,8 @@ export async function GET() {
     const approvals=await funding(located.safe,transport);
     const eligible=maintenanceEligibility(current.expiresAt);
     const checks=await readChecks(currentContextValue.policy,transport);
-    const permissionActive=checks.allOk&&approvals.tokenRaw>=BigInt(currentContextValue.policy.totalRaw)
-      &&approvals.permitRaw>=BigInt(currentContextValue.policy.totalRaw)
+    const permissionActive=checks.allOk&&approvals.tokenRaw===BigInt(currentContextValue.policy.totalRaw)
+      &&approvals.permitRaw===BigInt(currentContextValue.policy.totalRaw)
       &&approvals.permitExpiresAt>Math.floor(Date.now()/1000)+60
       &&eligible.state!=='expired';
     return Response.json({safe:located.safe,module:saved.module,ownerAddress:located.owner,mandateVersion:saved.mandateVersion,
