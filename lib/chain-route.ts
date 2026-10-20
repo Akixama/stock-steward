@@ -29,8 +29,8 @@ function hexBytes(raw:unknown):string{
  if(typeof raw!=='string'||!/^0x(?:[0-9a-f]{2})+$/i.test(raw))throw new Error('Contract response unavailable');
  return raw;
 }
-export async function inspectRoute(address:string,symbol:string,amount:string,slippageBps=50,fetcher:typeof fetch=fetch):Promise<RouteEvidence>{return inspectTradeRoute(address,symbol,amount,'buy',slippageBps,fetcher);}
-export async function inspectTradeRoute(address:string,symbol:string,amount:string,side:'buy'|'sell',slippageBps=50,fetcher:typeof fetch=fetch):Promise<RouteEvidence>{
+export async function inspectRoute(address:string,symbol:string,amount:string,slippageBps=50,fetcher:typeof fetch=fetch,knownRegistry?:ReturnType<typeof registry>):Promise<RouteEvidence>{return inspectTradeRoute(address,symbol,amount,'buy',slippageBps,fetcher,knownRegistry);}
+export async function inspectTradeRoute(address:string,symbol:string,amount:string,side:'buy'|'sell',slippageBps=50,fetcher:typeof fetch=fetch,knownRegistry?:ReturnType<typeof registry>):Promise<RouteEvidence>{
  if(!['buy','sell'].includes(side))throw Error('Unsupported trade side.');
  if(!/^0x[0-9a-f]{40}$/i.test(address)||! /^[A-Z0-9.-]{1,12}$/.test(symbol)||!Number.isInteger(slippageBps)||slippageBps<1||slippageBps>100)throw new Error('Invalid route request.');
  let serial=0;async function rpc(method:string,params:unknown[]){const id=++serial;const r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(12000),cache:'no-store'});if(!r.ok)throw new Error('Route RPC unavailable');const b=await r.json() as {id:number;result:unknown;error?:unknown};if(b.id!==id||b.error||b.result===undefined)throw new Error('Route RPC evidence unavailable');return b.result;}
@@ -38,7 +38,8 @@ export async function inspectTradeRoute(address:string,symbol:string,amount:stri
  if(BigInt(String(need(chainIdRow)))!==BigInt(CHAIN.id))throw new Error('Wrong network');
  const block=String(need(blockRow));if(!/^0x[0-9a-f]+$/i.test(block))throw new Error('Invalid block');
  const header=await rpc('eth_getBlockByNumber',[block,false]) as {hash?:string;number?:string;timestamp?:string};if(header.number!==block||!/^0x[0-9a-f]{64}$/i.test(header.hash??'')||!/^0x[0-9a-f]+$/i.test(header.timestamp??'')||Math.abs(Date.now()-Number(BigInt(header.timestamp!))*1000)>120000)throw new Error('Current canonical block unavailable');
- const r=await fetcher('https://api.robinhood.com/rhj/assets',{signal:AbortSignal.timeout(12000),cache:'no-store'});if(!r.ok)throw new Error('Official asset registry unavailable');const asset=registry(await r.json()).find(t=>t.symbol===symbol);if(!asset||asset.status!=='ASSET_STATUS_ACTIVE')throw new Error('Active official stock token not found');
+ const assets=knownRegistry??await (async()=>{const r=await fetcher('https://api.robinhood.com/rhj/assets',{signal:AbortSignal.timeout(12000),cache:'no-store'});if(!r.ok)throw new Error('Official asset registry unavailable');return registry(await r.json());})();
+ const asset=assets.find(t=>t.symbol===symbol);if(!asset||asset.status!=='ASSET_STATUS_ACTIVE')throw new Error('Active official stock token not found');
  const codes=await rpcBatch(fetcher,[VENUE.manager,VENUE.quoter,VENUE.state,VENUE.settlement,asset.contract].map((contract)=>({method:'eth_getCode',params:[contract,block]})));
  for(const row of codes){const code=hexBytes(need(row));if(code==='0x')throw new Error('Required contract unavailable');}
  const managers=await rpcBatch(fetcher,[[VENUE.state,stateAbi],[VENUE.quoter,quoteAbi]].map(([target,abi])=>({method:'eth_call',params:[{to:target,data:encodeFunctionData({abi,functionName:'poolManager',args:[]} as never)},block]})));

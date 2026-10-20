@@ -108,7 +108,7 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
   for (const output of plan.outputs) {
     const locked = lockedOutputs?.find(line => line.token.toLowerCase() === output.token.toLowerCase());
     if (locked) { outputs.push(locked); continue; }
-    const route = await inspectRoute(safe, output.symbol, perTradeAmount, 50, transport);
+    const route = await inspectRoute(safe, output.symbol, perTradeAmount, 50, transport, tokens);
     if (!route.best || !route.minimumOutputRaw) {
       throw new Error(`No live pool quote for ${output.symbol}; orders stay locked until every output quotes.`);
     }

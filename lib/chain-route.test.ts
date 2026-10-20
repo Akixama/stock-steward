@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeAbiParameters, keccak256, toHex } from 'viem';
 import { inspectRoute, poolIdentity, VENUE } from './chain-route.ts';
+import { registry } from './robinhood-chain.ts';
 
 const TOKEN = '0x1111111111111111111111111111111111111111';
 const USER = '0x2222222222222222222222222222222222222222';
@@ -76,4 +77,13 @@ test('batched inspection quotes one pool and stays within a few requests', async
   assert.equal(evidence.probes.filter((p) => p.state === 'quoted').length, 1);
   assert.equal(evidence.probes.filter((p) => p.state === 'uninitialized').length, 3);
   assert.ok(calls.count <= 10, `expected few requests, saw ${calls.count}`);
+});
+
+test('renewal route reuses the freshly checked registry instead of fetching it again',async()=>{
+  const fetchWithoutRegistry=async(input:unknown,init?:unknown)=>{
+    if(String(input).includes('rhj/assets'))throw Error('duplicate registry request');
+    return stubFetch(input,init);
+  };
+  const evidence=await inspectRoute(USER,'AAPL','1.00',50,fetchWithoutRegistry as typeof fetch,registry(registryBody()));
+  assert.equal(evidence.best?.fee,3000);
 });
