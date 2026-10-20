@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { formatUnits } from 'viem';
 import type { WalletProvider } from '@/lib/browser-wallet';
+import { jsonResponse } from '@/lib/json-response';
 
 type Kind='renew'|'revoke';
 type Attempt={id:string;kind:Kind;state:'prepared'|'submitted'|'unknown'|'confirmed'|'reverted';hash:string|null;safe:string;expiresAt:number};
@@ -25,7 +26,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   const load=useCallback(async()=>{
     if(!address)return;
     const response=await fetch(endpoint,{cache:'no-store'});
-    const result=await response.json() as Status&{error?:string};
+    const result=await jsonResponse<Status&{error?:string}>(response,'Permission status failed. Nothing was sent.');
     if(!response.ok)throw Error(result.error??'Permission status unavailable.');
     const cached=localStorage.getItem(storageKey);
     if(result.attempt?.state==='prepared'&&cached){
@@ -35,7 +36,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
           await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({action:'submitted',id:parsed.id,hash:parsed.hash})});
           const again=await fetch(endpoint,{cache:'no-store'});
-          if(again.ok){setStatus(await again.json() as Status);return;}
+          if(again.ok){setStatus(await jsonResponse<Status>(again,'Permission status failed. Nothing was sent.'));return;}
         }
       }catch{/* Keep the attempt unresolved; never submit another transaction. */}
     }
@@ -49,7 +50,10 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   },[address,load]);
   async function action(body:Record<string,unknown>){
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const result=await response.json() as Record<string,unknown>&{error?:string};
+    const fallback=body.action==='preview'&&body.kind==='renew'
+      ? 'Renew review failed, nothing was sent'
+      : 'Permission request failed. Check status before trying again.';
+    const result=await jsonResponse<Record<string,unknown>&{error?:string}>(response,fallback);
     if(!response.ok)throw Error(result.error??'Permission request unavailable.');
     return result;
   }

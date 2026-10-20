@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { decodeFunctionResult, encodeFunctionData, formatEther, keccak256, parseAbi, type Address, type Hex } from 'viem';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
-import { buildPolicyBase, getCode, locateSafe, rpcCall, CHAIN_RPC } from '@/app/api/workspace/orders/live/_shared';
+import { buildPolicyBase, locateSafe, rpcCall, CHAIN_RPC } from '@/app/api/workspace/orders/live/_shared';
 import { getActiveModule, saveActiveModule } from '@/db/active-modules';
 import { latestMaintenance, maintenanceById, recordMaintenanceHash, reserveMaintenance, settleMaintenance, unresolvedMaintenance,
   type MaintenanceAttempt, type MaintenanceKind } from '@/db/permission-maintenance';
@@ -13,6 +13,7 @@ import { approvalAddresses, decodeFundingReadback, fundingCalls, maintenanceElig
   type MaintenanceChainTransaction, type MaintenanceReceipt } from '@/lib/permission-maintenance';
 import { MULTISEND } from '@/lib/safe-setup';
 import { assertTradingEnabled, tradingAdmission } from '@/lib/trading-controls';
+import { chainReadBatch } from '@/lib/chain-read-batch';
 
 const adminAbi = parseAbi(['function owner() view returns (address)','function avatar() view returns (address)','function target() view returns (address)']);
 
@@ -29,9 +30,16 @@ async function funding(safe: Address, transport: typeof fetch) {
   return decodeFundingReadback(a,b);
 }
 async function proveModule(safe: Address, module: Address, transport: typeof fetch) {
-  if ((await getCode(safe,transport)) === '0x' || (await getCode(module,transport)) === '0x') throw Error('Existing wallet or module is missing.');
-  for (const name of ['owner','avatar','target'] as const) {
-    const raw = await rpcCall(module,encodeFunctionData({abi:adminAbi,functionName:name}),'latest',transport);
+  const names=['owner','avatar','target'] as const;
+  const rows=await chainReadBatch(CHAIN_RPC,[
+    {method:'eth_getCode',params:[safe,'latest']},
+    {method:'eth_getCode',params:[module,'latest']},
+    ...names.map(name=>({method:'eth_call',params:[{to:module,data:encodeFunctionData({abi:adminAbi,functionName:name})},'latest']})),
+  ],transport);
+  if(rows.slice(0,2).some(code=>typeof code!=='string'||!/^0x(?:[0-9a-f]{2})*$/i.test(code)||code==='0x'))
+    throw Error('Existing wallet or module is missing.');
+  for (const [index,name] of names.entries()) {
+    const raw=rows[index+2] as Hex;
     if (String(decodeFunctionResult({abi:adminAbi,functionName:name,data:raw})).toLowerCase() !== safe.toLowerCase())
       throw Error('The recorded module does not belong to this Steward wallet.');
   }
@@ -93,9 +101,9 @@ function publicAttempt(attempt: MaintenanceAttempt|null) {
 }
 
 export async function GET() {
-  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
-  if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
   try {
+    const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
+    if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
     const initial=await currentContext(env.DB,user.userId);
     const {located,saved}=initial;
     const transport=located.transport;
@@ -121,10 +129,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
-  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid request origin.'},{status:403});
-  if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
   try {
+    const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
+    if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid request origin.'},{status:403});
+    if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
     const body=await request.json() as {action?:unknown;kind?:unknown;id?:unknown;hash?:unknown;expectedDigest?:unknown};
     const {located,saved,policy}=await currentContext(env.DB,user.userId);
     if(body.action==='submitted') {
@@ -155,8 +163,10 @@ export async function POST(request: Request) {
     const action=kind==='renew'
       ? maintenanceTransaction(kind,located.owner,{...policy,outputs:nextBase!.base.outputs})
       : maintenanceTransaction(kind,located.owner,policy);
-    const estimate=await rpc('eth_estimateGas',[action.transaction],located.transport);
-    const gasPrice=await rpc('eth_gasPrice',[],located.transport);
+    const [estimate,gasPrice]=await chainReadBatch(CHAIN_RPC,[
+      {method:'eth_estimateGas',params:[action.transaction]},
+      {method:'eth_gasPrice',params:[]},
+    ],located.transport);
     if(typeof estimate!=='string'||typeof gasPrice!=='string')throw Error('Network fee estimate unavailable. Nothing was prepared.');
     const feeWei=BigInt(estimate)*BigInt(gasPrice);
     const digest=keccak256(action.transaction.data);
