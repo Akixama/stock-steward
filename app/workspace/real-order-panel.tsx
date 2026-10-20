@@ -1,4 +1,6 @@
 'use client';
+import {formatWorkspaceDate} from '@/lib/workspace-date';
+
 import { useEffect, useRef, useState } from 'react';
 import { matchingWallet, type WalletProvider } from '@/lib/browser-wallet';
 import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wallet-receipt';
@@ -200,7 +202,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
         <div><dt>Amount to pay</dt><dd>{dollars(prepared.amountCents)} USDG</dd></div>
         <div><dt>Minimum output</dt><dd>{tokens(prepared.minimumOutputRaw)} {prepared.symbol}</dd></div>
         <div><dt>Network fee estimate</dt><dd>Shown in your wallet before approval</dd></div>
-        <div><dt>Quote expires</dt><dd>{new Date(prepared.expiresAt).toLocaleTimeString()}</dd></div>
+        <div><dt>Quote expires</dt><dd>{formatWorkspaceDate(prepared.expiresAt,{hour:'numeric',minute:'2-digit',timeZoneName:'short'})}</dd></div>
       </dl>
       <p>The output is a minimum estimate, not a guaranteed market price. The network fee may change. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
       <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>

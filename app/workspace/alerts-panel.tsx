@@ -1,4 +1,6 @@
 'use client';
+import {formatWorkspaceDate} from '@/lib/workspace-date';
+
 import {useCallback,useEffect,useState} from 'react';
 import {BellRing,Check,Search,X} from 'lucide-react';
 import type {PriceAlert} from '@/lib/price-alerts';
@@ -49,7 +51,7 @@ export default function AlertsPanel({mandate}:{mandate:Mandate}){
     <small>Based on the regular share price. A stock token may cost something different.</small>
    </form>
    <div className="ws-alert-list">
-    <div className="ws-alert-list-head"><div><span className="ws-label">YOUR ALERTS</span><small>{lastChecked?`Last checked ${lastChecked.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`:'Not checked this visit'}</small></div><button className="ws-action-secondary" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check prices now'}</button></div>
+    <div className="ws-alert-list-head"><div><span className="ws-label">YOUR ALERTS</span><small>{lastChecked?`Last checked ${formatWorkspaceDate(lastChecked,{hour:'numeric',minute:'2-digit'})}`:'Not checked this visit'}</small></div><button className="ws-action-secondary" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check prices now'}</button></div>
     {loaded&&!alerts.length&&<p className="ws-alert-empty">No alerts yet. Set one to watch a price without trading.</p>}
     {alerts.map(alert=><div key={alert.id} className="ws-alert-row" data-status={alert.status}>
      <div><strong>{alert.symbol}</strong><small>{alert.direction==='above'?'At or above':'At or below'} {money(alert.priceCents)}</small></div>

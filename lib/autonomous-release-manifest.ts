@@ -1,2 +1,2 @@
-// Generated from 395 application/configuration files before build.
-export const AUTONOMOUS_SOURCE_DIGEST='0x05938ecccd5c5ded5c1dd0eaa38af119f6bfb851bcc5ba4868ad3a9d03ffb0ba';
+// Generated from 397 application/configuration files before build.
+export const AUTONOMOUS_SOURCE_DIGEST='0x470a9d1cce7127a044f1330d1c8a6212b793f614a5e3bdb677582dd3e7ac396d';

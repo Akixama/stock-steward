@@ -1,4 +1,6 @@
 "use client";
+import {formatWorkspaceDate} from '@/lib/workspace-date';
+
 import { useEffect, useRef, useState } from "react";
 import { useWalletSession } from './wallet-session';
 import BridgeDialog from './bridge-dialog';
@@ -9,7 +11,7 @@ import type { Mandate } from "@/lib/decision";
 const valid = (s: string) => /^0x[0-9a-f]{40}$/i.test(s);
 const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
 const shorten = (s: string) => `${s.slice(0, 6)}…${s.slice(-4)}`;
-const when = (s: string) => new Date(s).toLocaleString();
+const when = (s: string) => formatWorkspaceDate(s);
 function usdMicro(value: string) {
   const n = BigInt(value), cents = n / 10000n;
   return `$${(cents / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(cents % 100n).toString().padStart(2, "0")}`;

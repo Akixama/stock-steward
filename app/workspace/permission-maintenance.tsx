@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { formatUnits } from 'viem';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import { jsonResponse } from '@/lib/json-response';
+import { formatWorkspaceDate } from '@/lib/workspace-date';
+import { PermissionReview, PermissionReviewBoundary, type PermissionReviewPayload } from './permission-review';
 
 type Kind='renew'|'revoke';
 type Attempt={id:string;kind:Kind;state:'prepared'|'submitted'|'unknown'|'confirmed'|'reverted';hash:string|null;safe:string;expiresAt:number};
@@ -10,12 +11,9 @@ type Status={safe:string;ownerAddress:string;expiry:number;permissionActive:bool
   eligibility:{state:'active'|'soon'|'expired'|'unavailable';mayRenew:boolean;notice:boolean};
   approvals:{tokenRaw:string;permitRaw:string;permitExpiresAt:number};attempt:Attempt|null;
   checks:{label:string;ok:boolean}[]};
-type Review={safe:string;module:string;capRaw:string;spenders:{token:string;permit2:string;router:string};
-  expiresAt:number;estimatedNetworkFeeEth:string;revocation:string};
-type Preview={kind:Kind;digest:string;review:Review};
+type Preview=PermissionReviewPayload;
 const endpoint='/api/workspace/permission/maintenance';
 const link=(hash:string)=>`https://robinhoodchain.blockscout.com/tx/${hash}`;
-const when=(seconds:number)=>new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short',timeZoneName:'short'}).format(seconds*1000);
 
 export default function PermissionMaintenance({provider,address}:{provider:WalletProvider|null;address:string}){
   const [status,setStatus]=useState<Status|null>(null);
@@ -91,7 +89,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   const title=pending?'Wallet action pending':revoked?'Buying permission off':expired?'Approval expired, Renew':status?.permissionActive?'Buying permission active':'Buying permission needs a check';
   return <section className="ws-maintenance" aria-label="Buying permission maintenance">
     <div className="ws-maintenance-head"><div><span>BUYING ACCESS</span><h2>{title}</h2>
-      {status&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${when(status.expiry)} · ${new Date(status.expiry*1000).toISOString().replace('.000Z',' UTC')}`}</p>}
+      {status&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${formatWorkspaceDate(status.expiry,undefined,'seconds')}`}</p>}
       {!status&&!error&&<p>Checking the existing Steward wallet…</p>}</div>
       <button type="button" onClick={()=>void load().catch(cause=>setError(String(cause)))} disabled={busy}>Refresh status</button></div>
     {status?.eligibility.state==='soon'&&<p role="status">Renewal is available after this UTC window ends, so today’s buying limit cannot be reset early.</p>}
@@ -102,17 +100,9 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
       {expired&&!revoked&&<button type="button" onClick={()=>void review('renew')} disabled={busy||!provider||address.toLowerCase()!==status.ownerAddress.toLowerCase()}>Renew on this wallet</button>}
       {(status.permissionActive||BigInt(status.approvals.tokenRaw)>0n||BigInt(status.approvals.permitRaw)>0n)&&<button type="button" onClick={()=>void review('revoke')} disabled={busy||!provider||address.toLowerCase()!==status.ownerAddress.toLowerCase()}>Revoke and clear approvals</button>}
     </div>}
-    {preview&&<div className="ws-maintenance-review" role="group" aria-label={preview.kind==='renew'?'Renewal review':'Revocation review'}>
-      <h3>{preview.kind==='renew'?'Review renewal on the same wallet':'Review revocation'}</h3>
-      <dl><div><dt>Steward wallet</dt><dd><code>{preview.review.safe}</code></dd></div>
-        <div><dt>{preview.kind==='renew'?'New total USDG cap':'Approvals after revocation'}</dt><dd>{formatUnits(BigInt(preview.review.capRaw),6)} USDG</dd></div>
-        <div><dt>USDG token approves</dt><dd>Permit2 <code>{preview.review.spenders.permit2}</code></dd></div>
-        <div><dt>Permit2 approves</dt><dd>Trade router <code>{preview.review.spenders.router}</code></dd></div>
-        <div><dt>Expiry</dt><dd>{preview.kind==='renew'?when(preview.review.expiresAt):'Approvals cleared now'}</dd></div>
-        <div><dt>Estimated network fee</dt><dd>{preview.review.estimatedNetworkFeeEth} ETH · your wallet shows the actual fee</dd></div></dl>
-      <p>{preview.review.revocation}</p><p>Approval changes do not transfer funds. Your owner wallet signs the exact Safe transaction once.</p>
-      <div><button type="button" onClick={()=>void sign()} disabled={busy||!provider}>{busy?'Checking…':'Confirm exact action in wallet'}</button><button type="button" onClick={()=>setPreview(null)} disabled={busy}>Cancel review</button></div>
-    </div>}
+    {preview&&<PermissionReviewBoundary key={preview.digest} fallback={preview.kind==='renew'?'Renew review failed, nothing was sent':'Review failed, nothing was sent'}>
+      <PermissionReview preview={preview} busy={busy} hasProvider={!!provider} onConfirm={()=>void sign()} onCancel={()=>setPreview(null)}/>
+    </PermissionReviewBoundary>}
     {error&&<p role="alert" className="ws-error">{error}</p>}
   </section>;
 }

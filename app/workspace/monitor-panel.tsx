@@ -1,9 +1,11 @@
 'use client';
+import {formatWorkspaceDate} from '@/lib/workspace-date';
+
 import {useEffect,useRef,useState} from 'react';import {Pause,Play,Clock3,Activity,RefreshCw,Trash2} from 'lucide-react';
 import type {Schedule,WorkerRun} from '@/db/scheduler';import type {TransactionWatch} from '@/lib/chain-reconciliation';import {CHAIN} from '@/lib/robinhood-chain';
 type Health={last_started_at:string|null;last_completed_at:string|null;last_summary:string|null};
 type Status={schedule:Schedule|null;runs:WorkerRun[];workerConfigured:boolean;health:Health|null};
-const time=(value:string|null|undefined)=>value?new Date(value).toLocaleString():'Not yet';
+const time=(value:string|null|undefined)=>value?formatWorkspaceDate(value):'Not yet';
 export default function MonitorPanel({address}:{address:string}){
   const [status,setStatus]=useState<Status|null>(null),[watches,setWatches]=useState<TransactionWatch[]>([]),[interval,setIntervalMinutes]=useState('60');
   const [hash,setHash]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');const generation=useRef(0);

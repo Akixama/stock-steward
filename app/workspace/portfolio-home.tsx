@@ -1,4 +1,6 @@
 'use client';
+import {formatWorkspaceDate} from '@/lib/workspace-date';
+
 
 import {useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
@@ -97,7 +99,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
         <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
       </div>
-      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${new Date(latest.observedAt).toLocaleString()}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
+      <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${formatWorkspaceDate(latest.observedAt)}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
     </section>
     <section className="ws-v4-funding" aria-label="Fund your Steward wallet"><div><span>FUND THIS WALLET</span><h2>Add USDG</h2><p>Send USDG to your current Steward wallet before buying. Keep some ETH in your owner wallet for network fees.</p></div>{wallet?.verified&&wallet.safe?<div className="ws-v4-funding-address"><code>{wallet.safe}</code><button type="button" onClick={()=>{void navigator.clipboard.writeText(wallet.safe).then(()=>{setCopied(true);window.setTimeout(()=>setCopied(false),1500);}).catch(()=>setCopied(false));}}>{copied?'Copied':'Copy address'}</button></div>:<button type="button" onClick={()=>onAction('setup')}>Connect wallet <ChevronRight size={16}/></button>}</section>
     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>
