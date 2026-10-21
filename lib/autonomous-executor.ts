@@ -13,8 +13,8 @@ export type AutonomousPreparation={newsEventId?:string;evidence:ExecutionEvidenc
 export type AutonomousExecutionDependencies={db:D1Database;owner:string;prepare():Promise<AutonomousPreparation>;current(policyHash:string,mandateDigest:string):Promise<boolean>;loadMaterial(session:string):Promise<Hex|null>;broadcast(raw:Hex):Promise<Hex>;now():Date};
 export type AutonomousOutcome={state:'blocked'|'submitted'|'unknown';why:string;hash?:Hex;intentDigest?:string;executionEnabled:boolean};
 // Production cannot reach a key loader or broadcast adapter while this compiled gate is off.
-export async function runAutonomousExecution(dependencies:AutonomousExecutionDependencies):Promise<AutonomousOutcome>{
- if(!AUTONOMOUS_RELEASE_ENABLED)return {state:'blocked',why:'Autonomous execution is disabled pending owner session-grant rehearsal and independent review.',executionEnabled:false};
+export async function runAutonomousExecution(dependencies:AutonomousExecutionDependencies,releaseEnabled=AUTONOMOUS_RELEASE_ENABLED):Promise<AutonomousOutcome>{
+ if(!releaseEnabled)return {state:'blocked',why:'Autonomous execution is disabled pending owner session-grant rehearsal and independent review.',executionEnabled:false};
  return executeBoundIntent(dependencies,true);
 }
 // Shared bounded executor for fixture tests and an explicitly owner-signed single
@@ -32,7 +32,7 @@ async function executeBoundIntent(d:AutonomousExecutionDependencies,executionEna
   if(!review.checksPassed)return blocked(review.reasons.join(' '));
   if(!await d.current(compiled.policyHash,p.lease.mandateDigest))return blocked('Execution paused or permission revoked.');
   const cents=Number(review.accounting.proposedCents);
-  const plan:AttemptPlan={...(p.newsEventId?{newsEventId:p.newsEventId}:{}),owner:d.owner,address:p.evidence.route.address,intentDigest:p.evidence.intentDigest,mandateVersion:p.evidence.mandateVersion,day:now.toISOString().slice(0,10),amountCents:cents,dailyCapCents:p.limits.maxDailyCents,candidate:p.candidate,route:p.evidence.route,permission:{policy:p.policy,creationTx:p.creationTx}};
+  const plan:AttemptPlan={...(p.newsEventId?{newsEventId:p.newsEventId}:{}),publicMode:executionEnabled,owner:d.owner,address:p.evidence.route.address,intentDigest:p.evidence.intentDigest,mandateVersion:p.evidence.mandateVersion,day:now.toISOString().slice(0,10),amountCents:cents,dailyCapCents:p.limits.maxDailyCents,candidate:p.candidate,route:p.evidence.route,permission:{policy:p.policy,creationTx:p.creationTx}};
   intent=plan.intentDigest;
   accountClaimed=await claimAutonomousAccount(d.db,d.owner,plan.address,intent,now);
   if(!accountClaimed)return blocked('Another unresolved order holds this account.');

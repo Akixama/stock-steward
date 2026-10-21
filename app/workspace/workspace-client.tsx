@@ -15,6 +15,7 @@ import AlertsPanel from './alerts-panel';
 import PracticeTrail from './practice-trail';
 import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
+import AutomaticPanel from './automatic-panel';
 import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
 import StockSelector from './stock-selector';
@@ -40,7 +41,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
-  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('view');if(requested!=='alerts'&&requested!=='mandate')return;const timer=setTimeout(()=>setView(requested),0);return()=>clearTimeout(timer);},[]);
+  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('view');if(requested!=='alerts'&&requested!=='mandate'&&requested!=='strategy')return;const timer=setTimeout(()=>setView(requested),0);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const nav=navRef.current;if(!nav)return;const measure=()=>{const selected=nav.querySelector<HTMLButtonElement>('button.selected');if(selected)setIndicator({left:selected.offsetLeft,width:selected.offsetWidth});};measure();const observer=new ResizeObserver(measure);observer.observe(nav);return()=>observer.disconnect();},[view]);
   useEffect(()=>()=>{navigation.current++;motion.current?.cancel();},[]);
   const [animateView, setAnimateView] = useState(true);
@@ -197,7 +198,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
 
       <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
-        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/></div>
+        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/>{view==='strategy'&&<AutomaticPanel mandate={mandate} onReviewBuy={()=>{navigate('overview');window.setTimeout(()=>window.dispatchEvent(new Event('stock-steward:open-buy')),0);}}/>}</div>
         {view === 'goal' && <GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
         {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">PRICE ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Check prices now, or enable device notifications for scheduled checks while the site is closed. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">

@@ -1,0 +1,13 @@
+export type AutomaticStageEvent={id:string;owner_ref:string;run_id:string;kind:'proposal'|'auto_started'|'auto_action';status:'proposed'|'checking'|'blocked'|'submitted'|'unknown';symbol:string;amount_cents:number;detail:string;transaction_hash:string|null;created_at:string;expires_at:string};
+
+export async function saveAutomaticEvent(db:D1Database,event:AutomaticStageEvent):Promise<boolean>{
+  if(!/^0x[0-9a-f]{64}:(proposal|auto_started|auto_action)$/i.test(event.id)||event.id!==`${event.run_id}:${event.kind}`||!/^0x[0-9a-f]{64}$/i.test(event.run_id)||!/^([A-Z][A-Z0-9.]{0,7})$/.test(event.symbol)||!Number.isSafeInteger(event.amount_cents)||event.amount_cents<1||event.amount_cents>(event.kind==='proposal'?1000:500)||event.detail.length>500)throw Error('Invalid automatic event.');
+  if(event.transaction_hash&&!/^0x[0-9a-f]{64}$/i.test(event.transaction_hash))throw Error('Invalid transaction hash.');
+  const result=await db.prepare('INSERT OR IGNORE INTO automatic_stage_events(id,owner_ref,run_id,kind,status,symbol,amount_cents,detail,transaction_hash,created_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)')
+    .bind(event.id,event.owner_ref,event.run_id,event.kind,event.status,event.symbol,event.amount_cents,event.detail,event.transaction_hash,event.created_at,event.expires_at).run();
+  return result.meta.changes===1;
+}
+
+export async function automaticEvents(db:D1Database,owner:string):Promise<AutomaticStageEvent[]>{
+  return (await db.prepare('SELECT * FROM automatic_stage_events WHERE owner_ref=? ORDER BY created_at DESC LIMIT 30').bind(owner).all<AutomaticStageEvent>()).results;
+}

@@ -2,7 +2,7 @@
 
 The public product currently supports Practice and wallet-approved real orders. Every real order requires the owner to review and approve the exact wallet transaction.
 
-Automatic real-money trading remains in the repository as dormant implementation work. Its workspace panels, public Guide chapter and release copy are excluded from the current product. The former signed-in preparation routes, broker connection routes, background execution route, and setup panels are archived under `archive/automatic-trading`, so their old URLs return 404. `AUTOMATIC_TRADING_ENABLED` is source-gated to `false`, and the separate execution gate in `lib/autonomous-live.ts` remains `false`. The production background tick only runs Practice, read-only monitoring, and receipt reconciliation.
+Automatic real-money trading remains dormant in the current production version. A later review branch stages Shadow receipts and two further default-off flags; see [automatic-stages-review.md](automatic-stages-review.md). No automatic stage has been deployed from that branch. The former session-grant setup routes and panels remain archived under `archive/automatic-trading`, so a new user cannot grant autonomous spending from the live workspace.
 
 Before bringing it back:
 

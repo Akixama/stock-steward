@@ -14,6 +14,11 @@ declare namespace Cloudflare {
     STEWARD_VAPID_PRIVATE_KEY?: string;
     STEWARD_RUNNER_ENABLED?: string;
     STEWARD_AUTONOMOUS_SHADOW_ENABLED?: string;
+    SHADOW_MODE?: string;
+    APPROVE_BY_NOTIFICATION?: string;
+    AUTO_BUY?: string;
+    AUTO_BUY_MAX_ORDER_CENTS?: string;
+    AUTO_BUY_MAX_DAILY_CENTS?: string;
     STEWARD_LIVE_BUY_PILOT_WALLETS?: string;
     PUBLIC_MODE?: string;
     STEWARD_PUBLIC_MAX_ORDER_CENTS?: string;

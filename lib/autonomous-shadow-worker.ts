@@ -1,6 +1,6 @@
-import {getFeeConsent} from '../db/autonomous-controls.ts';
-import {verifyFeeConsent,type FeeConsent} from './autonomous-consent.ts';
+import {getOwnership} from '../db/wallet-ownership.ts';
 import {getSessionGrant} from '../db/autonomous-grants.ts';
+import {getActiveModule} from '../db/active-modules.ts';
 import {strategyAtBlock,latestStrategyAnchor} from './live-strategy-runtime.ts';
 import {configuredLiveNews} from './live-news.ts';
 import {autonomousRunId,type AutonomousDecision} from './autonomous-live.ts';
@@ -10,10 +10,13 @@ import {dueShadowPlans,claimShadowPlan,finishShadowPlan,recordShadowExecution} f
 import {evaluateAutonomousSignal,type AutonomousRule} from './autonomous-live.ts';
 import {readAutonomousSignal} from './autonomous-signal.ts';
 import {runTriggeredAutonomy} from './autonomous-production.ts';
+import {saveAutomaticEvent} from '../db/automatic-stage-events.ts';
+import {queueAutomaticPush} from './automatic-stage-push.ts';
+import {automaticStageIntent,type automaticStages} from './automatic-stages.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
-export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date()){
- const summary={checked:0,triggered:0,blocked:0,canceled:0,failed:0,transactionsSent:0,executionEnabled:false};
+export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>={shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,conflicting:false}){
+ const summary={checked:0,triggered:0,blocked:0,canceled:0,failed:0,transactionsSent:0,executionEnabled:stages.autoBuy};
  const ledger=new D1DecisionLedger(db);
  for(const plan of await dueShadowPlans(db,now)){
   const claim=await claimShadowPlan(db,plan,now);if(!claim)continue;
@@ -22,30 +25,52 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
    const rule=JSON.parse(plan.rule_json) as AutonomousRule;
    const mandate=await ledger.getMandate(plan.owner_ref);
    let decision:AutonomousDecision;
+   let buyDecision=true;
    if(rule.strategy&&mandate){
-    const grant=await getSessionGrant(db,plan.owner_ref);if(!grant)throw Error('Review a session wallet before checking the live strategy.');
-    const policy=JSON.parse(grant.policy_json) as {account:Hex};
-    const lease=JSON.parse(grant.lease_json) as {owner:string;policyHash:string};
-    const record=await getFeeConsent(db,plan.owner_ref,grant.id);
-    const fee=record?JSON.parse(record.consent_json) as FeeConsent:null;
-    if(!fee||!record||fee.owner.toLowerCase()!==lease.owner.toLowerCase()||fee.grantId!==grant.id||fee.policyHash!==lease.policyHash||!await verifyFeeConsent(fee,record.signature))throw Error('Approve a current network fee limit before checking the strategy.');
+    const ownership=await getOwnership(db,plan.owner_ref);
+    if(!ownership?.verifiedAt)throw Error('Verify a wallet before checking its real holdings.');
+    const grant=await getSessionGrant(db,plan.owner_ref);
+    const activeModule=await getActiveModule(db,plan.owner_ref,mandate.version);
+    const account=activeModule?.safe as Hex|undefined??(grant?.state==='verified'?(JSON.parse(grant.policy_json) as {account:Hex}).account:ownership.address as Hex);
     const news=rule.kind==='news_buy'||rule.kind==='news_sell'?await configuredLiveNews():undefined;
-    const run=await strategyAtBlock(db,plan.owner_ref,rule.strategy,mandate,policy.account,await latestStrategyAnchor(fetcher),(BigInt(fee.maxFeeCents)*10000n).toString(),fetcher,fetch,news);
+    // A conservative fee allowance is for preview math only. Shadow never
+    // loads signer material or submits a transaction.
+    const run=await strategyAtBlock(db,plan.owner_ref,rule.strategy,mandate,account,await latestStrategyAnchor(fetcher),'500000',fetcher,fetch,news);
+    buyDecision=run.decision.side==='buy';
     decision={id:autonomousRunId(plan.owner_ref,plan.revision,plan.next_due_at),mode:'shadow',status:run.decision.state==='ready'?'would_trigger':'blocked',symbol:run.decision.symbol,amountCents:run.decision.amountCents,createdAt:new Date().toISOString(),checks:run.decision.checks,executionEnabled:false,transactionsSent:0};
    }else{const signal=await readAutonomousSignal(rule.symbol,fetcher);decision=evaluateAutonomousSignal(plan.owner_ref,plan.revision,plan.next_due_at,rule,mandate,signal,new Date());}
    if(await finishShadowPlan(db,claim,decision)){
     if(decision.status==='would_trigger'){
      summary.triggered++;
-     // Persist an unfinished execution check before calling the adapter, so a
-     // worker crash cannot leave a misleading "no transaction" receipt.
-     if(await recordShadowExecution(db,claim,{state:'checking',why:'Checking release controls and trade evidence.'})){
-      const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher);
-      await recordShadowExecution(db,claim,execution);
-      if(execution.state==='submitted')summary.transactionsSent++;
+     const intent=automaticStageIntent(stages,true,buyDecision,decision.amountCents);
+     if(intent==='proposal'){
+      const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
+      if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+     }
+     if(intent==='auto'||intent==='blocked'){
+      // Automatic execution has independent per-order and UTC-day caps, an
+      // owner-signed session grant and activation, and the global kill switch.
+      if(intent==='blocked'){await recordShadowExecution(db,claim,{state:'blocked',why:'Automatic per-order cap exceeded.'});continue;}
+      if(await recordShadowExecution(db,claim,{state:'checking',why:'Checking autonomous release controls.'})){
+       // Persist an alert before any signer can be reached. A duplicate run
+       // never gets a second chance to send an unknown transaction.
+       const started={id:`${decision.id}:auto_started`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_started' as const,status:'checking' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Checking capped automatic buy. No outcome confirmed yet.',transaction_hash:null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+       if(!await saveAutomaticEvent(db,started))continue;
+       await queueAutomaticPush(db,started);
+       const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,stages,decision.id);
+       await recordShadowExecution(db,claim,execution);
+       if(execution.state==='submitted')summary.transactionsSent++;
+       const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:execution.state==='submitted'?'submitted' as const:execution.state==='unknown'?'unknown' as const:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:execution.why.slice(0,500),transaction_hash:execution.hash??null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+       if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+      }
      }
     }else summary.blocked++;
    }else summary.canceled++;
-  }catch{await finishShadowPlan(db,claim,null);summary.failed++;}
+  }catch{
+   // An unavailable read is a visible held decision, never a fabricated buy.
+   try{const rule=JSON.parse(plan.rule_json) as AutonomousRule;await finishShadowPlan(db,claim,{id:claim.id as Hex,mode:'shadow',status:'blocked',symbol:rule.symbol,amountCents:rule.amountCents,createdAt:new Date().toISOString(),checks:[{name:'Current evidence',passed:false,detail:'Wallet, price or account data could not be verified for this check.'}],executionEnabled:false,transactionsSent:0});}catch{await finishShadowPlan(db,claim,null).catch(()=>{});}
+   summary.failed++;
+  }
  }
  return summary;
 }

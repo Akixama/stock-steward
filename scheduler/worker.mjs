@@ -18,9 +18,9 @@ export default {
     }
 
     const result = await response.json();
-    if (result.spendingEnabled !== false || !result.summary) {
+    if (typeof result.spendingEnabled !== 'boolean' || !result.summary) {
       throw new Error('Unexpected Stock Steward tick response.');
     }
-    console.log(JSON.stringify({ summary: result.summary, priceAlerts:result.priceAlerts??null, markets:result.markets??null, spendingEnabled: false }));
+    console.log(JSON.stringify({ summary: result.summary, priceAlerts:result.priceAlerts??null, markets:result.markets??null, spendingEnabled:result.spendingEnabled }));
   },
 };

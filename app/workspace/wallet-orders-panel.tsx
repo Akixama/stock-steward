@@ -45,6 +45,8 @@ export default function WalletOrdersPanel({mandate,onOpenMandate,progress,public
   const openEarlierSend=(asset:Asset)=>{setSendFrom('earlier');setSelectedAsset(asset);setSheet('send');};
   const close=()=>{setSheet(null);requestAnimationFrame(()=>returnFocus.current?.focus());};
 
+  useEffect(()=>{const review=()=>{returnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSheet('buy');};window.addEventListener('stock-steward:open-buy',review);return()=>window.removeEventListener('stock-steward:open-buy',review);},[]);
+
   useEffect(()=>{
     if(mandate.version<2){queueMicrotask(()=>{setEarlierWallet(null);setEarlierLoading(false);});return;}
     const controller=new AbortController();

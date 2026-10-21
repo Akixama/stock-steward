@@ -1,0 +1,7 @@
+{
+  "shadowMode": true,
+  "approveByNotification": false,
+  "autoBuy": false,
+  "autoBuyMaxOrderCents": 100,
+  "autoBuyMaxDailyCents": 200
+}
