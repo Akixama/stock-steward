@@ -7,8 +7,9 @@ import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
 import {parseUnits} from 'viem';
 import type {PricedObservation} from '@/lib/chain-analysis';
 import {visiblePortfolioValue,walletBalanceFingerprint} from '@/lib/portfolio-value';
+import {completeWalletBalance,parseLastVerifiedBalance,stockHoldingCount} from '@/lib/wallet-balance-display';
 
-type Wallet = {safe:string;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean};
+type Wallet = {safe:string;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean;balanceReadComplete?:boolean;checkedAt?:string|null};
 type Action = 'setup'|'buy'|'sell'|'send';
 const money = (micro:bigint) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(micro)/1_000_000);
 const quantity = (value:string|null) => value===null?'Unavailable':new Intl.NumberFormat('en-US',{maximumFractionDigits:6}).format(Number(value));
@@ -36,6 +37,7 @@ function HistoryLine({points}:{points:number[]}){
 
 export default function PortfolioHome({address,onAction,publicMode}:{address:string;onAction:(action:Action)=>void;publicMode:boolean}){
   const [walletState,setWallet]=useState<Wallet|null>(null);
+  const [lastVerified,setLastVerified]=useState<Wallet|null>(null);
   const [walletAddress,setWalletAddress]=useState('');
   const [records,setRecords]=useState<PricedObservation[]>([]);
   const [loading,setLoading]=useState(false);
@@ -58,6 +60,17 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
     return()=>controller.abort();
   },[address,refresh]);
   useEffect(()=>{const update=()=>setRefresh(n=>n+1);window.addEventListener('steward-order-updated',update);window.addEventListener('steward-permission-updated',update);return()=>{window.removeEventListener('steward-order-updated',update);window.removeEventListener('steward-permission-updated',update);};},[]);
+  useEffect(()=>{
+    if(!address){setLastVerified(null);return;}
+    const key=`steward-last-verified-balance:${address.toLowerCase()}`;
+    if(walletState&&completeWalletBalance(walletState)){
+      setLastVerified(walletState);
+      try{localStorage.setItem(key,JSON.stringify(walletState));}catch{/* Optional browser cache. */}
+    }else{
+      try{setLastVerified(parseLastVerifiedBalance(localStorage.getItem(key),walletState?.safe));}
+      catch{setLastVerified(null);}
+    }
+  },[address,walletState]);
   const refreshValuation=useCallback(async()=>{
     if(!address||activeRefresh.current)return false;
     const controller=new AbortController();activeRefresh.current=controller;
@@ -123,9 +136,9 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
     return latest.holdings.some(observed=>observed.symbol===held.symbol&&observed.quantity===held.tokens);
   })?latest:null;
   const cash=wallet?.usdg===null||wallet?.usdg===undefined?null:parseUnits(wallet.usdg,6);
-  const balanceKnown=!!wallet?.verified&&wallet.holdings.every(item=>item.tokens!==null);
-  const stockCount=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0).length??0;
-  const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete);
+   const stockCount=stockHoldingCount(wallet);
+   const balanceKnown=stockCount!==null;
+   const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete);
   const total=visiblePortfolioValue(cash,priced?BigInt(priced.subtotalMicroUsd):null);
   const points=matching.filter(item=>recent(item)&&item.valuationComplete).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
   const holdings=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0)??[];
@@ -141,13 +154,14 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
       <div className="ws-v2-portfolio-copy"><div className="ws-v2-overline"><span>YOUR STEWARD WALLET</span>{!publicMode&&<span className="ws-v2-pilot">PRIVATE PILOT</span>}</div>
         <span className="ws-v2-value-label">{complete?'Portfolio value':'Value shown'} <span>· {complete?'indicative':'partial'}</span></span>
         {loading?<div className="ws-v2-skeleton ws-v2-skeleton-value" aria-label="Loading portfolio value"/>:<CountedValue value={total}/>}
-        <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?`USDG and any priced stocks are shown. ${unpriced.map(item=>item.symbol).join(', ')||'Some stock'} price unavailable; this is not your full portfolio value.`:stockCount===0?'Your current USDG balance. A new deposit appears after the next automatic balance check.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
-        <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
+         <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!balanceKnown?'Some wallet balances could not be checked. Any value shown is partial; refresh to try again.':!complete?`USDG and any priced stocks are shown. ${unpriced.map(item=>item.symbol).join(', ')||'Some stock'} price unavailable; this is not your full portfolio value.`:stockCount===0?'Your current USDG balance. A new deposit appears after the next automatic balance check.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
+         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{stockCount===null?'—':stockCount}</strong></div></div>
+         {!balanceKnown&&lastVerified?.checkedAt&&<p role="status">Last verified balances for {lastVerified.safe.slice(0,6)}…{lastVerified.safe.slice(-4)} · {formatWorkspaceDate(lastVerified.checkedAt)}: {lastVerified.usdg} USDG{lastVerified.holdings.filter(item=>Number(item.tokens)>0).map(item=>` · ${item.tokens} ${item.symbol}`).join('')}. These are earlier balances, not a live check.</p>}
       </div>
       <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${formatWorkspaceDate(latest.observedAt)}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
     </section>
     <section className="ws-v4-funding" aria-label="Fund your Steward wallet"><div><span>FUND THIS WALLET</span><h2>Add USDG</h2><p>Send USDG to your current Steward wallet before buying. Keep some ETH in your owner wallet for network fees.</p></div>{wallet?.verified&&wallet.safe?<div className="ws-v4-funding-address"><code>{wallet.safe}</code><button type="button" onClick={()=>{void navigator.clipboard.writeText(wallet.safe).then(()=>{setCopied(true);window.setTimeout(()=>setCopied(false),1500);}).catch(()=>setCopied(false));}}>{copied?'Copied':'Copy address'}</button></div>:<button type="button" onClick={()=>onAction('setup')}>Connect wallet <ChevronRight size={16}/></button>}</section>
-    <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{wallet?.verified?`${holdings.length+1} assets`:'Wallet not connected'}</span></div>
+     <section className="ws-v2-holdings" aria-label="Holdings"><div className="ws-v2-section-head"><div><span>YOUR ASSETS</span><h2>Holdings</h2></div><span>{balanceKnown?`${holdings.length+1} assets`:wallet?.verified?'Balances unavailable':'Wallet not connected'}</span></div>
       {loading?<div className="ws-v2-holding-skeleton"><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/><div className="ws-v2-skeleton"/></div>:!address||!wallet?.verified?<div className="ws-v2-empty"><strong>Your assets will appear here.</strong><p>Connect and verify your wallet to see USDG and supported stock tokens.</p><button type="button" onClick={()=>onAction('setup')}>Set up wallet <ChevronRight size={16}/></button></div>:<div className="ws-v2-holding-list">
         <button type="button" className="ws-v2-holding" aria-expanded={selected==='USDG'} onClick={()=>setSelected(selected==='USDG'?null:'USDG')}><span className="ws-v2-asset-mark">$</span><span className="ws-v2-asset-name"><strong>USDG</strong><small>Available to buy</small></span><span className="ws-v2-asset-figures"><strong>{cash===null?'—':money(cash)}</strong><small>{quantity(wallet.usdg)} USDG</small></span><ChevronRight size={17}/></button>
         {selected==='USDG'&&<div className="ws-v2-holding-detail"><p>Held in your Steward wallet. Send moves the full USDG balance to your verified owner wallet.</p><button type="button" onClick={()=>onAction('send')}>Send USDG <ArrowUpRight size={15}/></button></div>}

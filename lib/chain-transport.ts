@@ -20,37 +20,85 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
     const methods=rpc?rpcMethods(init?.body):[];
     const readOnly=methods.length>0&&methods.every(method=>readMethods.has(method));
     const sends=methods.some(method=>method==='eth_sendRawTransaction'||method==='eth_sendTransaction');
-    // One quiet retry on network failure: every call through here is a read, so
-    // repeating it is safe. Callers with their own timeout keep a single attempt.
+    // Historical contract state must come from the archive provider. A public
+    // latest-state fallback is safe for display reads, never for proof at a block.
+    let historicalState=false;
+    if(rpc&&typeof init?.body==='string')try{
+      const requests=JSON.parse(init.body) as {method?:string;params?:unknown[]} | {method?:string;params?:unknown[]}[];
+      historicalState=(Array.isArray(requests)?requests:[requests]).some(request=>
+        ['eth_call','eth_getCode','eth_getStorageAt'].includes(request.method??'') &&
+        request.params?.at(-1)!=='latest');
+    }catch{/* Invalid requests never qualify for fallback. */historicalState=true;}
+    const canFallback=Boolean(rpc&&apiKey&&readOnly&&!historicalState);
+    // Broadcasts always get one attempt on the configured provider.
     const attempts=sends?1:readOnly?2:init?.signal?1:2;
+    let lastResponse:Response|undefined;
     for(let attempt=1;attempt<=attempts;attempt++){
       try {
         const response=await upstream(target,init?.signal
           ? {...init,redirect:'manual'}
           : {...init,redirect:'manual',signal:AbortSignal.timeout(15000)});
-        if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',status:response.status});
-        // Only read-only RPCs may be repeated after an empty or truncated 200.
-        // Wallet broadcasts never pass through this recovery path.
-        if(response.ok&&readOnly&&typeof response.clone==='function'){
-          let valid=false;
-          try{JSON.parse(await response.clone().text());valid=true;}catch{/* Provider returned incomplete JSON. */}
-          if(!valid){
-            console.error('chain_dependency_invalid_json',{service:'rpc',provider:apiKey?'alchemy':'public'});
+        lastResponse=response;
+        if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',method:methods.join(','),status:response.status});
+        if(!response.ok&&canFallback){
+          try{
+            const body=await response.clone().json() as {error?:{code?:unknown}};
+            if(body?.error){const code=typeof body.error.code==='number'&&Number.isSafeInteger(body.error.code)?body.error.code:'unknown';
+              console.error('chain_dependency_rpc_error',{provider:'alchemy',method:methods.join(','),code,status:response.status});}
+          }catch{/* HTTP status and method are already recorded. */}
+          break;
+        }
+        if(rpc&&readOnly&&typeof response.clone==='function'){
+          let body:unknown;
+          try{body=JSON.parse(await response.clone().text());}catch{
+            console.error('chain_dependency_invalid_json',{service:'rpc',provider:apiKey?'alchemy':'public',method:methods.join(',')});
             if(attempt<attempts&&!init?.signal?.aborted){await new Promise(resolve=>setTimeout(resolve,300));continue;}
-            throw new Error('Chain read returned an incomplete response. Retry later.');
+            if(!canFallback)throw new Error('Chain read returned an incomplete response. Retry later.');
+            break;
+          }
+          const entries=Array.isArray(body)?body:[body];
+          const failed=entries.find(entry=>entry&&typeof entry==='object'&&'error' in entry) as {error?:{code?:unknown}}|undefined;
+          if(failed){
+            const code=typeof failed.error?.code==='number'&&Number.isSafeInteger(failed.error.code)?failed.error.code:'unknown';
+            console.error('chain_dependency_rpc_error',{provider:apiKey?'alchemy':'public',method:methods.join(','),code,status:response.status});
+            if(canFallback)break;
+          }
+          if(!failed&&entries.length===1&&(!entries[0]||typeof entries[0]!=='object'||!('result' in entries[0]))){
+            console.error('chain_dependency_rpc_error',{provider:apiKey?'alchemy':'public',method:methods.join(','),code:'missing_result',status:response.status});
+            if(canFallback)break;
           }
         }
+        if(!response.ok&&canFallback)break;
         return response;
       }catch(error){
         const message=error instanceof Error?error.message:'Unknown transport exception';
         const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
-        console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
+        console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',method:methods.join(','),detail});
         if(/subrequest|too many requests|limit exceeded/i.test(message))throw new Error('Chain read limit reached. Retry later.');
         if(message==='Chain read returned an incomplete response. Retry later.')throw error;
         if(attempt<attempts&&!init?.signal)await new Promise((resolve)=>setTimeout(resolve,500));
-        else throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
+        else if(!canFallback)throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
       }
     }
+    if(canFallback&&!init?.signal?.aborted){
+      try{
+        const response=await upstream(CHAIN.rpc,{...init,redirect:'manual',signal:init?.signal??AbortSignal.timeout(15000)});
+        if(!response.ok)throw new Error(`http_${response.status}`);
+        const body=await response.clone().json() as {result?:unknown;error?:{code?:unknown}};
+        if(body?.error||(!Array.isArray(body)&&body?.result===undefined)){
+          const code=typeof body?.error?.code==='number'&&Number.isSafeInteger(body.error.code)?body.error.code:'unknown';
+          console.error('chain_dependency_rpc_error',{provider:'public',method:methods.join(','),code,status:response.status});
+          throw new Error('Public RPC read failed');
+        }
+        console.warn('chain_dependency_fallback',{method:methods.join(',')});
+        return response;
+      }catch(error){
+        const message=error instanceof Error?error.message:'';
+        if(/subrequest|too many requests|limit exceeded/i.test(message))throw new Error('Chain read limit reached. Retry later.');
+        console.error('chain_dependency_fallback_failed',{method:methods.join(',')});
+      }
+    }
+    if(lastResponse?.ok&&!canFallback)return lastResponse;
     throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
   }) as typeof fetch;
 }

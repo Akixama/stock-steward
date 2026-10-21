@@ -71,3 +71,43 @@ test('an incomplete chain read fails clearly after one retry; a send is never re
   assert.equal(response.status,200);assert.equal(sends,1);
 });
 test('receipt headers stay public while historical state goes to the configured archive provider',async()=>{const {receiptTransport}=await import('./chain-transport.ts');const urls:string[]=[];const transport=receiptTransport('key123',(async(url)=>{urls.push(String(url));return Response.json({result:'0x'});}) as typeof fetch);for(const method of ['eth_getTransactionReceipt','eth_getBlockByNumber','eth_getCode','eth_call'])await transport(CHAIN.rpc,{method:'POST',body:JSON.stringify({method})});assert.deepEqual(urls,[CHAIN.rpc,CHAIN.rpc,'https://robinhood-mainnet.g.alchemy.com/v2/key123','https://robinhood-mainnet.g.alchemy.com/v2/key123']);});
+
+const readBody=JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_call',params:[{to:'0x123',data:'0x'},'latest']});
+
+test('read-only RPC error logs safe method and code, then falls back to public RPC',async()=>{
+  const urls:string[]=[];const logged:unknown[][]=[];const original=console.error;
+  console.error=(...args:unknown[])=>{logged.push(args);};
+  try{
+    const upstream=(async(url)=>{urls.push(String(url));return urls.length===1
+      ?Response.json({jsonrpc:'2.0',id:1,error:{code:-32005,message:'secret provider detail'}})
+      :Response.json({jsonrpc:'2.0',id:1,result:'0x01'});}) as typeof fetch;
+    const response=await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody});
+    assert.equal((await response.json() as {result:string}).result,'0x01');
+    assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123',CHAIN.rpc]);
+    assert.deepEqual(logged.find(entry=>entry[0]==='chain_dependency_rpc_error')?.[1],
+      {provider:'alchemy',method:'eth_call',code:-32005,status:200});
+    assert.equal(JSON.stringify(logged).includes('secret provider detail'),false);
+  }finally{console.error=original;}
+});
+
+test('read-only HTTP failure falls back, while broadcasts never retry or fall back',async()=>{
+  const urls:string[]=[];const upstream=(async(url)=>{urls.push(String(url));return urls.length===1
+    ?new Response('',{status:429}):Response.json({jsonrpc:'2.0',id:1,result:'0x01'});}) as typeof fetch;
+  await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody});
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123',CHAIN.rpc]);
+  urls.length=0;
+  await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:JSON.stringify({method:'eth_sendRawTransaction',params:['0x123']})});
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123']);
+});
+
+test('historical state never falls back and Worker subrequest limits never retry',async()=>{
+  const urls:string[]=[];
+  const upstream=(async(url)=>{urls.push(String(url));throw Error('Too many subrequests.');}) as typeof fetch;
+  await assert.rejects(chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody}),/read limit/);
+  assert.equal(urls.length,1);
+  urls.length=0;
+  const historical=readBody.replace('"latest"','"0x123"');
+  const failed=(async(url)=>{urls.push(String(url));return Response.json({error:{code:-32005}});}) as typeof fetch;
+  await chainTransport('key123',failed)(CHAIN.rpc,{method:'POST',body:historical});
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123']);
+});

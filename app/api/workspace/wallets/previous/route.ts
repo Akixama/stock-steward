@@ -33,7 +33,8 @@ export async function GET(request: Request) {
   if (isCurrent && !located) return Response.json({ wallet: null });
   const safe = (located?.safe ?? previous!.safe) as Address;
   const wallet = { safe, mandateVersion: located?.mandate.version ?? previous!.version, usdg: null as string | null,
-    holdings: [] as { symbol: string; tokens: string | null }[], verified: false };
+    holdings: [] as { symbol: string; tokens: string | null }[], verified: false,
+    balanceReadComplete: false, checkedAt: null as string | null };
   try {
     const transport = chainTransport(env.ALCHEMY_API_KEY);
     const ownersRaw = await rpcCall(safe, encodeFunctionData({ abi: ownersAbi, functionName: 'getOwners' }), 'latest', transport);
@@ -46,9 +47,11 @@ export async function GET(request: Request) {
     const registryResponse = await fetch('https://api.robinhood.com/rhj/assets', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     if (!registryResponse.ok) throw new Error('Asset list unavailable');
     const tokens = registry(await registryResponse.json());
-    const selected = [...new Set(mandate.allowedSymbols)].slice(0, 6)
+    const symbols = [...new Set(mandate.allowedSymbols)].slice(0, 6);
+    const selected = symbols
       .map(symbol => tokens.find(token => token.symbol === symbol))
       .filter((token): token is (typeof tokens)[number] => Boolean(token));
+    if (selected.length !== symbols.length) throw new Error('Allowed stock list incomplete');
     const balance = async (token: string) => {
       const raw = await rpcCall(token, encodeFunctionData({ abi: balanceAbi, functionName: 'balanceOf', args: [safe] }), 'latest', transport);
       return decodeFunctionResult({ abi: balanceAbi, functionName: 'balanceOf', data: raw }) as bigint;
@@ -59,6 +62,8 @@ export async function GET(request: Request) {
       const amount = amounts[index + 1];
       return { symbol: token.symbol, tokens: amount.status === 'fulfilled' ? formatUnits(amount.value, 18) : null };
     });
+    wallet.balanceReadComplete = amounts.every(amount => amount.status === 'fulfilled');
+    if (wallet.balanceReadComplete) wallet.checkedAt = new Date().toISOString();
   } catch { /* Show the verified wallet address even when balances cannot be read. */ }
   return Response.json({ wallet }, { headers: { 'Cache-Control': 'no-store' } });
 }
