@@ -27,11 +27,11 @@ The build creates `dist/server/wrangler.json`. Local D1 state is kept under igno
 6. Deploy with Wrangler using `dist/server/wrangler.json`.
 7. Run `node scripts/audit-live-site.mjs` and complete authenticated desktop and mobile review.
 
-The demo sign-in uses `STEWARD_DEMO_AUTH`. Read-only scheduled wakes use a matching `STEWARD_WORKER_KEY` in the site and scheduler. AI drafting uses a private Workers AI binding or server credentials. The chain reader uses `ALCHEMY_API_KEY`. Automatic trading remains disabled regardless of these settings.
+The demo sign-in uses `STEWARD_DEMO_AUTH`. Scheduled wakes use a matching `STEWARD_WORKER_KEY` in the site and scheduler. AI drafting uses a private Workers AI binding or server credentials. The chain reader uses `ALCHEMY_API_KEY`. This branch's release config stages Shadow checks only; notification proposals and automatic buying remain off. See `docs/automatic-stages-review.md`.
 
 ## Visibility flags
 
-`SHOW_DEVELOPER_TOOLS=true` exposes diagnostic route, monitoring and transaction watch controls. Automatic real-money trading is shelved in source and cannot be enabled through a hosting environment variable. See `docs/automatic-trading-shelved.md` before planning a later release.
+`SHOW_DEVELOPER_TOOLS=true` exposes diagnostic route, monitoring and transaction watch controls. Automatic-stage flags default off. Before changing them, review `config/automatic-stages-release.json`, the migration, signed-session prerequisites and `docs/automatic-stages-review.md`.
 
 ## Operational rules
 

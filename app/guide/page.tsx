@@ -4,6 +4,7 @@ import { ArrowRight, ArrowUpRight, BookOpen, CircleDot, ShieldCheck } from 'luci
 import { BrandMark, BrandName } from '@/components/brand';
 import { RouteLink } from '@/components/route-transition';
 import { guideRevision } from '@/lib/product-guide';
+import {automaticStages} from '@/lib/automatic-stages';
 import './guide.css';
 
 export const metadata: Metadata = {title:'Stock Steward guide',description:'A practical guide to limits, strategies, Practice, wallet permissions, real orders and receipts.'};
@@ -26,7 +27,9 @@ const flow=[['01','Save limits','Mandate'],['02','Choose rules','Strategy'],['03
 
 export default function Guide(){
  const publicMode=env.PUBLIC_MODE==='true';
- const displayedChapters=chapters.map(chapter=>{
+ const stages=automaticStages(env);
+ const shadowChapter={id:'shadow',title:'Background strategy checks',text:'Shadow checks can compare your saved rules with current wallet and market evidence. They save a receipt and spend nothing.',points:[['Start or pause','Open Strategy, copy a saved rule into a paused plan, then start checks. You can pause it at any time.'],['Review receipts','A held or passing result shows the checks used. Missing evidence never becomes a buy.'],['Other stages',stages.approveByNotification?'A buy idea may notify you, but you still review a fresh exact order and sign it in your wallet.':stages.autoBuy?'Tiny capped automatic buys require a separate signed session, activation, independent reviews and a device alert.':'Notification proposals and autonomous real-money buys are off.']]};
+ const displayedChapters=[...chapters,...(stages.shadow?[shadowChapter]:[])].map(chapter=>{
    if(!publicMode)return chapter;
    if(chapter.id==='orders')return {...chapter,text:'Real orders are available to signed-in, verified owners within the configured caps and saved limits. Each action still needs exact wallet approval. Availability restrictions still apply.',points:chapter.points.map(([title,detail])=>title==='Current pilot'?['Order limits','Public mode caps each action at $5 and each day at $20, subject to tighter saved limits. Every purchase needs exact wallet approval.']:title==='Availability'?[title,'Stock Tokens cannot be offered or delivered in the United States or to U.S. persons. Sign-in alone does not establish eligibility.']:[title,detail])};
    if(chapter.id==='move-funds')return {...chapter,points:chapter.points.map(([title,detail])=>title==='Sell a Stock Token'?[title,detail.replace('The pilot can','The app can')]:[title,detail])};

@@ -42,7 +42,7 @@ Run every application and archived-adapter test with `npm test`. See [testing](d
 ## Product visibility flags
 
 - `SHOW_DEVELOPER_TOOLS=true` shows route inspection, read-only monitoring and transaction watch tools.
-- Automatic real-money trading is shelved in source. Its former preview, setup routes and executor cannot be enabled by a hosting flag. See [the shelved feature record](docs/automatic-trading-shelved.md).
+- A review branch stages background Shadow receipts, notification proposals and a separately gated tiny automatic-buy path. Production still runs the existing release until this branch is reviewed and deployed. See [the stage review](docs/automatic-stages-review.md).
 - `SHOW_DEVELOPER_TOOLS` defaults to `false` and is read at build time.
 
 ## Documentation
