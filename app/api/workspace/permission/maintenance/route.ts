@@ -8,7 +8,7 @@ import { latestMaintenance, maintenanceById, recordMaintenanceHash, reserveMaint
 import { withRoleMembership } from '@/lib/role-membership';
 import { verifyPolicyReadback } from '@/lib/live-order';
 import { compileRolesPolicy, type RolesPolicy } from '@/lib/roles-permission';
-import { approvalAddresses, decodeFundingReadback, fundingCalls, maintenanceEligibility, maintenanceTransaction,
+import { approvalAddresses, decodeFundingReadback, fundingCalls, fundingRemainingValid, maintenanceEligibility, maintenanceTransaction,
   maintenanceReceiptProof, maintenanceEarlyProof, renewalVerified, revocationVerified,
   type MaintenanceChainTransaction, type MaintenanceReceipt } from '@/lib/permission-maintenance';
 import { MULTISEND } from '@/lib/safe-setup';
@@ -130,9 +130,7 @@ export async function GET() {
     const approvals=await funding(located.safe,transport);
     const eligible=maintenanceEligibility(current.expiresAt);
     const checks=await readChecks(currentContextValue.policy,transport);
-    const permissionActive=checks.allOk&&approvals.tokenRaw===BigInt(currentContextValue.policy.totalRaw)
-      &&approvals.permitRaw===BigInt(currentContextValue.policy.totalRaw)
-      &&approvals.permitExpiresAt>Math.floor(Date.now()/1000)+60
+    const permissionActive=checks.allOk&&fundingRemainingValid(currentContextValue.policy,approvals)
       &&eligible.state!=='expired';
     return Response.json({safe:located.safe,module:saved.module,ownerAddress:located.owner,mandateVersion:saved.mandateVersion,
       expiry:current.expiresAt,eligibility:eligible,permissionActive,checks:checks.checks,

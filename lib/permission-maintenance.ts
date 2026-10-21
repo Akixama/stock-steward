@@ -15,6 +15,16 @@ const ZERO = '0x0000000000000000000000000000000000000000' as Address;
 export const approvalAddresses = { token: VENUE.settlement, permit2: PERMIT2, router: EXECUTION_CONTRACTS.router } as const;
 
 export type FundingReadback = { tokenRaw: bigint; permitRaw: bigint; permitExpiresAt: number };
+// A completed buy consumes both approvals. Compare their remaining, bounded
+// capacity rather than requiring the original cap after every purchase.
+export function fundingRemainingValid(policy: RolesPolicy, funding: FundingReadback, now = Date.now()) {
+  const cap = BigInt(policy.totalRaw);
+  const oneBuy = BigInt(policy.inputRaw);
+  return funding.tokenRaw === funding.permitRaw
+    && funding.tokenRaw >= oneBuy && funding.tokenRaw <= cap
+    && funding.permitExpiresAt === policy.expiresAt
+    && funding.permitExpiresAt * 1000 > now + 60_000;
+}
 export function decodeFundingReadback(tokenResult: Hex, permitResult: Hex): FundingReadback {
   const tokenRaw = decodeFunctionResult({ abi: tokenAbi, functionName: 'allowance', data: tokenResult }) as bigint;
   const [permitRaw, expiration] = decodeFunctionResult({ abi: permitAbi, functionName: 'allowance', data: permitResult }) as readonly [bigint, number, number];

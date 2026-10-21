@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from 'viem';
-import { maintenanceEligibility, maintenanceEarlyProof, maintenanceReceiptProof, maintenanceTransaction, renewedPolicy, renewalVerified, revocationVerified, safeExecutionSuccessTopic } from './permission-maintenance.ts';
+import { fundingRemainingValid, maintenanceEligibility, maintenanceEarlyProof, maintenanceReceiptProof, maintenanceTransaction, renewedPolicy, renewalVerified, revocationVerified, safeExecutionSuccessTopic } from './permission-maintenance.ts';
 import { PERMIT2 } from './install-flow.ts';
 import { MULTISEND } from './safe-setup.ts';
 import { VENUE } from './chain-route.ts';
@@ -24,6 +24,18 @@ const oldWindow=permissionWindow(new Date('2026-10-18T12:00:00.000Z'));
 const policy:RolesPolicy={account:safe,module:moduleAddress,session:owner,grantId:keccak256(toHex('renew-test')),
   routerCodeHash:keccak256(toHex('router-code')),...oldWindow,inputRaw:'5000000',dailyRaw:'20000000',totalRaw:'40000000',
   outputs:[{token:'0x1111111111111111111111111111111111111111',fee:3000,tickSpacing:60,minimumOutputRaw:'1'}]};
+
+test('spent but bounded buy approvals remain valid; mismatched or enlarged approvals fail',()=>{
+  const active={...policy,expiresAt:Math.floor(Date.parse('2026-10-22T00:00:00Z')/1000)};
+  const clock=Date.parse('2026-10-21T13:00:00Z');
+  const remaining={tokenRaw:35000000n,permitRaw:35000000n,permitExpiresAt:active.expiresAt};
+  assert.equal(fundingRemainingValid(active,remaining,clock),true);
+  assert.equal(fundingRemainingValid(active,{...remaining,permitRaw:30000000n},clock),false);
+  assert.equal(fundingRemainingValid(active,{...remaining,tokenRaw:40000001n,permitRaw:40000001n},clock),false);
+  assert.equal(fundingRemainingValid(active,{...remaining,tokenRaw:4000000n,permitRaw:4000000n},clock),false);
+  assert.equal(fundingRemainingValid(active,{...remaining,permitExpiresAt:active.expiresAt+60},clock),false);
+  assert.equal(fundingRemainingValid(active,remaining,active.expiresAt*1000-30000),false);
+});
 
 function unpack(data:Hex){
   const safeCall=decodeFunctionData({abi:parseAbi(['function execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256,address,address,bytes) returns (bool)']),data});

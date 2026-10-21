@@ -6,13 +6,13 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
 import {parseUnits} from 'viem';
 import type {PricedObservation} from '@/lib/chain-analysis';
-import {portfolioValue,walletBalanceFingerprint} from '@/lib/portfolio-value';
+import {visiblePortfolioValue,walletBalanceFingerprint} from '@/lib/portfolio-value';
 
 type Wallet = {safe:string;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean};
 type Action = 'setup'|'buy'|'sell'|'send';
 const money = (micro:bigint) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(micro)/1_000_000);
 const quantity = (value:string|null) => value===null?'Unavailable':new Intl.NumberFormat('en-US',{maximumFractionDigits:6}).format(Number(value));
-const recent = (record:PricedObservation) => record.valuationComplete && Date.now()-Date.parse(record.observedAt)<120_000 && Date.now()>=Date.parse(record.observedAt);
+const recent = (record:PricedObservation) => Date.now()-Date.parse(record.observedAt)<120_000 && Date.now()>=Date.parse(record.observedAt);
 
 function CountedValue({value}:{value:bigint|null}){
   const [shown,setShown]=useState(0);
@@ -43,6 +43,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
   const [refreshMessage,setRefreshMessage]=useState('');
   const activeRefresh=useRef<AbortController|null>(null);
   const lastBalance=useRef<string|null>(null);
+  const lastAutoValuation=useRef<string|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
   const [copied,setCopied]=useState(false);
   const [refresh,setRefresh]=useState(0);
@@ -99,17 +100,34 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
     document.addEventListener('visibilitychange',check);
     return()=>{active=false;window.clearInterval(interval);document.removeEventListener('visibilitychange',check);};
   },[address,refreshValuation]);
+  useEffect(()=>{
+    if(!walletState?.verified||walletAddress!==address||!walletState.holdings.some(item=>item.tokens!==null&&Number(item.tokens)>0))return;
+    const fingerprint=walletBalanceFingerprint(walletState);
+    if(!fingerprint||lastAutoValuation.current===fingerprint)return;
+    const saved=records.find(item=>item.address.toLowerCase()===walletState.safe.toLowerCase()&&recent(item)
+      &&item.usdg===walletState.usdg&&walletState.holdings.every(held=>{
+        if(held.tokens===null||Number(held.tokens)===0)return true;
+        return item.holdings.some(observed=>observed.symbol===held.symbol&&observed.quantity===held.tokens);
+      }));
+    if(saved)return;
+    lastAutoValuation.current=fingerprint;
+    void refreshValuation();
+  },[address,walletAddress,walletState,records,refreshValuation]);
   const wallet=walletAddress===address?walletState:null;
   const matching=useMemo(()=>records.filter(item=>wallet&&item.address.toLowerCase()===wallet.safe.toLowerCase()).sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt)),[records,wallet]);
   const latest=matching.at(-1);
-  const priced=latest&&recent(latest)?latest:null;
+  const priced=wallet&&latest&&recent(latest)&&latest.usdg===wallet.usdg&&wallet.holdings.every(held=>{
+    if(held.tokens===null||Number(held.tokens)===0)return true;
+    return latest.holdings.some(observed=>observed.symbol===held.symbol&&observed.quantity===held.tokens);
+  })?latest:null;
   const cash=wallet?.usdg===null||wallet?.usdg===undefined?null:parseUnits(wallet.usdg,6);
   const balanceKnown=!!wallet?.verified&&wallet.holdings.every(item=>item.tokens!==null);
   const stockCount=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0).length??0;
-  const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete&&priced.usdg!==null&&parseUnits(priced.usdg,6)===cash);
-  const total=complete?portfolioValue(cash,stockCount,stockCount===0?null:BigInt(priced!.subtotalMicroUsd)):null;
-  const points=matching.filter(recent).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
+  const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete);
+  const total=visiblePortfolioValue(cash,priced?BigInt(priced.subtotalMicroUsd):null);
+  const points=matching.filter(item=>recent(item)&&item.valuationComplete).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
   const holdings=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0)??[];
+  const unpriced=holdings.filter(item=>!priced?.holdings.some(held=>held.symbol===item.symbol&&typeof priced.prices[held.contract]?.valueMicroUsd==='string'));
   const stockValue=(symbol:string)=>{
     if(!priced)return null;
     const holding=priced.holdings.find(item=>item.symbol===symbol);
@@ -119,9 +137,9 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
   return <div className="ws-v2-home">
     <section className="ws-v2-portfolio" aria-label="Portfolio overview">
       <div className="ws-v2-portfolio-copy"><div className="ws-v2-overline"><span>YOUR STEWARD WALLET</span>{!publicMode&&<span className="ws-v2-pilot">PRIVATE PILOT</span>}</div>
-        <span className="ws-v2-value-label">Portfolio value <span>· indicative</span></span>
+        <span className="ws-v2-value-label">{complete?'Portfolio value':'Value shown'} <span>· {complete?'indicative':'partial'}</span></span>
         {loading?<div className="ws-v2-skeleton ws-v2-skeleton-value" aria-label="Loading portfolio value"/>:<CountedValue value={total}/>}
-        <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':stockCount===0?'Your current USDG balance. A new deposit appears after the next automatic balance check.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
+        <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?`USDG and any priced stocks are shown. ${unpriced.map(item=>item.symbol).join(', ')||'Some stock'} price unavailable; this is not your full portfolio value.`:stockCount===0?'Your current USDG balance. A new deposit appears after the next automatic balance check.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
       </div>
       <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${formatWorkspaceDate(latest.observedAt)}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>
