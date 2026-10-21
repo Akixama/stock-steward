@@ -22,7 +22,7 @@ The optional worker can update Practice, read public wallet state, refresh trans
 
 ## Automatic trading foundation
 
-The repository contains a separate session signer, transaction journal, accounting, fee, strategy and review foundation for all 12 strategy kinds. Automatic stages are now separate default-off runtime gates. This branch's release config stages Shadow receipts only; approval proposals and automatic buys remain off. The automatic-buy path additionally requires owner session authority, verified provider access for news strategies, independent reviews, operator delivery, owner activation and funded buy/revoke rehearsals. Those setup controls are still archived, so a new user cannot enable autonomous spending from the workspace. Uncertain broadcasts are never automatically retried.
+The repository contains a separate session signer, transaction journal, accounting, fee, strategy and review foundation for all 12 strategy kinds. Automatic stages are separate default-off runtime gates. This branch's release config stages Shadow receipts only; approval proposals and automatic buys remain off. The automatic-buy setup routes and workspace controls are restored but remain hidden and gated while `AUTO_BUY=false`. The path additionally requires owner session authority, verified provider access for news strategies, independent reviews, operator delivery, a fresh owner-signed Start action and funded buy/revoke rehearsals. Uncertain broadcasts are never automatically retried.
 
 ## Data and guide contract
 

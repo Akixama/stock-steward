@@ -4,9 +4,15 @@ import type {Strategy} from '@/lib/strategy';
 import type {Mandate} from '@/lib/decision';
 import type {AutonomousRule,AutonomousDecision} from '@/lib/autonomous-live';
 import {runExecutionMessage} from '@/lib/autonomous-run-status';
+import {useWalletSession} from './wallet-session';
+import SessionReview from './session-review';
+import SessionWalletActions from './session-wallet-actions';
+import AutonomyControls from './autonomy-controls';
+import AutonomyRehearsal from './autonomy-rehearsal';
 type Event={id:string;kind:'proposal'|'auto_started'|'auto_action';status:string;symbol:string;amount_cents:number;detail:string;transaction_hash:string|null;created_at:string;expires_at:string};
 type Status={availableStrategy?:Strategy|null;stages:{shadow:boolean;approveByNotification:boolean;autoBuy:boolean};notice:string;plan:{revision:number;rule:AutonomousRule;enabled:boolean;nextDueAt:string;failures:number}|null;runs:{id:string;state:string;decision_json:string|null;created_at:string}[];events:Event[]};
 export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;onReviewBuy:()=>void}){
+ const wallet=useWalletSession();
  const [status,setStatus]=useState<Status|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [symbol,setSymbol]=useState(mandate.allowedSymbols[0]??'AAPL'),[amount,setAmount]=useState('10'),[threshold,setThreshold]=useState('350'),[kind,setKind]=useState<'scheduled'|'threshold'>('threshold'),[interval,setInterval]=useState('15');
  const ticket=useRef(0);useEffect(()=>()=>{ticket.current++;},[]);
@@ -31,6 +37,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   {status.plan&&<p>{status.plan.enabled?'Checks running':'Checks paused'} · {status.plan.rule.symbol} · ${(status.plan.rule.amountCents/100).toFixed(2)} · every {status.plan.rule.intervalMinutes} minutes. Runs may start after their due time.</p>}
   {status.events?.length>0&&<div className="ws-shadow-history"><h4>Ideas and action alerts</h4>{status.events.map(event=><div key={event.id}><strong>{event.kind==='proposal'?'Review idea':'Automatic action'} · {event.symbol} · ${(event.amount_cents/100).toFixed(2)}</strong><p>{event.detail}</p><small>{event.status} · {new Date(event.created_at).toLocaleString()}</small>{event.transaction_hash&&<p><a href={`https://robinhoodchain.blockscout.com/tx/${event.transaction_hash}`} target="_blank" rel="noreferrer">View transaction</a></p>}{event.kind==='proposal'&&<button type="button" className="ws-action-secondary" onClick={onReviewBuy}>Open Buy for a fresh quote</button>}</div>)}</div>}
   {status.runs.length>0&&<><div className="ws-chain-tools"><button className="ws-recheck" onClick={download}>Download receipts</button></div><div className="ws-shadow-history">{status.runs.map(run=>{let decision:AutonomousDecision|null=null;try{decision=run.decision_json?JSON.parse(run.decision_json) as AutonomousDecision:null;}catch{}return <details key={run.id}><summary>{decision?.status==='would_trigger'?'Rule triggered':decision?'Rule held':run.state} · {new Date(run.created_at).toLocaleString()}</summary><p>{runExecutionMessage(decision?.execution)}</p>{decision?.execution?.hash&&<p>Transaction: <code>{decision.execution.hash}</code></p>}{decision?.checks.map(check=><p key={check.name}><strong>{check.passed?'Passed':'Held'} · {check.name}</strong> — {check.detail}</p>)}</details>;})}</div></>}
+  {status.stages.autoBuy&&<div className="ws-auto-setup"><h4>Automatic buying setup</h4><p>Off for your wallet until you explicitly review and sign a separate session permission, approve a fee ceiling, pass independent reviews, and choose Start. Each automatic buy is limited to $1; the two-day permission cannot exceed $5. Pause stops future submissions.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
   </>}{error&&<p className="ws-error" role="alert">{error}</p>}
  </section>;
 }

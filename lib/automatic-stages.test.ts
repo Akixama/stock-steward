@@ -17,6 +17,8 @@ test('shadow runs alone and conflicting spend stages fail closed',()=>{
 test('automatic caps remain tiny and invalid configuration fails closed',()=>{
   assert.deepEqual([automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxOrderCents,automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxDailyCents],[50,150]);
   assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'501'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'101'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_MAX_DAILY_CENTS:'251'}));
   assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'200',AUTO_BUY_MAX_DAILY_CENTS:'100'}));
 });
 test('shadow produces a receipt only; notifications never submit; auto is buy-only and capped',()=>{

@@ -6,8 +6,15 @@ import { PERMIT2 } from './install-flow.ts';
 import { MULTISEND } from './safe-setup.ts';
 import { VENUE } from './chain-route.ts';
 import { EXECUTION_CONTRACTS } from './autonomy.ts';
-import { PERMISSION_WINDOW_SECONDS, permissionWindow } from './permission-window.ts';
+import { PERMISSION_WINDOW_SECONDS, permissionWindow, permissionTimeRemaining } from './permission-window.ts';
 import type { RolesPolicy } from './roles-permission.ts';
+test('permission countdown reflects UTC expiry and never goes negative',()=>{
+  const start=Date.parse('2026-10-21T00:00:00Z');
+  const expiry=Math.floor((start+2*86_400_000)/1000);
+  assert.equal(permissionTimeRemaining(expiry,start),'2d remaining');
+  assert.equal(permissionTimeRemaining(expiry,start+47*3_600_000),'1h remaining');
+  assert.equal(permissionTimeRemaining(expiry,start+2*86_400_000),'Expired');
+});
 
 const owner='0xdc7f175bca1c29a77286a52c857e7fef12f3f662' as Address;
 const safe='0x571223133777f85a738f79a61042ab16157d493d' as Address;

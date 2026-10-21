@@ -14,6 +14,8 @@ import {liveAccountingSection,alchemyAccountingSources,grantGateSection} from '.
 import {tickAutonomousShadow} from './autonomous-shadow-worker.ts';
 import {recoverSessionBroadcasts,settleSessionJournals} from '../db/autonomous-transactions.ts';
 import {recoverSessionRehearsals} from '../db/session-rehearsal-recovery.ts';
+import {settleWalletActionsInBackground} from './wallet-action-background.ts';
+import {maintenanceById} from '../db/permission-maintenance.ts';
 import {automaticStages} from './automatic-stages.ts';
 export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch,stages:ReturnType<typeof automaticStages>=automaticStages({})){
   const token=await claimWorker(db);if(!token)return {busy:true,observed:0,failed:0,reconciled:0};
@@ -47,6 +49,12 @@ export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch,stages
       const next=await reconcileTransaction(previous.address,previous.hash,previous,fetcher);await refreshWatch(db,row.owner_ref,next,row.checked_at);summary.reconciled++;}
     const recovery=await recoverExecutionAttempts(db,fetcher);
     summary.executionRecovered=recovery.recovered;summary.executionSettled=recovery.settled;summary.executionUnresolved=recovery.unresolved;
+    try{await settleWalletActionsInBackground(db,fetcher);}catch{/* A read failure never settles or resends a wallet action. */}
+    try{
+      const pending=(await db.prepare("SELECT owner_ref,id FROM permission_maintenance_attempts WHERE state IN ('submitted','unknown') AND transaction_hash IS NOT NULL ORDER BY updated_at LIMIT 2").all<{owner_ref:string;id:string}>()).results;
+      if(pending.length){const {reconcileMaintenanceAttempt}=await import('../app/api/workspace/permission/maintenance/route.ts');
+        for(const item of pending){const attempt=await maintenanceById(db,item.owner_ref,item.id);if(attempt)await reconcileMaintenanceAttempt(db,attempt,fetcher);}}
+    }catch{/* Renewal remains unresolved until exact finality and approvals readback. */}
     // The retired Alpaca paper agent lives under archive/alpaca and is not part
     // of the Robinhood Chain worker. Preserve the summary shape for old logs.
     if(stages.shadow){

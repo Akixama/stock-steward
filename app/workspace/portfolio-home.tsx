@@ -2,10 +2,11 @@
 import {formatWorkspaceDate} from '@/lib/workspace-date';
 
 
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
 import {parseUnits} from 'viem';
 import type {PricedObservation} from '@/lib/chain-analysis';
+import {portfolioValue,walletBalanceFingerprint} from '@/lib/portfolio-value';
 
 type Wallet = {safe:string;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean};
 type Action = 'setup'|'buy'|'sell'|'send';
@@ -41,6 +42,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
   const [refreshing,setRefreshing]=useState(false);
   const [refreshMessage,setRefreshMessage]=useState('');
   const activeRefresh=useRef<AbortController|null>(null);
+  const lastBalance=useRef<string|null>(null);
   const [selected,setSelected]=useState<string|null>(null);
   const [copied,setCopied]=useState(false);
   const [refresh,setRefresh]=useState(0);
@@ -51,12 +53,12 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
     void Promise.all([
       fetch('/api/workspace/wallets/previous?wallet=current',{cache:'no-store',signal:controller.signal}).then(r=>r.ok?r.json():null),
       fetch('/api/workspace/chain',{cache:'no-store',signal:controller.signal}).then(r=>r.ok?r.json():null),
-    ]).then(([balance,history])=>{if(controller.signal.aborted)return;setWalletAddress(address);setWallet((balance as {wallet?:Wallet}|null)?.wallet??null);setRecords((history as {records?:PricedObservation[]}|null)?.records??[]);}).catch(()=>{if(!controller.signal.aborted){setWalletAddress(address);setWallet(null);setRecords([]);}}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    ]).then(([balance,history])=>{if(controller.signal.aborted)return;const next=(balance as {wallet?:Wallet}|null)?.wallet??null;lastBalance.current=walletBalanceFingerprint(next);setWalletAddress(address);setWallet(next);setRecords((history as {records?:PricedObservation[]}|null)?.records??[]);}).catch(()=>{if(!controller.signal.aborted){setWalletAddress(address);setWallet(null);setRecords([]);}}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
   },[address,refresh]);
   useEffect(()=>{const update=()=>setRefresh(n=>n+1);window.addEventListener('steward-order-updated',update);window.addEventListener('steward-permission-updated',update);return()=>{window.removeEventListener('steward-order-updated',update);window.removeEventListener('steward-permission-updated',update);};},[]);
-  async function refreshValuation(){
-    if(!address||refreshing)return;
+  const refreshValuation=useCallback(async()=>{
+    if(!address||activeRefresh.current)return false;
     const controller=new AbortController();activeRefresh.current=controller;
     setRefreshing(true);setRefreshMessage('Checking your wallet and saving a new value…');
     try{
@@ -68,21 +70,44 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
       const result=await response.json() as {saved?:boolean;error?:string;warning?:string};
       if(!response.ok)throw new Error(result.error||'Could not check your wallet value.');
       if(!result.saved)throw new Error(result.warning||'The new value could not be saved. Try again later.');
-      if(!controller.signal.aborted){setRefresh(n=>n+1);setRefreshMessage('New value saved. Balances are updating.');}
+      if(!controller.signal.aborted){setRefresh(n=>n+1);setRefreshMessage('New value saved. Balances are updating.');return true;}
     }catch(error){
       if(!controller.signal.aborted)setRefreshMessage(error instanceof Error?error.message:'Could not check your wallet value.');
     }finally{
       setRefreshing(false);
       if(activeRefresh.current===controller)activeRefresh.current=null;
     }
-  }
+    return false;
+  },[address]);
+  useEffect(()=>{
+    if(!address)return;
+    let active=true;
+    const check=async()=>{
+      if(!active||document.visibilityState==='hidden'||activeRefresh.current)return;
+      try{
+        const response=await fetch('/api/workspace/wallets/previous?wallet=current',{cache:'no-store'});
+        if(!response.ok)return;
+        const next=(await response.json() as {wallet?:Wallet|null}).wallet??null;
+        const fingerprint=walletBalanceFingerprint(next);
+        if(!active||!fingerprint)return;
+        if(lastBalance.current&&lastBalance.current!==fingerprint){
+          if(await refreshValuation())lastBalance.current=fingerprint;
+        }else lastBalance.current=fingerprint;
+      }catch{/* The next scheduled check can retry a read-only balance refresh. */}
+    };
+    const interval=window.setInterval(()=>void check(),45_000);
+    document.addEventListener('visibilitychange',check);
+    return()=>{active=false;window.clearInterval(interval);document.removeEventListener('visibilitychange',check);};
+  },[address,refreshValuation]);
   const wallet=walletAddress===address?walletState:null;
   const matching=useMemo(()=>records.filter(item=>wallet&&item.address.toLowerCase()===wallet.safe.toLowerCase()).sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt)),[records,wallet]);
   const latest=matching.at(-1);
   const priced=latest&&recent(latest)?latest:null;
   const cash=wallet?.usdg===null||wallet?.usdg===undefined?null:parseUnits(wallet.usdg,6);
-  const complete=!!wallet?.verified&&cash!==null&&!!priced&&priced.usdg!==null&&parseUnits(priced.usdg,6)===cash;
-  const total=complete?cash!+BigInt(priced!.subtotalMicroUsd):null;
+  const balanceKnown=!!wallet?.verified&&wallet.holdings.every(item=>item.tokens!==null);
+  const stockCount=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0).length??0;
+  const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete&&priced.usdg!==null&&parseUnits(priced.usdg,6)===cash);
+  const total=complete?portfolioValue(cash,stockCount,stockCount===0?null:BigInt(priced!.subtotalMicroUsd)):null;
   const points=matching.filter(recent).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
   const holdings=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0)??[];
   const stockValue=(symbol:string)=>{
@@ -96,7 +121,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
       <div className="ws-v2-portfolio-copy"><div className="ws-v2-overline"><span>YOUR STEWARD WALLET</span>{!publicMode&&<span className="ws-v2-pilot">PRIVATE PILOT</span>}</div>
         <span className="ws-v2-value-label">Portfolio value <span>· indicative</span></span>
         {loading?<div className="ws-v2-skeleton ws-v2-skeleton-value" aria-label="Loading portfolio value"/>:<CountedValue value={total}/>}
-        <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
+        <p>{!address?'Connect your wallet to see its balances.':!wallet?'Wallet balances are unavailable right now.':!complete?'A complete, recent stock valuation is unavailable. Your confirmed cash balance is shown below.':stockCount===0?'Your current USDG balance. A new deposit appears after the next automatic balance check.':'USDG plus supported stock tokens, using a recent saved estimate. This is not a sale quote.'}</p>
         <div className="ws-v2-portfolio-meta"><div><span>USDG available</span><strong>{cash===null?'—':money(cash)}</strong></div><div><span>Stock holdings</span><strong>{wallet?.verified?holdings.length:'—'}</strong></div></div>
       </div>
       <div className="ws-v2-history"><div><span>VALUE HISTORY</span><button type="button" onClick={()=>void refreshValuation()} disabled={!address||loading||refreshing} aria-label="Check and save current wallet value" title="Check and save current wallet value"><RefreshCw size={16}/></button></div><HistoryLine points={points}/><small>{latest?`Last saved check ${formatWorkspaceDate(latest.observedAt)}`:'No saved value history yet'}</small>{refreshMessage&&<small role="status">{refreshMessage}</small>}</div>

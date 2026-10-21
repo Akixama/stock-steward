@@ -21,7 +21,9 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
  }
  async function current(policyHash:string,digest:string){
   const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
-  if(!grant||grant.state!=='verified'||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='automatic')return false;
+  // The saved mandate remains in owner-approval mode. Autonomous authority is
+  // a distinct, narrow session grant plus a fresh owner-signed start message.
+  if(!grant||grant.state!=='verified'||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='approval')return false;
   if(!manual){if(!stages.autoBuy)return false;const {env}=await import('cloudflare:workers');if(!automaticStages(env).autoBuy||!tradingAdmission(ownership.address,env).ok)return false;try{await assertTradingEnabled(db,env);}catch{return false;}}
   const lease=JSON.parse(grant.lease_json) as PolicyLease,policy=JSON.parse(grant.policy_json) as RolesPolicy,snapshot={owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)};
   if(lease.state!=='active'||lease.policyHash!==policyHash||lease.mandateDigest!==digest||mandateDigest(snapshot)!==digest||compileRolesPolicy(policy).policyHash!==policyHash||policy.expiresAt*1000<=Date.now())return false;
@@ -44,7 +46,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
    if(!await current(prepared.lease.policyHash,prepared.lease.mandateDigest))throw Error('Reviewed permission or controls changed.');return prepared;
   }
   const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
-  if(!grant||grant.state!=='verified'||!grant.creation_transaction||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='automatic')throw Error('Current automatic mandate and verified grant required.');
+  if(!grant||grant.state!=='verified'||!grant.creation_transaction||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='approval')throw Error('Current owner-approved mandate and verified session grant required.');
   const policy=JSON.parse(grant.policy_json) as RolesPolicy,lease=JSON.parse(grant.lease_json) as PolicyLease,rule=JSON.parse(plan.rule_json) as AutonomousRule,snapshot={owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)};
   if(!manual&&!['scheduled','threshold','allocation','accumulate','news_buy'].includes(rule.kind))throw Error('Automatic stage buys only.');
   if(!manual&&rule.amountCents>stages.maxOrderCents)throw Error('Automatic per-order cap exceeded.');

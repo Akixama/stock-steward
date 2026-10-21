@@ -65,7 +65,8 @@ async function readChecks(policy: RolesPolicy, transport: typeof fetch) {
   const call = withRoleMembership((to:string,data:Hex,block:string)=>rpcCall(to,data,block,transport),transport);
   return verifyPolicyReadback(policy,compiled,call,'latest');
 }
-async function reconcile(db: D1Database, attempt: MaintenanceAttempt, transport: typeof fetch) {
+// Shared with the read-only background worker. This function never signs or sends.
+export async function reconcileMaintenanceAttempt(db: D1Database, attempt: MaintenanceAttempt, transport: typeof fetch) {
   if (!attempt.hash || !['submitted','unknown'].includes(attempt.state)) return attempt;
   try {
     const [receipt,transaction,finalized] = await Promise.all([
@@ -122,7 +123,7 @@ export async function GET() {
     const {located,saved}=initial;
     const transport=located.transport;
     const pending=await unresolvedMaintenance(env.DB,user.userId,located.safe);
-    const attempt=pending?await reconcile(env.DB,pending,transport):await latestMaintenance(env.DB,user.userId,located.safe);
+    const attempt=pending?await reconcileMaintenanceAttempt(env.DB,pending,transport):await latestMaintenance(env.DB,user.userId,located.safe);
     const currentContextValue=attempt?.state==='confirmed'&&attempt.kind==='renew'
       ? await currentContext(env.DB,user.userId) : initial;
     const current=currentContextValue.saved;
@@ -153,10 +154,10 @@ export async function POST(request: Request) {
       if(typeof body.id!=='string'||typeof body.hash!=='string')throw Error('Attempt and transaction hash are required.');
       const attempt=await maintenanceById(env.DB,user.userId,body.id);
       if(!attempt||attempt.safe.toLowerCase()!==located.safe.toLowerCase())throw Error('Saved attempt unavailable.');
-      if(attempt.hash?.toLowerCase()===body.hash.toLowerCase())return Response.json({attempt:publicAttempt(await reconcile(env.DB,attempt,located.transport))});
+      if(attempt.hash?.toLowerCase()===body.hash.toLowerCase())return Response.json({attempt:publicAttempt(await reconcileMaintenanceAttempt(env.DB,attempt,located.transport))});
       if(!await recordMaintenanceHash(env.DB,user.userId,body.id,body.hash))throw Error('Attempt already has an outcome or a different hash. Do not resend.');
       const recorded=await maintenanceById(env.DB,user.userId,body.id);
-      return Response.json({attempt:publicAttempt(recorded&&await reconcile(env.DB,recorded,located.transport))});
+      return Response.json({attempt:publicAttempt(recorded&&await reconcileMaintenanceAttempt(env.DB,recorded,located.transport))});
     }
     if(!['preview','prepare'].includes(String(body.action))||!['renew','revoke'].includes(String(body.kind)))throw Error('Choose Renew or Revoke.');
     const kind=body.kind as MaintenanceKind;

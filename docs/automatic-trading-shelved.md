@@ -2,7 +2,7 @@
 
 The public product currently supports Practice and wallet-approved real orders. Every real order requires the owner to review and approve the exact wallet transaction.
 
-Automatic real-money trading remains dormant in the current production version. A later review branch stages Shadow receipts and two further default-off flags; see [automatic-stages-review.md](automatic-stages-review.md). No automatic stage has been deployed from that branch. The former session-grant setup routes and panels remain archived under `archive/automatic-trading`, so a new user cannot grant autonomous spending from the live workspace.
+Automatic real-money trading remains dormant in the current production version. This review branch stages Shadow receipts and two further default-off flags; see [automatic-stages-review.md](automatic-stages-review.md). None of these new stages has been deployed. The branch restores session-grant setup routes and panels, but they remain unavailable while `AUTO_BUY=false`; a new user cannot grant autonomous spending from the live workspace.
 
 Before bringing it back:
 

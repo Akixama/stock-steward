@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { WalletProvider } from '@/lib/browser-wallet';
 import { jsonResponse } from '@/lib/json-response';
 import { formatWorkspaceDate } from '@/lib/workspace-date';
+import {permissionTimeRemaining} from '@/lib/permission-window';
 import { PermissionReview, PermissionReviewBoundary, type PermissionReviewPayload } from './permission-review';
 
 type Kind='renew'|'revoke';
@@ -20,6 +21,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   const [preview,setPreview]=useState<Preview|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [clock,setClock]=useState(0);
   const storageKey=`steward-permission-maintenance:${address.toLowerCase()}`;
   const load=useCallback(async()=>{
     if(!address)return;
@@ -47,6 +49,7 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
     update();const timer=setInterval(update,30000);
     return()=>{active=false;clearInterval(timer);};
   },[address,load,preview,busy]);
+  useEffect(()=>{const tick=()=>setClock(Date.now());const first=window.setTimeout(tick,0);const timer=window.setInterval(tick,60_000);return()=>{window.clearTimeout(first);window.clearInterval(timer);};},[]);
   async function action(body:Record<string,unknown>){
     const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const fallback=body.action==='preview'&&body.kind==='renew'
@@ -90,10 +93,10 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   const title=pending?'Wallet action pending':revoked?'Buying permission off':expired?'Approval expired, Renew':status?.permissionActive?'Buying permission active':'Buying permission needs a check';
   return <section className="ws-maintenance" aria-label="Buying permission maintenance">
     <div className="ws-maintenance-head"><div><span>BUYING ACCESS</span><h2>{title}</h2>
-      {status&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${formatWorkspaceDate(status.expiry,undefined,'seconds')}`}</p>}
+      {status&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${formatWorkspaceDate(status.expiry,undefined,'seconds')}${clock?` · ${permissionTimeRemaining(status.expiry,clock)}`:''}`}</p>}
       {!status&&!error&&<p>Checking the existing Steward wallet…</p>}</div>
       <button type="button" onClick={()=>void load().catch(cause=>setError(String(cause)))} disabled={busy}>Refresh status</button></div>
-    {status?.eligibility.state==='soon'&&<p role="status">Renewal is available after this UTC window ends, so today’s buying limit cannot be reset early.</p>}
+    {status?.eligibility.state==='soon'&&<p role="status">Reminder: this approval expires soon. Renew on the same Steward wallet after the UTC window ends. Renewing early would reset today’s quota, so it stays locked until then.</p>}
     {pending&&<div className="ws-maintenance-pending" role="status"><strong>{pending.confirmation==='confirmed'?'Confirmed now · final in about 15 minutes':pending.confirmation==='reorged'?'Chain changed · outcome unresolved':pending.confirmation==='reverted'?'Reverted onchain · awaiting finality':pending.hash?'Submitted · checking receipt and exact approvals':'Wallet request unresolved'}</strong><p>{pending.hash?'This saved action remains reserved until Finalized. Refresh to check its status; do not send it again.':'No transaction hash was saved. Check your wallet activity before taking another action; nothing will be resent automatically.'}</p>{pending.hash&&<a href={link(pending.hash)} target="_blank" rel="noopener noreferrer">View transaction {pending.hash.slice(0,10)}… ↗</a>}</div>}
     {status?.attempt?.state==='confirmed'&&<p role="status">{status.attempt.kind==='renew'&&status.permissionActive?'Renewal verified onchain. Buying permission is active.':status.attempt.kind==='revoke'?'Revocation verified: the role and both approvals are off.':'Transaction confirmed. Refresh the onchain checks before relying on it.'}{status.attempt.hash&&<> <a href={link(status.attempt.hash)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></>}</p>}
     {status?.attempt?.state==='reverted'&&<p role="status">The saved transaction reverted. No renewal or revocation was claimed. <a href={link(status.attempt.hash!)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></p>}
