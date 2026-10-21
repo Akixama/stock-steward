@@ -1,5 +1,15 @@
 import {CHAIN, registry} from './robinhood-chain.ts';
 
+const readMethods=new Set(['eth_call','eth_getCode','eth_getStorageAt','eth_getBalance','eth_getTransactionByHash',
+  'eth_getTransactionReceipt','eth_getBlockByNumber','eth_blockNumber','eth_chainId','eth_gasPrice',
+  'eth_estimateGas','eth_getLogs','eth_feeHistory','eth_getTransactionCount']);
+function rpcMethods(body:BodyInit|null|undefined):string[]{
+  if(typeof body!=='string')return [];
+  try{const request=JSON.parse(body) as {method?:unknown}|{method?:unknown}[];
+    return (Array.isArray(request)?request:[request]).map(item=>typeof item.method==='string'?item.method:'');
+  }catch{return [];}
+}
+
 // Server callers supply the secret. This module never reads or returns it to a browser.
 export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):typeof fetch {
   if(apiKey && !/^[A-Za-z0-9_-]+$/.test(apiKey))throw new Error('Invalid RPC configuration');
@@ -7,22 +17,37 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
     const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
     const rpc=url===CHAIN.rpc;
     const target=rpc&&apiKey?`https://robinhood-mainnet.g.alchemy.com/v2/${apiKey}`:input;
+    const methods=rpc?rpcMethods(init?.body):[];
+    const readOnly=methods.length>0&&methods.every(method=>readMethods.has(method));
+    const sends=methods.some(method=>method==='eth_sendRawTransaction'||method==='eth_sendTransaction');
     // One quiet retry on network failure: every call through here is a read, so
     // repeating it is safe. Callers with their own timeout keep a single attempt.
-    const attempts=init?.signal?1:2;
+    const attempts=sends?1:readOnly?2:init?.signal?1:2;
     for(let attempt=1;attempt<=attempts;attempt++){
       try {
         const response=await upstream(target,init?.signal
           ? {...init,redirect:'manual'}
           : {...init,redirect:'manual',signal:AbortSignal.timeout(15000)});
         if(!response.ok)console.error('chain_dependency_http',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',status:response.status});
+        // Only read-only RPCs may be repeated after an empty or truncated 200.
+        // Wallet broadcasts never pass through this recovery path.
+        if(response.ok&&readOnly&&typeof response.clone==='function'){
+          let valid=false;
+          try{JSON.parse(await response.clone().text());valid=true;}catch{/* Provider returned incomplete JSON. */}
+          if(!valid){
+            console.error('chain_dependency_invalid_json',{service:'rpc',provider:apiKey?'alchemy':'public'});
+            if(attempt<attempts&&!init?.signal?.aborted){await new Promise(resolve=>setTimeout(resolve,300));continue;}
+            throw new Error('Chain read returned an incomplete response. Retry later.');
+          }
+        }
         return response;
       }catch(error){
         const message=error instanceof Error?error.message:'Unknown transport exception';
         const detail=message.replaceAll(apiKey??'__no_key__','[redacted]').replace(/https?:\/\/\S+/g,'[url]').slice(0,250);
         console.error('chain_dependency_transport',{service:rpc?'rpc':'registry',provider:rpc&&apiKey?'alchemy':'public',detail});
         if(/subrequest|too many requests|limit exceeded/i.test(message))throw new Error('Chain read limit reached. Retry later.');
-        if(attempt<attempts)await new Promise((resolve)=>setTimeout(resolve,500));
+        if(message==='Chain read returned an incomplete response. Retry later.')throw error;
+        if(attempt<attempts&&!init?.signal)await new Promise((resolve)=>setTimeout(resolve,500));
         else throw new Error(rpc?'RPC transport unavailable':'Registry transport unavailable');
       }
     }

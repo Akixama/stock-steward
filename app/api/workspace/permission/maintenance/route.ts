@@ -138,7 +138,12 @@ export async function GET() {
       permitRaw:String(approvals.permitRaw),permitExpiresAt:approvals.permitExpiresAt},
       attempt:publicAttempt(attempt),spenders:approvalAddresses},
       {headers:{'Cache-Control':'no-store'}});
-  } catch(error){return Response.json({error:error instanceof Error?error.message:'Permission status unavailable.'},{status:409});}
+  } catch(error){
+    const message=error instanceof Error?error.message:'Permission status unavailable.';
+    const incomplete=error instanceof SyntaxError||/unexpected end of json|unexpected token/i.test(message);
+    return Response.json({error:incomplete?'A chain read returned an incomplete response. Refresh status in a moment; nothing was sent.':message},
+      {status:incomplete?503:409});
+  }
 }
 
 export async function POST(request: Request) {

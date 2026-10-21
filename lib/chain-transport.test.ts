@@ -51,4 +51,23 @@ test('an HTTP error passes through without throwing', async () => {
   assert.equal(response.ok, false);
 });
 test('worker subrequest limits are not retried',async()=>{let calls=0;const upstream=(async()=>{calls++;throw Error('Too many subrequests.');}) as typeof fetch;await assert.rejects(chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST'}),/read limit/);assert.equal(calls,1);});
+test('an incomplete read-only RPC response is retried once, including with a caller timeout',async()=>{
+  let calls=0;
+  const upstream=(async()=>{calls++;return calls===1?new Response('',{status:200}):Response.json({jsonrpc:'2.0',id:1,result:'0x1'});}) as typeof fetch;
+  const response=await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_call',params:[]}),signal:AbortSignal.timeout(2000)});
+  assert.equal((await response.json() as {result:string}).result,'0x1');assert.equal(calls,2);
+});
+test('an incomplete chain read fails clearly after one retry; a send is never retried',async()=>{
+  let reads=0,sends=0;
+  const upstream=(async(_url,init)=>{
+    const method=JSON.parse(String(init?.body)).method;
+    if(method==='eth_call')reads++;else sends++;
+    return new Response('<!DOCTYPE html>',{status:200});
+  }) as typeof fetch;
+  const transport=chainTransport('key123',upstream);
+  await assert.rejects(transport(CHAIN.rpc,{method:'POST',body:JSON.stringify({method:'eth_call'})}),/incomplete response/);
+  assert.equal(reads,2);
+  const response=await transport(CHAIN.rpc,{method:'POST',body:JSON.stringify({method:'eth_sendRawTransaction'})});
+  assert.equal(response.status,200);assert.equal(sends,1);
+});
 test('receipt headers stay public while historical state goes to the configured archive provider',async()=>{const {receiptTransport}=await import('./chain-transport.ts');const urls:string[]=[];const transport=receiptTransport('key123',(async(url)=>{urls.push(String(url));return Response.json({result:'0x'});}) as typeof fetch);for(const method of ['eth_getTransactionReceipt','eth_getBlockByNumber','eth_getCode','eth_call'])await transport(CHAIN.rpc,{method:'POST',body:JSON.stringify({method})});assert.deepEqual(urls,[CHAIN.rpc,CHAIN.rpc,'https://robinhood-mainnet.g.alchemy.com/v2/key123','https://robinhood-mainnet.g.alchemy.com/v2/key123']);});

@@ -36,13 +36,14 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
           await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({action:'submitted',id:parsed.id,hash:parsed.hash})});
           const again=await fetch(endpoint,{cache:'no-store'});
-          if(again.ok){setStatus(await jsonResponse<Status>(again,'Permission status failed. Nothing was sent.'));return;}
+          if(again.ok){setStatus(await jsonResponse<Status>(again,'Permission status failed. Nothing was sent.'));setError('');return;}
         }
       }catch{/* Keep the attempt unresolved; never submit another transaction. */}
     }
     if(result.attempt?.state==='confirmed'||result.attempt?.state==='reverted')localStorage.removeItem(storageKey);
     setStatus(previous=>previous?.attempt?.id===result.attempt?.id&&previous?.attempt?.confirmation==='confirmed'&&result.attempt?.state!=='confirmed'&&!result.attempt?.confirmation
       ?{...result,attempt:{...result.attempt!,confirmation:'reorged'}}:result);
+    setError('');
   },[address,storageKey]);
   useEffect(()=>{if(!address||preview||busy)return;let active=true;
     const update=()=>void load().catch(cause=>{if(active)setError(cause instanceof Error?cause.message:'Permission status unavailable.');});
