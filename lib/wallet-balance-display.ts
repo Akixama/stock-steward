@@ -18,6 +18,12 @@ export function stockHoldingCount(wallet: WalletBalance | null): number | null {
     ? wallet.holdings.filter(item => Number(item.tokens) > 0).length : null;
 }
 
+export function currentPortfolioValue(cashMicro: bigint | null, pricedStockMicro: bigint | null,
+  balanceReadComplete: boolean): bigint | null {
+  if (!balanceReadComplete || cashMicro === null) return null;
+  return cashMicro + (pricedStockMicro ?? 0n);
+}
+
 export function parseLastVerifiedBalance(raw: string | null, safe?: string): WalletBalance | null {
   if (!raw) return null;
   try {

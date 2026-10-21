@@ -6,8 +6,8 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {ArrowUpRight, ChevronRight, RefreshCw} from 'lucide-react';
 import {parseUnits} from 'viem';
 import type {PricedObservation} from '@/lib/chain-analysis';
-import {visiblePortfolioValue,walletBalanceFingerprint} from '@/lib/portfolio-value';
-import {completeWalletBalance,parseLastVerifiedBalance,stockHoldingCount} from '@/lib/wallet-balance-display';
+import {walletBalanceFingerprint} from '@/lib/portfolio-value';
+import {completeWalletBalance,currentPortfolioValue,parseLastVerifiedBalance,stockHoldingCount} from '@/lib/wallet-balance-display';
 
 type Wallet = {safe:string;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean;balanceReadComplete?:boolean;checkedAt?:string|null};
 type Action = 'setup'|'buy'|'sell'|'send';
@@ -139,7 +139,7 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
    const stockCount=stockHoldingCount(wallet);
    const balanceKnown=stockCount!==null;
    const complete=balanceKnown&&cash!==null&&(stockCount===0||!!priced&&priced.valuationComplete);
-  const total=visiblePortfolioValue(cash,priced?BigInt(priced.subtotalMicroUsd):null);
+  const total=currentPortfolioValue(cash,priced?BigInt(priced.subtotalMicroUsd):null,balanceKnown);
   const points=matching.filter(item=>recent(item)&&item.valuationComplete).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
   const holdings=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0)??[];
   const unpriced=holdings.filter(item=>!priced?.holdings.some(held=>held.symbol===item.symbol&&typeof priced.prices[held.contract]?.valueMicroUsd==='string'));
