@@ -111,7 +111,9 @@ export default function PortfolioHome({address,onAction,publicMode}:{address:str
       }));
     if(saved)return;
     lastAutoValuation.current=fingerprint;
-    void refreshValuation();
+    let cancelled=false;
+    queueMicrotask(()=>{if(!cancelled)void refreshValuation();});
+    return()=>{cancelled=true;};
   },[address,walletAddress,walletState,records,refreshValuation]);
   const wallet=walletAddress===address?walletState:null;
   const matching=useMemo(()=>records.filter(item=>wallet&&item.address.toLowerCase()===wallet.safe.toLowerCase()).sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt)),[records,wallet]);

@@ -6,6 +6,7 @@ import {VENUE,type RouteEvidence} from './chain-route.ts';
 import {tradeIntent} from './trade-intent.ts';
 import {routerCandidate,validateRouterCandidate} from './router-candidate.ts';
 import {earlyConfirmationCount,hasEarlyConfirmations} from './confirmation-status.ts';
+import {boundOwnerEnvelope,DELEGATION_MANAGER,DELEGATION_MANAGER_RUNTIME_HASH,type BoundOrderTransaction} from './delegated-order-envelope.ts';
 const transferAbi=parseAbi(['event Transfer(address indexed from,address indexed to,uint256 value)']);
 const hash=(x:unknown):x is Hex=>typeof x==='string'&&/^0x[0-9a-f]{64}$/i.test(x);
 const quantity=(x:unknown):x is string=>typeof x==='string'&&/^0x[0-9a-f]+$/i.test(x);
@@ -20,17 +21,18 @@ export async function reconcileRolesFill(route:RouteEvidence,version:number,tran
 }
 // Owner-signed orders reconcile through this wrapper: the exact envelope the wallet
 // signed is re-verified, including a caller-supplied historical permission check.
-export async function reconcileOwnerOrderFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,envelope:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>},fetcher:typeof fetch=fetch,confirmationBlocks=earlyConfirmationCount()):Promise<FillProof>{
- return reconcileBoundFill(route,version,transactionHash,expectedCodeHash,fetcher,envelope,true,confirmationBlocks);
+export async function reconcileOwnerOrderFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,envelope:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>},fetcher:typeof fetch=fetch,confirmationBlocks=earlyConfirmationCount(),managerRuntimeHash=DELEGATION_MANAGER_RUNTIME_HASH):Promise<FillProof>{
+ return reconcileBoundFill(route,version,transactionHash,expectedCodeHash,fetcher,envelope,true,confirmationBlocks,managerRuntimeHash);
 }
-async function reconcileBoundFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,fetcher:typeof fetch,envelope?:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>},allowConfirmed=false,confirmationBlocks=earlyConfirmationCount()):Promise<FillProof>{
+async function reconcileBoundFill(route:RouteEvidence,version:number,transactionHash:string,expectedCodeHash:string,fetcher:typeof fetch,envelope?:{from:string;to:string;data:string;value:string;verify:(block:Hex,hash:string)=>Promise<boolean>},allowConfirmed=false,confirmationBlocks=earlyConfirmationCount(),managerRuntimeHash=DELEGATION_MANAGER_RUNTIME_HASH):Promise<FillProof>{
  if(!hash(transactionHash)||!hash(expectedCodeHash))throw Error('Invalid reconciliation identity');
  const candidate=routerCandidate(route,version),record:FillProof={hash:transactionHash.toLowerCase(),intentDigest:candidate.intentDigest,canonicalFinalized:false,outcome:'unknown',blockHash:null,actualInputRaw:null,actualOutputRaw:null,calldataHash:candidate.calldataHash,checkedAt:new Date().toISOString(),executionKind:envelope?'roles-module':'direct-router',delegatedAccountVerified:false,why:'Exact direct-router evidence is unavailable. No budget is released.'};
  let serial=0;async function rpc(method:string,params:unknown[]){const id=++serial,r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(10000),cache:'no-store'});if(!r.ok)throw Error('RPC unavailable');const b=await r.json() as {id:number;result?:unknown;error?:unknown};if(b.id!==id||b.error||!Object.hasOwn(b,'result'))throw Error('RPC unavailable');return b.result;}
  try{
  if(await rpc('eth_chainId',[])!==CHAIN.hex)throw Error('Wrong chain');
- const tx=await rpc('eth_getTransactionByHash',[record.hash]) as {hash:string;from:string;to:string;input:string;value:string;blockHash:string;blockNumber:string}|null;
- if(!tx||tx.hash?.toLowerCase()!==record.hash||!(envelope?tx.from?.toLowerCase()===envelope.from.toLowerCase()&&tx.to?.toLowerCase()===envelope.to.toLowerCase()&&tx.input===envelope.data&&tx.value===envelope.value:validateRouterCandidate(route,version,{from:tx.from,to:tx.to,data:tx.input,value:tx.value}))||!hash(tx.blockHash)||!quantity(tx.blockNumber))throw Error('Envelope mismatch');
+ const tx=await rpc('eth_getTransactionByHash',[record.hash]) as ({hash:string;from:string;to:string;input:string;value:string;blockHash:string;blockNumber:string}&BoundOrderTransaction)|null;
+ const ownerEnvelope=envelope&&tx?boundOwnerEnvelope(tx,envelope):null;
+ if(!tx||tx.hash?.toLowerCase()!==record.hash||!(envelope?ownerEnvelope!==null:validateRouterCandidate(route,version,{from:tx.from,to:tx.to,data:tx.input,value:tx.value}))||!hash(tx.blockHash)||!quantity(tx.blockNumber))throw Error('Envelope mismatch');
  const receipt=await rpc('eth_getTransactionReceipt',[record.hash]) as {transactionHash:string;blockHash:string;blockNumber:string;status:string;logs:{address:string;topics:Hex[];data:Hex;removed?:boolean;transactionHash:string;blockHash:string;logIndex:string}[]}|null;
  if(!receipt||receipt.transactionHash?.toLowerCase()!==record.hash||receipt.blockHash!==tx.blockHash||receipt.blockNumber!==tx.blockNumber||!['0x0','0x1'].includes(receipt.status)||!Array.isArray(receipt.logs)||receipt.logs.length>2000)throw Error('Receipt mismatch');
  const block=await rpc('eth_getBlockByNumber',[tx.blockNumber,false]) as {hash:string;number:string;timestamp:string};
@@ -44,6 +46,10 @@ async function reconcileBoundFill(route:RouteEvidence,version:number,transaction
 
  if(isFinalized){const finalHeader=await rpc('eth_getBlockByNumber',[finalized.number,false]) as {hash:string};if(finalHeader?.hash!==finalized.hash)throw Error('Finalized anchor mismatch');}
  const code=await rpc('eth_getCode',[candidate.to,tx.blockNumber]);if(typeof code!=='string'||!/^0x(?:[0-9a-f]{2})+$/i.test(code)||keccak256(code as Hex)!==expectedCodeHash)throw Error('Execution code mismatch');
+ if(ownerEnvelope==='delegated'){
+  const managerCode=await rpc('eth_getCode',[DELEGATION_MANAGER,tx.blockNumber]);
+  if(typeof managerCode!=='string'||!/^0x(?:[0-9a-f]{2})+$/i.test(managerCode)||keccak256(managerCode as Hex)!==managerRuntimeHash)throw Error('Delegation manager code mismatch');
+ }
  const canonical=await rpc('eth_getBlockByNumber',[tx.blockNumber,false]) as {hash:string};if(canonical?.hash!==tx.blockHash)throw Error('Inclusion changed');
  record.blockHash=tx.blockHash;if(envelope){if(!await envelope.verify(tx.blockNumber as Hex,tx.blockHash))throw Error('Historical permission evidence unavailable');record.delegatedAccountVerified=true;}
  if(receipt.status==='0x0'&&!isFinalized)throw Error('Transaction reverted; awaiting finality. Do not resend yet.');
