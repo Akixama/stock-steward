@@ -5,11 +5,12 @@ import { formatUnits } from 'viem';
 import { formatWorkspaceDate } from '../../lib/workspace-date.ts';
 
 export type PermissionReviewPayload = {
-  kind: 'renew' | 'revoke'; digest: string;
+  kind: 'renew' | 'revoke'; digest: string; reviewToken?: string;
   review: {
     safe: string; module: string; capRaw: string;
     spenders: { token: string; permit2: string; router: string };
     expiresAt: number | null; estimatedNetworkFeeEth: string; revocation: string;
+    calls?: { to: string; data: string }[];
   };
 };
 
@@ -23,17 +24,29 @@ export function PermissionReview({ preview, busy, hasProvider, onConfirm, onCanc
 }) {
   const renew = preview.kind === 'renew';
   return h('div', { className: 'ws-maintenance-review', role: 'group', 'aria-label': renew ? 'Renewal review' : 'Revocation review' },
-    h('h3', null, renew ? 'Review renewal on the same wallet' : 'Review revocation'),
-    h('dl', null,
-      row('Steward wallet', h('code', null, preview.review.safe)),
-      row(renew ? 'New total USDG cap' : 'Approvals after revocation', `${formatUnits(BigInt(preview.review.capRaw), 6)} USDG`),
-      row('USDG token approves', ['Permit2 ', h('code', { key: 'permit2' }, preview.review.spenders.permit2)]),
-      row('Permit2 approves', ['Trade router ', h('code', { key: 'router' }, preview.review.spenders.router)]),
-      row('Expiry', renew ? formatWorkspaceDate(preview.review.expiresAt, undefined, 'seconds') : 'Approvals cleared now'),
-      row('Estimated network fee', `${preview.review.estimatedNetworkFeeEth} ETH · your wallet shows the actual fee`),
+    h('h3', null, renew ? 'Renew buying access' : 'Turn off buying access'),
+    h('p', null, renew
+      ? `Keep using this Steward wallet. Buying can use up to ${formatUnits(BigInt(preview.review.capRaw), 6)} USDG until ${formatWorkspaceDate(preview.review.expiresAt, undefined, 'seconds')}.`
+      : 'Turn off buying and clear both spending approvals. Your holdings stay in your wallet.'),
+    h('p', null, `Estimated network fee: ${preview.review.estimatedNetworkFeeEth} ETH. Your wallet shows the actual fee before you sign.`),
+    h('p', null, 'This does not move your funds. You can turn buying off at any time.'),
+    h('details', { className: 'ws-maintenance-technical' },
+      h('summary', null, 'Technical details'),
+      h('dl', null,
+        row('Steward wallet', h('code', null, preview.review.safe)),
+        row('Permission module', h('code', null, preview.review.module)),
+        row('Exact cap', `${formatUnits(BigInt(preview.review.capRaw), 6)} USDG (${preview.review.capRaw} raw units)`),
+        row('USDG token', h('code', null, preview.review.spenders.token)),
+        row('Token spender', h('code', null, preview.review.spenders.permit2)),
+        row('Next spender', h('code', null, preview.review.spenders.router)),
+        row('Exact expiry', renew ? formatWorkspaceDate(preview.review.expiresAt, undefined, 'seconds') : 'Cleared immediately'),
+        row('Estimated network fee', `${preview.review.estimatedNetworkFeeEth} ETH`),
+        row('Call fingerprint', h('code', null, preview.digest)),
+      ),
+      h('p', null, preview.review.revocation),
+      preview.review.calls?.map((call, index) => h('p', { key: index },
+        `Call ${index + 1} to `, h('code', null, call.to), ' · ', h('code', null, call.data))),
     ),
-    h('p', null, preview.review.revocation),
-    h('p', null, 'Approval changes do not transfer funds. Your owner wallet signs the exact Safe transaction once.'),
     h('div', null,
       h('button', { type: 'button', onClick: onConfirm, disabled: busy || !hasProvider }, busy ? 'Checking…' : 'Confirm exact action in wallet'),
       h('button', { type: 'button', onClick: onCancel, disabled: busy }, 'Cancel review'),

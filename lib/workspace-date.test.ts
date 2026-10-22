@@ -32,10 +32,12 @@ function renderReview(payload: PermissionReviewPayload) {
 
 test('Renew review renders a real-shaped payload and expiry without throwing', () => {
   const html = renderReview(review);
-  assert.match(html, /Review renewal on the same wallet/);
+  assert.match(html, /Renew buying access/);
   assert.match(html, /20 USDG/);
   assert.match(html, /Oct.*2026/);
   assert.match(html, /0\.0001 ETH/);
+  assert.match(html, /Technical details/);
+  assert.doesNotMatch(html.split('Technical details')[0], /Permit2|Trade router/);
   assert.match(html, /Confirm exact action in wallet/);
 });
 

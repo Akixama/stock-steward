@@ -71,15 +71,17 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
     setBusy(true);setError('');
     let id='';
     try{
-      const prepared=await action({action:'prepare',kind:preview.kind,expectedDigest:preview.digest}) as
-        {id:string;transaction:{from:string;to:string;data:string;value:string}};
-      id=prepared.id;setPreview(null);await load();
+      const prepared=await action({action:'prepare',kind:preview.kind,expectedDigest:preview.digest,reviewToken:preview.reviewToken}) as
+        {id:string;transaction:{from:string;to:string;data:string;value:string};review:Preview['review']};
+      id=prepared.id;setPreview(current=>current?{...current,review:prepared.review}:current);await load();
       const hash=await provider.request({method:'eth_sendTransaction',params:[prepared.transaction]}) as string;
+      setPreview(null);
       if(!/^0x[0-9a-f]{64}$/i.test(hash))throw Error('The wallet returned no transaction hash. Check wallet activity before trying again.');
       localStorage.setItem(storageKey,JSON.stringify({id,hash}));
       await action({action:'submitted',id,hash});
       await load();
     }catch(cause){
+      if(id)setPreview(null);
       setError(id
         ? 'The wallet request has an unresolved outcome. Check wallet activity and refresh status; do not sign it again. '
           +(cause instanceof Error?cause.message:'')

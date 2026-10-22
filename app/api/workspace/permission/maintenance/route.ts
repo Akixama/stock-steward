@@ -15,6 +15,7 @@ import { MULTISEND } from '@/lib/safe-setup';
 import { assertTradingEnabled, tradingAdmission } from '@/lib/trading-controls';
 import { chainReadBatch } from '@/lib/chain-read-batch';
 import { earlyConfirmationCount } from '@/lib/confirmation-status';
+import { issueMaintenanceReview, verifyMaintenanceReview } from '@/lib/maintenance-review-token';
 
 const adminAbi = parseAbi(['function owner() view returns (address)','function avatar() view returns (address)','function target() view returns (address)']);
 
@@ -153,7 +154,7 @@ export async function POST(request: Request) {
     const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401});
     if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid request origin.'},{status:403});
     if(!env.DB)return Response.json({error:'Workspace storage is unavailable.'},{status:503});
-    const body=await request.json() as {action?:unknown;kind?:unknown;id?:unknown;hash?:unknown;expectedDigest?:unknown};
+    const body=await request.json() as {action?:unknown;kind?:unknown;id?:unknown;hash?:unknown;expectedDigest?:unknown;reviewToken?:unknown};
     const {located,saved,policy}=await currentContext(env.DB,user.userId);
     if(body.action==='submitted') {
       if(typeof body.id!=='string'||typeof body.hash!=='string')throw Error('Attempt and transaction hash are required.');
@@ -177,11 +178,17 @@ export async function POST(request: Request) {
       if(!old.allOk)throw Error('Existing onchain limits do not match the saved permission. No renewal was offered.');
     }
     await pinnedMultisend(located.transport);
-    const nextBase=kind==='renew'?await buildPolicyBase(located):null;
+    const reviewed=body.action==='prepare'
+      ?await verifyMaintenanceReview(body.reviewToken,env.STEWARD_DEMO_AUTH??'',{
+        owner:user.userId,kind,digest:String(body.expectedDigest),safe:located.safe,module:saved.module,
+      }):null;
+    const nextBase=kind==='renew'&&!reviewed?await buildPolicyBase(located):null;
     // The renewal builder must retain the old expiry to prove that it has ended,
     // while using fresh route outputs and current saved limits for the new scope.
+    const reviewedOutputs=reviewed?.outputs.map(output=>({...output,token:output.token as Address}));
     const action=kind==='renew'
-      ? maintenanceTransaction(kind,located.owner,{...policy,outputs:nextBase!.base.outputs})
+      ? maintenanceTransaction(kind,located.owner,{...policy,outputs:reviewedOutputs??nextBase!.base.outputs},
+        reviewed?new Date(reviewed.startsAt*1000):new Date())
       : maintenanceTransaction(kind,located.owner,policy);
     const [estimate,gasPrice]=await chainReadBatch(CHAIN_RPC,[
       {method:'eth_estimateGas',params:[action.transaction]},
@@ -191,9 +198,16 @@ export async function POST(request: Request) {
     const feeWei=BigInt(estimate)*BigInt(gasPrice);
     const digest=keccak256(action.transaction.data);
     const review={safe:located.safe,module:saved.module,capRaw:action.amountRaw,spenders:approvalAddresses,
+      calls:action.calls.map(call=>({to:call.to,data:call.data})),
       expiresAt:action.expiresAt,estimatedNetworkFeeEth:formatEther(feeWei),
       revocation:'Revoke removes the trading role and sets both USDG approvals to zero; balances stay in your wallet.'};
-    if(body.action==='preview')return Response.json({kind,digest,review},{headers:{'Cache-Control':'no-store'}});
+    if(body.action==='preview'){
+      const reviewToken=await issueMaintenanceReview({owner:user.userId,kind,digest,safe:located.safe,module:saved.module,
+        startsAt:action.policy.startsAt,issuedAt:Date.now(),
+        outputs:kind==='renew'?action.policy.outputs.map(output=>({token:output.token,fee:output.fee,
+          tickSpacing:output.tickSpacing,minimumOutputRaw:output.minimumOutputRaw})):[]},env.STEWARD_DEMO_AUTH??'');
+      return Response.json({kind,digest,review,reviewToken},{headers:{'Cache-Control':'no-store'}});
+    }
     if(body.expectedDigest!==digest)throw Error('The permission review changed. Review the new details before signing.');
     const id=await reserveMaintenance(env.DB,{owner:user.userId,ownerAddress:located.owner,safe:located.safe,module:saved.module,
       mandateVersion:saved.mandateVersion,kind,transaction:action.transaction,policy:action.policy,
