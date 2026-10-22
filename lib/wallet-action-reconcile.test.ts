@@ -6,6 +6,7 @@ import {ownerSaleTransaction} from './owner-sale.ts';
 import {poolIdentity,VENUE,type RouteEvidence} from './chain-route.ts';
 import {reconcileWalletAction,type SavedWalletAction} from './wallet-action-reconcile.ts';
 import {CHAIN,USDG} from './robinhood-chain.ts';
+import {chainTransport} from './chain-transport.ts';
 
 const owner=('0x'+'a'.repeat(40)) as `0x${string}`;
 const safe=('0x'+'b'.repeat(40)) as `0x${string}`;
@@ -37,6 +38,21 @@ function rpcFixture(options:{status?:string;receipt?:boolean;logs?:unknown[];fin
 test('finalized exact transfer confirms with proved amount',async()=>{
  const {fetcher}=rpcFixture();const result=await reconcileWalletAction(row,fetcher);
  assert.equal(result.state,'confirmed');assert.equal(result.inputRaw,amount.toString());assert.equal(result.blockNumber,'0x10');
+});
+test('receipt proof uses private RPC and falls back only for a failed read',async()=>{
+ const {fetcher,seen}=rpcFixture();const urls:string[]=[];
+ const upstream=(async(input,init)=>{
+  const method=(JSON.parse(String(init?.body)) as {method:string}).method;
+  urls.push(String(input));
+  if(String(input).includes('alchemy.com')&&method==='eth_getTransactionReceipt')
+   return Response.json({jsonrpc:'2.0',id:1,error:{code:-32005,message:'rate limited'}});
+  return fetcher(input,init);
+ }) as typeof fetch;
+ const proof=await reconcileWalletAction(row,chainTransport('key123',upstream));
+ assert.equal(proof.state,'confirmed',proof.reason);
+ assert.equal(urls.some(url=>url.includes('alchemy.com')),true);
+ assert.equal(urls.includes(CHAIN.rpc),true);
+ assert.equal(seen.includes('eth_sendTransaction'),false);
 });
 test('finalized revert is terminal without claiming funds moved',async()=>{
  const {fetcher}=rpcFixture({status:'0x0',logs:[]});const result=await reconcileWalletAction(row,fetcher);

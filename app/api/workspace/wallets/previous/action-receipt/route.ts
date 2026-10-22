@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {reconcileWalletAction,type SavedWalletAction} from '@/lib/wallet-action-reconcile';
+import {chainTransport} from '@/lib/chain-transport';
 import {earlyConfirmationCount} from '@/lib/confirmation-status';
 import {walletActionView} from '@/db/wallet-action-attempts';
 
@@ -31,9 +32,14 @@ export async function POST(request:Request){
   const recorded=await env.DB.prepare("UPDATE wallet_action_attempts SET transaction_hash=?,state='submitted',updated_at=? WHERE owner_ref=? AND id=? AND state IN ('prepared','submitted','unknown') AND (transaction_hash IS NULL OR transaction_hash=?)")
    .bind(hash,new Date().toISOString(),user.userId,id,hash).run();
   if(recorded.meta.changes!==1)return Response.json({error:'Receipt could not be saved. Keep the hash; do not send again.'},{status:409,headers});
-  const proof=await reconcileWalletAction({...row,transaction_hash:hash},fetch,earlyConfirmationCount((env as unknown as Record<string,unknown>).EARLY_CONFIRMATION_BLOCKS));
+  // Receipt reconciliation is read-only. Prefer the configured private RPC and
+  // fall back to the public endpoint for transient reads; never broadcast here.
+  const proof=await reconcileWalletAction({...row,transaction_hash:hash},chainTransport(env.ALCHEMY_API_KEY),earlyConfirmationCount((env as unknown as Record<string,unknown>).EARLY_CONFIRMATION_BLOCKS));
   await env.DB.prepare("UPDATE wallet_action_attempts SET state=?,updated_at=? WHERE owner_ref=? AND id=? AND transaction_hash=? AND state IN ('prepared','submitted','unknown')")
    .bind(proof.state,new Date().toISOString(),user.userId,id,hash).run();
-  return Response.json({id,hash,state:proof.state,confirmation:proof.confirmation??null,receipt:proof.blockNumber?{blockNumber:proof.blockNumber,inputRaw:proof.inputRaw,outputRaw:proof.outputRaw}:null,notice:proof.state==='confirmed'?'Finalized: exact token movement verified in a finalized block.':proof.state==='reverted'?'The saved transaction reverted in a finalized block. Gas may have been spent.':proof.reason},{headers});
+  const notice=proof.reason==='RPC unavailable'||proof.reason==='RPC transport unavailable'
+    ?'Chain status cannot be checked right now. The transaction is saved; do not send it again.'
+    :proof.reason;
+  return Response.json({id,hash,state:proof.state,confirmation:proof.confirmation??null,receipt:proof.blockNumber?{blockNumber:proof.blockNumber,inputRaw:proof.inputRaw,outputRaw:proof.outputRaw}:null,notice:proof.state==='confirmed'?'Finalized: exact token movement verified in a finalized block.':proof.state==='reverted'?'The saved transaction reverted in a finalized block. Gas may have been spent.':notice},{headers});
  }catch(error){return Response.json({error:error instanceof Error?error.message:'Receipt unavailable. Keep the hash and do not send again.'},{status:502,headers});}
 }
