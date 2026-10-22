@@ -10,6 +10,7 @@ import { selectStoredFloor, validateLiveAmount } from "@/lib/live-order";
 import { PERMIT2 } from "@/lib/install-flow";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { assertTradingEnabled, publicDailySpend, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
+import { assertTradeAgreement } from '@/lib/trade-agreement';
 import { assembleActivePolicyFor, rpcCall, spendTodayCents } from "../_shared";
 
 const ercAllowanceAbi = parseAbi(["function allowance(address owner,address spender) view returns (uint256)"]);
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
   }
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
+    await assertTradeAgreement(env.DB, user.userId, request, env);
     const ownership = await getOwnership(env.DB, user.userId);
     const access = tradingAdmission(ownership?.verifiedAt ? ownership.address : undefined, env);
     if (!access.ok) return Response.json({ error: access.error }, { status: 403 });

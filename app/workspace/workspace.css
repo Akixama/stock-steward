@@ -781,3 +781,14 @@ carries side margins for its other surfaces, which would inset it here. */
 .ws-maintenance-technical dt,.ws-review-technical dt{color:#aaaebb}
 .ws-maintenance-technical dd,.ws-review-technical dd{margin:4px 0 0;color:#f2f0f5}
 .ws-maintenance-technical code,.ws-review-technical code{overflow-wrap:anywhere;word-break:break-word;font-size:.78rem}
+.ws-trade-agreement{max-width:900px;margin:24px auto;padding:26px 30px;border:1px solid #414354;border-radius:18px;background:#15161d;color:#e9e8ef}
+.ws-trade-agreement>span{font-size:.68rem;font-weight:750;letter-spacing:.13em;color:#bdb8db}
+.ws-trade-agreement h2{margin:10px 0 14px;font-size:clamp(1.5rem,3vw,2rem)}
+.ws-trade-agreement p{max-width:74ch;line-height:1.55;color:#bdbecc}
+.ws-trade-agreement a{color:#dbd5ff;text-decoration:underline}
+.ws-trade-agreement label{display:flex;align-items:flex-start;gap:12px;margin:18px 0;font-size:.93rem;line-height:1.5}
+.ws-trade-agreement input{flex:none;width:18px;height:18px;margin-top:2px;accent-color:#bcb5e0}
+.ws-trade-agreement button{padding:12px 18px;border:0;border-radius:10px;background:#c7c0e8;color:#17171d;font-weight:700}
+.ws-trade-agreement button:disabled{opacity:.5;cursor:not-allowed}
+.ws-v2-action-bar button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:560px){.ws-trade-agreement{margin:16px;padding:22px}}

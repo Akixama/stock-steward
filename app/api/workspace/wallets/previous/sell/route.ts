@@ -4,6 +4,7 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { getOwnership } from '@/db/wallet-ownership';
 import { reserveWalletAction } from '@/db/wallet-action-attempts';
 import { assertTradingEnabled, tradingAdmission, tradingLimits } from '@/lib/trading-controls';
+import { assertTradeAgreement } from '@/lib/trade-agreement';
 import { D1DecisionLedger } from '@/db/ledger';
 import { locateSafe, getCode, rpcCall, CHAIN_RPC } from '@/app/api/workspace/orders/live/_shared';
 import { chainTransport } from '@/lib/chain-transport';
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
   if (request.headers.get('origin') !== new URL(request.url).origin) return Response.json({error:'Invalid request origin.'},{status:403,headers});
   if (!env.DB) return Response.json({error:'Workspace storage is unavailable.'},{status:503,headers});
   try {
+    await assertTradeAgreement(env.DB, user.userId, request, env);
     const text = await request.text();
     if (text.length > 200) return Response.json({error:'Request too large.'},{status:413,headers});
     const body = JSON.parse(text) as {symbol?:unknown;wallet?:unknown;commit?:unknown;expectedQuantity?:unknown;expectedMinimumUsdgRaw?:unknown};

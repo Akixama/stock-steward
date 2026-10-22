@@ -11,9 +11,9 @@ export type TradingConfig = {
 
 function cap(value: string | undefined, fallback: number): number {
   if (value === undefined || value === '') return fallback;
-  if (!/^[1-9][0-9]{0,7}$/.test(value)) throw Error('Invalid public trading cap configuration.');
+  if (!/^[1-9][0-9]{0,8}$/.test(value)) throw Error('Invalid public trading cap configuration.');
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed > 1_000_000) throw Error('Invalid public trading cap configuration.');
+  if (!Number.isSafeInteger(parsed) || parsed > 100_000_000) throw Error('Invalid public trading cap configuration.');
   return parsed;
 }
 

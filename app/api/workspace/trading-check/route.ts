@@ -1,10 +1,11 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {assertTradingEnabled} from '@/lib/trading-controls';
+import {assertTradeAgreement} from '@/lib/trade-agreement';
 
-export async function GET(){
+export async function GET(request:Request){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers:{'Cache-Control':'no-store'}});
  if(!env.DB)return Response.json({error:'Workspace storage unavailable.'},{status:503,headers:{'Cache-Control':'no-store'}});
- try{await assertTradingEnabled(env.DB,env);return Response.json({enabled:true},{headers:{'Cache-Control':'no-store'}});}
+ try{await assertTradingEnabled(env.DB,env);await assertTradeAgreement(env.DB,user.userId,request,env);return Response.json({enabled:true},{headers:{'Cache-Control':'no-store'}});}
  catch(error){return Response.json({error:error instanceof Error?error.message:'Trading is paused.'},{status:503,headers:{'Cache-Control':'no-store'}});}
 }
