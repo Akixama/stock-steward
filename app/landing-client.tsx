@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, Check, CirclePause, CirclePlay, Eye, FileText, Link2, LockKeyhole, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { BrandMark, BrandName } from "@/components/brand";
 import { RouteLink } from "@/components/route-transition";
-import { TRADE_AGREEMENT_LABEL, TRADING_RISK_TEXT, US_RESTRICTION_TEXT } from '@/config/public-launch-copy';
+import { GUARDRAIL_COPY, TRADE_AGREEMENT_LABEL, TRADING_RISK_TEXT, US_RESTRICTION_TEXT } from '@/config/public-launch-copy';
 
 const DURATION = 10_000;
 const stages = [
-  { label: "Observe", title: "A buy is considered.", detail: "Steward reads your wallet at one block before considering a $40 AAPL buy." },
+  { label: "Observe", title: "You review a buy.", detail: "In this illustrative example, you enter a $40 AAPL buy and review a fresh quote." },
   { label: "Check", title: "Your limit is tested.", detail: "The buy would raise AAPL exposure from 19% to 23%. Your limit is 20%." },
-  { label: "Hold", title: "No order is sent.", detail: "Steward holds the proposal. Your money stays where it is." },
+  { label: "Hold", title: "No order is sent.", detail: "The review stops here. Your money stays where it is." },
   { label: "Explain", title: "The reason stays visible.", detail: "You can see which limit stopped it and why." },
 ];
 
@@ -60,11 +60,11 @@ function TenSecondDemo() {
 
 export default function LandingClient({publicMode}:{publicMode:boolean}) {
   return <div className="lp"><header className="lp-header"><RouteLink className="lp-brand" href="/" aria-label="Stock Steward home"><BrandMark /><BrandName /></RouteLink><nav aria-label="Primary"><a href="#walkthrough">Walkthrough</a><RouteLink href="/chart">Markets</RouteLink><RouteLink href="/guide">How it works</RouteLink><a href="/account">Account</a><RouteLink className="lp-nav-cta" href="/workspace">Open workspace <ArrowUpRight size={15} /></RouteLink></nav></header>
-    <main><section className="lp-hero"><div className="lp-hero-glow" aria-hidden="true" /><div className="lp-eyebrow"><span className="lp-eyebrow-line" /> AN ACCOUNTABLE WAY TO INVEST</div><h1>Every dollar<br />deserves <em>a reason.</em></h1><p>Stock Steward helps you set limits, test ideas with fake money, and review every real wallet action before you sign it.</p><div className="lp-hero-actions"><RouteLink className="lp-button-primary" href="/workspace">Set your limits <ArrowRight size={17} /></RouteLink><a className="lp-button-secondary" href="#walkthrough">Watch the 10-second walkthrough <CirclePlay size={18} /></a></div><div className="lp-hero-secondary"><RouteLink className="lp-hero-guide" href="/chart">Explore markets <ArrowUpRight size={15} /></RouteLink><RouteLink className="lp-hero-guide" href="/guide">See how it works <ArrowUpRight size={15} /></RouteLink></div><div className="lp-hero-note"><span /> {publicMode?'Markets, alerts and Practice are open. Real actions need saved limits, the first-trade agreement and your exact wallet approval.':'Markets, alerts and fake-money Practice are open. Real buying and selling remain a private pilot; owner transfers require the first-trade agreement.'} {US_RESTRICTION_TEXT}</div></section>
+    <main><section className="lp-hero"><div className="lp-hero-glow" aria-hidden="true" /><div className="lp-eyebrow"><span className="lp-eyebrow-line" /> YOUR WALLET. YOUR LIMITS.</div><h1>Every dollar<br />deserves <em>a reason.</em></h1><p>{GUARDRAIL_COPY}</p><div className="lp-hero-actions"><RouteLink className="lp-button-primary" href="/workspace">Open workspace <ArrowRight size={17} /></RouteLink><a className="lp-button-secondary" href="#walkthrough">See the 10-second example <CirclePlay size={18} /></a></div><div className="lp-hero-secondary"><RouteLink className="lp-hero-guide" href="/chart">Explore markets <ArrowUpRight size={15} /></RouteLink><RouteLink className="lp-hero-guide" href="/guide">See how it works <ArrowUpRight size={15} /></RouteLink></div><div className="lp-hero-note"><span /> {publicMode?'To use real money: accept the terms, connect and verify your wallet, set your limits, activate permission, then fund that wallet. Every action needs your signature.':'Real buying and selling remain a private pilot. Markets and fake-money Practice are open.'} {US_RESTRICTION_TEXT}</div></section>
       <section className="lp-how" aria-label="How Stock Steward works">
         <div className="lp-how-card"><span className="lp-how-step">01</span><SlidersHorizontal size={22} /><h3>Set your limits</h3><p>Choose which stocks are allowed and your maximums — one trade, one day, one position. You can review or change these limits later.</p></div>
-        <div className="lp-how-card"><span className="lp-how-step">02</span><Link2 size={22} /><h3>Connect your wallet</h3><p>Link your Robinhood Chain wallet. Steward reads your holdings and checks every proposed buy against your rules before anything can happen.</p></div>
-        <div className="lp-how-card"><span className="lp-how-step">03</span><FileText size={22} /><h3>See what happened</h3><p>Practice saves decision reasons. For real wallet actions, see the transaction hash and check its onchain status.</p></div>
+        <div className="lp-how-card"><span className="lp-how-step">02</span><Link2 size={22} /><h3>Connect your wallet</h3><p>Use an EVM wallet on Robinhood Chain. Verify that you control it, review permission, then fund your Steward wallet with USDG.</p></div>
+        <div className="lp-how-card"><span className="lp-how-step">03</span><FileText size={22} /><h3>See what happened</h3><p>Review and sign each exact Buy, Sell or Send action yourself. See its saved receipt and transaction hash afterward.</p></div>
       </section>
       <section className="lp-demo-wrap"><TenSecondDemo /></section>
       <section className="lp-bottom"><div><span className="lp-kicker">READY TO START WITH YOUR RULES?</span><h2>Make every decision<br /><em>answerable.</em></h2><p>{TRADING_RISK_TEXT} Before a first real action: “{TRADE_AGREEMENT_LABEL}”</p><RouteLink className="lp-text-link" href="/guide">Read how Steward works <ArrowUpRight size={16} /></RouteLink></div><RouteLink className="lp-button-primary" href="/workspace">Open your workspace <ArrowRight size={17} /></RouteLink></section>

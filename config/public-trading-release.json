@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "maxOrderCents": 100000000,
   "maxDailyCents": 100000000,
   "usIpBlockEnabled": true

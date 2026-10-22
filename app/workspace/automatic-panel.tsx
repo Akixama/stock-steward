@@ -27,7 +27,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   }catch(e){if(ticket.current===generation){setError(e instanceof Error?e.message:'Controls unavailable.');setBusy(false);}}
  }
  function download(){const url=URL.createObjectURL(new Blob([JSON.stringify({stages:status?.stages,runs:status?.runs??[],events:status?.events??[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='stock-steward-strategy-receipts.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- return <section className="ws-shadow-agent"><div className="ws-account-head"><div><span className="ws-label">AUTOMATIC STRATEGY</span><h3>See what Steward would do.</h3><p>{status?.notice??'Checking which stages are available.'}</p></div><span className="ws-autonomy-state">{status?.stages.autoBuy?'Tiny capped buys':status?.stages.approveByNotification?'Ask before buying':'No spending'}</span></div>
+ return <section className="ws-shadow-agent"><div className="ws-account-head"><div><span className="ws-label">RULE CHECKS · NO SPENDING</span><h3>See how your rule checks out.</h3><p>{status?.notice??'Checking which stages are available.'}</p></div><span className="ws-autonomy-state">{status?.stages.autoBuy?'Tiny capped buys':status?.stages.approveByNotification?'Ask before buying':'No spending'}</span></div>
   <button className="ws-recheck" disabled={busy} onClick={()=>refresh()}>{busy?'Checking…':'Load status'}</button>
   {status&&<>
   {!status.stages.shadow&&<p role="status">Background strategy checks are off for now. Your saved rules and Practice still work.</p>}
