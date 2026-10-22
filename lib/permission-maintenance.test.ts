@@ -62,7 +62,10 @@ test('expired and soon-to-expire states are distinct; window stays two UTC days'
   assert.throws(()=>renewedPolicy({...policy,expiresAt:expiry+1},new Date(expiry*1000)),/Wait until/);
 });
 
-test('renew reuses the exact Safe, module, role and cap; success requires all readbacks',()=>{
+test('renew reuses the exact Safe, module, role and cap; success requires all readbacks',(t)=>{
+  // Keep the fixture inside its Oct 20–22 approval window regardless of when
+  // the suite runs. The production verifier still uses the real clock.
+  t.mock.method(Date,'now',()=>Date.parse('2026-10-21T12:00:00Z'));
   const result=maintenanceTransaction('renew',owner,policy,now);
   assert.equal(result.transaction.to,safe);
   assert.equal(result.policy.account,safe);

@@ -67,12 +67,12 @@ export async function verifyPolicyReadback(
     } catch { /* An unreadable check fails closed. */ }
     return { label: check.label, expect: check.expect, observed, ok };
   }));
-  let enabled = false;
+  let enabled: boolean | null = null;
   try {
     const raw = await call(policy.account, encodeFunctionData({ abi: getterAbi, functionName: "isModuleEnabled", args: [policy.module as Address] }), block);
     enabled = decodeFunctionResult({ abi: getterAbi, functionName: "isModuleEnabled", data: raw }) === true;
   } catch { /* Missing Safe authority fails closed. */ }
-  checks.push({ label: "Permission enabled on the Safe", expect: "true", observed: String(enabled), ok: enabled });
+  checks.push({ label: "Permission enabled on the Safe", expect: "true", observed: enabled === null ? "unreadable" : String(enabled), ok: enabled === true });
   return { checks, allOk: checks.length > 0 && checks.every((check) => check.ok) };
 }
 

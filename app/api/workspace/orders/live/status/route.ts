@@ -76,6 +76,9 @@ export async function GET() {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     console.error(`order_status_locked ${message.slice(0, 80)}`);
+    if (/could not be checked|RPC transport unavailable|Chain read limit reached|incomplete response/i.test(message)) {
+      return Response.json({ permissionActive: null, blocked: "unavailable", detail: "Can't check buying permission right now. No order was sent." }, { status: 503 });
+    }
     // The wallet whose module is missing, so the page can recover the record on
     // its own. Absent when the wallet itself is unknown; the branches below
     // already explain that case.

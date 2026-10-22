@@ -136,6 +136,7 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
   const built = await buildPolicyBase(located, saved?.outputs?.map(line => ({ ...line, token: line.token as Address })), saved ?? undefined);
   if (Date.now() >= built.base.expiresAt * 1000) throw new Error('Your permission window ended. Renew buying access for this Steward wallet before placing another order.');
   const call = withRoleMembership((to: string, data: Hex, block: string) => rpcCall(to, data, block, built.transport), built.transport);
+  let readUnavailable = false;
   try {
     const recorded = saved;
     if (!recorded) {
@@ -151,11 +152,14 @@ export async function assembleActivePolicyFor(db: D1Database, userId: string) {
         const readback = await verifyPolicyReadback(policy, compiled, call, "latest");
         console.error(`resolve_active_readback ${readback.checks.filter((check) => check.ok).length}/${readback.checks.length}`);
         if (readback.allOk) return { ...built, policy, compiled, recordedOutputs: recorded.outputs };
+        readUnavailable = readback.checks.some((check) => check.observed === 'unreadable');
       } catch {
         console.error(`resolve_active_error compiled=${compiled ? "yes" : "no"}`);
+        readUnavailable = true;
       }
     }
   } catch { /* A missing record or failed readback falls through below. */ }
+  if (readUnavailable) throw new Error('Buying permission could not be checked right now. No order was sent.');
   const found = await findActivePolicyModule(built.safe, built.base, call, "latest");
   if (!found) throw new Error("No active Steward permission on your wallet. Activate it first, then place orders.");
   const reread = await getActiveModule(db, userId, built.mandate.version).catch(() => null);

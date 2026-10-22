@@ -42,6 +42,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [readUnavailable, setReadUnavailable] = useState(false);
   const [pendingHash, setPendingHash] = useState('');
   const [confirmedAwaitingChecks, setConfirmedAwaitingChecks] = useState(false);
   // One-click chaining: after Begin, each confirmed step automatically offers
@@ -180,7 +181,11 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const checkResponse = await fetch('/api/workspace/permission/install?check=1',
           { cache: 'no-store', signal: AbortSignal.timeout(25000) });
         const check = await checkResponse.json() as { safe?: string; safeHasCode?: boolean; modules?: string[]; staleModule?: string | null };
-        if (!checkResponse.ok || !check.safe || typeof check.safeHasCode !== 'boolean') throw new Error('Existing wallet state could not be verified. No setup was offered.');
+        if (!checkResponse.ok || !check.safe || typeof check.safeHasCode !== 'boolean') {
+          setReadUnavailable(true);
+          throw new Error("Can't check right now. Existing wallet state could not be verified; no setup was offered.");
+        }
+        setReadUnavailable(false);
         say(check.safeHasCode ? 'Your Steward wallet is ready. Checking its buying access.' : 'Creating a wallet for these limits. Your earlier holdings stay where they are.');
         const candidate = checkResponse.ok
           ? check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : null)
@@ -201,6 +206,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
           say('No earlier setup found for this wallet.');
         }
       } catch (checkCause) {
+        setReadUnavailable(true);
         throw new Error(checkCause instanceof Error ? checkCause.message : 'Existing wallet state could not be checked. No setup was offered.');
       }
       const response = await fetch('/api/workspace/permission/install', { cache: 'no-store' });
@@ -405,14 +411,15 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
         const check = await response.json() as { staleModule?: string; modules?: string[] };
         candidate = check.staleModule ?? (check.modules?.length === 1 ? check.modules[0] : undefined);
       }
-      if (!candidate) return;
+      if (!candidate) { setReadUnavailable(false); return; }
       const response = await fetch('/api/workspace/permission/install?module=' + encodeURIComponent(candidate) + '&inspect=1', { cache: 'no-store', signal: AbortSignal.timeout(30000) });
       const result = await response.json() as Phase & { error?: string };
       if (!response.ok || !result.checks) throw Error(result.error ?? 'Permission status unavailable.');
       setPhase(result); setModule(candidate); setNext(result.steps.length); setChain(false); setLog([]);
+      setReadUnavailable(false);
       setConfirmedAwaitingChecks(false);
       window.dispatchEvent(new Event('steward-permission-updated'));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Permission status unavailable.'); }
+    } catch (cause) { setReadUnavailable(true); setError("Can't check right now. " + (cause instanceof Error ? cause.message : 'Permission status unavailable.')); }
     finally { setBusy(false); }
   }
   useEffect(() => { if (!provider) return; const timer = setTimeout(() => void refreshStatus(), 0); return () => clearTimeout(timer); }, [provider, address, policyVersion]);
@@ -423,6 +430,8 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     ? { label: 'Setup submitted', reason: 'Waiting for chain confirmation. Do not approve it again.' }
     : confirmedAwaitingChecks
       ? { label: 'Setup confirmed, final checks running', reason: 'Refresh status to verify buying access before continuing.' }
+      : readUnavailable
+      ? { label: "Can't check right now", reason: 'Refresh status before setup. Nothing was sent.' }
       : finalSetupOnChain && !phase?.installed
       ? { label: 'Buying approval needs renewal', reason: 'The setup is onchain, but funding approval is missing or expired. Use the Renew review above; refreshing cannot extend an expired approval.' }
       : !provider
@@ -442,7 +451,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
     {phase?.checks && <PermissionStatus checks={phase.checks} installed={phase.installed} revoked={revoked} />}
     <div className="ws-chain-tools permission-actions">
       {!provider ? <button type="button" className="ws-action-primary" onClick={() => document.getElementById('ws-wallet-setup')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>Connect wallet to continue</button> : <>
-        {!(phase?.steps?.[next]) && <button type="button" className="ws-action-primary" onClick={begin} disabled={busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain || !policyVersion || !feesOk || phase?.installed}>
+        {!(phase?.steps?.[next]) && <button type="button" className="ws-action-primary" onClick={begin} disabled={readUnavailable || busy || chain || !!pendingHash || confirmedAwaitingChecks || finalSetupOnChain || !policyVersion || !feesOk || phase?.installed}>
           {busy ? 'Checking permission…' : pendingHash ? 'Setup submitted' : confirmedAwaitingChecks ? 'Awaiting final checks' : finalSetupOnChain && !phase?.installed ? 'Use Renew above' : revoked ? 'Reactivate buying permission' : phase?.installed ? 'Permission active' : 'Activate buying permission'}
         </button>}
         <button type="button" className="ws-action-quiet" onClick={refreshStatus} disabled={busy || chain}>Refresh status</button>
@@ -450,7 +459,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
 
       {chain && !busy && <button type="button" className="ws-action-quiet" onClick={() => setChain(false)}>Pause setup</button>}
     </div>
-    {phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
+    {!readUnavailable && phase?.batched && next < phase.steps.length && !skipBatch ? <div className="ws-order-plan">
       <span>FINAL SETUP · ONE WALLET APPROVAL</span>
       <strong>Turn on buying within your limits</strong>
       <p>{phase!.batched!.verify}</p>
@@ -460,7 +469,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       <button type="button" className="ws-action-quiet" onClick={() => setSkipBatch(true)} disabled={busy}>
         Review each setup step separately
       </button>
-    </div> : current && <div className="ws-order-plan">
+    </div> : !readUnavailable && current && <div className="ws-order-plan">
       <span>STEP {next + 1} OF {phase!.steps.length}</span>
       <strong>{current.label}</strong>
       <p>{current.verify}</p>

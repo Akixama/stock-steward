@@ -90,6 +90,35 @@ test('read-only RPC error logs safe method and code, then falls back to public R
   }finally{console.error=original;}
 });
 
+test('contract revert proof is returned to the caller without public fallback',async()=>{
+  const urls:string[]=[];
+  const proof={jsonrpc:'2.0',id:1,error:{code:3,message:'execution reverted',data:'0x1234'}};
+  const upstream=(async(url)=>{urls.push(String(url));return Response.json(proof);}) as typeof fetch;
+  const response=await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody});
+  assert.deepEqual(await response.json(),proof);
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123']);
+});
+
+test('HTTP 400 contract revert proof is not mistaken for a provider outage',async()=>{
+  const urls:string[]=[];
+  const upstream=(async(url)=>{urls.push(String(url));return Response.json(
+    {jsonrpc:'2.0',id:1,error:{code:3,data:'0x1234'}},{status:400});}) as typeof fetch;
+  const response=await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody});
+  assert.equal(response.status,400);
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123']);
+});
+
+test('public fallback preserves a contract revert after primary rate limiting',async()=>{
+  const urls:string[]=[];
+  const proof={jsonrpc:'2.0',id:1,error:{code:3,message:'execution reverted',data:'0x1234'}};
+  const upstream=(async(url)=>{urls.push(String(url));return urls.length===1
+    ?Response.json({jsonrpc:'2.0',id:1,error:{code:-32005,message:'rate limit'}})
+    :Response.json(proof);}) as typeof fetch;
+  const response=await chainTransport('key123',upstream)(CHAIN.rpc,{method:'POST',body:readBody});
+  assert.deepEqual(await response.json(),proof);
+  assert.deepEqual(urls,['https://robinhood-mainnet.g.alchemy.com/v2/key123',CHAIN.rpc]);
+});
+
 test('read-only HTTP failure falls back, while broadcasts never retry or fall back',async()=>{
   const urls:string[]=[];const upstream=(async(url)=>{urls.push(String(url));return urls.length===1
     ?new Response('',{status:429}):Response.json({jsonrpc:'2.0',id:1,result:'0x01'});}) as typeof fetch;

@@ -3,6 +3,9 @@ import {CHAIN, registry} from './robinhood-chain.ts';
 const readMethods=new Set(['eth_call','eth_getCode','eth_getStorageAt','eth_getBalance','eth_getTransactionByHash',
   'eth_getTransactionReceipt','eth_getBlockByNumber','eth_blockNumber','eth_chainId','eth_gasPrice',
   'eth_estimateGas','eth_getLogs','eth_feeHistory','eth_getTransactionCount']);
+// A contract revert (JSON-RPC code 3) is a valid answer to some read-only
+// proofs, including Roles membership. Only provider failures merit fallback.
+const retryableRpcCodes=new Set([-32005,-32603]);
 function rpcMethods(body:BodyInit|null|undefined):string[]{
   if(typeof body!=='string')return [];
   try{const request=JSON.parse(body) as {method?:unknown}|{method?:unknown}[];
@@ -44,7 +47,8 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
           try{
             const body=await response.clone().json() as {error?:{code?:unknown}};
             if(body?.error){const code=typeof body.error.code==='number'&&Number.isSafeInteger(body.error.code)?body.error.code:'unknown';
-              console.error('chain_dependency_rpc_error',{provider:'alchemy',method:methods.join(','),code,status:response.status});}
+              console.error('chain_dependency_rpc_error',{provider:'alchemy',method:methods.join(','),code,status:response.status});
+              if(!retryableRpcCodes.has(code as number)&&response.status<500&&response.status!==429)return response;}
           }catch{/* HTTP status and method are already recorded. */}
           break;
         }
@@ -60,8 +64,10 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
           const failed=entries.find(entry=>entry&&typeof entry==='object'&&'error' in entry) as {error?:{code?:unknown}}|undefined;
           if(failed){
             const code=typeof failed.error?.code==='number'&&Number.isSafeInteger(failed.error.code)?failed.error.code:'unknown';
-            console.error('chain_dependency_rpc_error',{provider:apiKey?'alchemy':'public',method:methods.join(','),code,status:response.status});
-            if(canFallback)break;
+            console.error(code===3?'chain_dependency_contract_result':'chain_dependency_rpc_error',
+              {provider:apiKey?'alchemy':'public',method:methods.join(','),code,status:response.status});
+            if(canFallback&&retryableRpcCodes.has(code as number))break;
+            return response;
           }
           if(!failed&&entries.length===1&&(!entries[0]||typeof entries[0]!=='object'||!('result' in entries[0]))){
             console.error('chain_dependency_rpc_error',{provider:apiKey?'alchemy':'public',method:methods.join(','),code:'missing_result',status:response.status});
@@ -83,13 +89,24 @@ export function chainTransport(apiKey?:string, upstream:typeof fetch=fetch):type
     if(canFallback&&!init?.signal?.aborted){
       try{
         const response=await upstream(CHAIN.rpc,{...init,redirect:'manual',signal:init?.signal??AbortSignal.timeout(15000)});
-        if(!response.ok)throw new Error(`http_${response.status}`);
+        if(!response.ok){
+          try{
+            const failed=await response.clone().json() as {error?:{code?:number}};
+            if(failed.error?.code===3)return response;
+          }catch{/* The HTTP status remains the safe diagnostic. */}
+          throw new Error(`http_${response.status}`);
+        }
         const body=await response.clone().json() as {result?:unknown;error?:{code?:unknown}};
-        if(body?.error||(!Array.isArray(body)&&body?.result===undefined)){
+        if(body?.error){
           const code=typeof body?.error?.code==='number'&&Number.isSafeInteger(body.error.code)?body.error.code:'unknown';
-          console.error('chain_dependency_rpc_error',{provider:'public',method:methods.join(','),code,status:response.status});
+          console.error(code===3?'chain_dependency_contract_result':'chain_dependency_rpc_error',
+            {provider:'public',method:methods.join(','),code,status:response.status});
+          // Preserve contract-level errors (and their data) for the caller to
+          // decode. A second provider returning the same revert is not an outage.
+          if(!retryableRpcCodes.has(code as number))return response;
           throw new Error('Public RPC read failed');
         }
+        if(!Array.isArray(body)&&body?.result===undefined)throw new Error('Public RPC read failed');
         console.warn('chain_dependency_fallback',{method:methods.join(',')});
         return response;
       }catch(error){

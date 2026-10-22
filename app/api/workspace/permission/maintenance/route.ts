@@ -130,6 +130,8 @@ export async function GET() {
     const approvals=await funding(located.safe,transport);
     const eligible=maintenanceEligibility(current.expiresAt);
     const checks=await readChecks(currentContextValue.policy,transport);
+    if(checks.checks.some(check=>check.observed==='unreadable'))
+      return Response.json({error:"Can't check buying permission right now. Nothing was sent."},{status:503});
     const permissionActive=checks.allOk&&fundingRemainingValid(currentContextValue.policy,approvals)
       &&eligible.state!=='expired';
     return Response.json({safe:located.safe,module:saved.module,ownerAddress:located.owner,mandateVersion:saved.mandateVersion,

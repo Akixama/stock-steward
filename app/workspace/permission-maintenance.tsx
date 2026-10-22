@@ -11,7 +11,7 @@ type Attempt={id:string;kind:Kind;state:'prepared'|'submitted'|'unknown'|'confir
 type Status={safe:string;ownerAddress:string;expiry:number;permissionActive:boolean;
   eligibility:{state:'active'|'soon'|'expired'|'unavailable';mayRenew:boolean;notice:boolean};
   approvals:{tokenRaw:string;permitRaw:string;permitExpiresAt:number};attempt:Attempt|null;
-  checks:{label:string;ok:boolean}[]};
+  checks:{label:string;observed?:string;ok:boolean}[]};
 type Preview=PermissionReviewPayload;
 const endpoint='/api/workspace/permission/maintenance';
 const link=(hash:string)=>`https://robinhoodchain.blockscout.com/tx/${hash}`;
@@ -90,18 +90,18 @@ export default function PermissionMaintenance({provider,address}:{provider:Walle
   if(!address)return null;
   const pending=status?.attempt&&['prepared','submitted','unknown'].includes(status.attempt.state)?status.attempt:null;
   const expired=status?.eligibility.state==='expired';
-  const revoked=!!status&&status.checks.find(check=>check.label==='Session membership')?.ok===false;
-  const title=pending?'Wallet action pending':revoked?'Buying permission off':expired?'Approval expired, Renew':status?.permissionActive?'Buying permission active':'Buying permission needs a check';
+  const revoked=!!status&&status.checks.find(check=>check.label==='Session membership')?.observed==='revoked';
+  const title=error?"Can't check right now":pending?'Wallet action pending':revoked?'Buying permission off':expired?'Approval expired, Renew':status?.permissionActive?'Buying permission active':'Buying permission needs a check';
   return <section className="ws-maintenance" aria-label="Buying permission maintenance">
     <div className="ws-maintenance-head"><div><span>BUYING ACCESS</span><h2>{title}</h2>
-      {status&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${formatWorkspaceDate(status.expiry,undefined,'seconds')}${clock?` · ${permissionTimeRemaining(status.expiry,clock)}`:''}`}</p>}
+      {status&&!error&&<p>{expired?'The USDG router approval has expired. Refreshing cannot extend it.':`Expires ${formatWorkspaceDate(status.expiry,undefined,'seconds')}${clock?` · ${permissionTimeRemaining(status.expiry,clock)}`:''}`}</p>}
       {!status&&!error&&<p>Checking the existing Steward wallet…</p>}</div>
       <button type="button" onClick={()=>void load().catch(cause=>setError(String(cause)))} disabled={busy}>Refresh status</button></div>
     {status?.eligibility.state==='soon'&&<p role="status">Reminder: this approval expires soon. Renew on the same Steward wallet after the UTC window ends. Renewing early would reset today’s quota, so it stays locked until then.</p>}
     {pending&&<div className="ws-maintenance-pending" role="status"><strong>{pending.confirmation==='confirmed'?'Confirmed now · final in about 15 minutes':pending.confirmation==='reorged'?'Chain changed · outcome unresolved':pending.confirmation==='reverted'?'Reverted onchain · awaiting finality':pending.hash?'Submitted · checking receipt and exact approvals':'Wallet request unresolved'}</strong><p>{pending.hash?'This saved action remains reserved until Finalized. Refresh to check its status; do not send it again.':'No transaction hash was saved. Check your wallet activity before taking another action; nothing will be resent automatically.'}</p>{pending.hash&&<a href={link(pending.hash)} target="_blank" rel="noopener noreferrer">View transaction {pending.hash.slice(0,10)}… ↗</a>}</div>}
     {status?.attempt?.state==='confirmed'&&<p role="status">{status.attempt.kind==='renew'&&status.permissionActive?'Renewal verified onchain. Buying permission is active.':status.attempt.kind==='revoke'?'Revocation verified: the role and both approvals are off.':'Transaction confirmed. Refresh the onchain checks before relying on it.'}{status.attempt.hash&&<> <a href={link(status.attempt.hash)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></>}</p>}
     {status?.attempt?.state==='reverted'&&<p role="status">The saved transaction reverted. No renewal or revocation was claimed. <a href={link(status.attempt.hash!)} target="_blank" rel="noopener noreferrer">View receipt ↗</a></p>}
-    {!preview&&!pending&&status&&<div className="ws-maintenance-actions">
+    {!error&&!preview&&!pending&&status&&<div className="ws-maintenance-actions">
       {expired&&!revoked&&<button type="button" onClick={()=>void review('renew')} disabled={busy||!provider||address.toLowerCase()!==status.ownerAddress.toLowerCase()}>Renew on this wallet</button>}
       {(status.permissionActive||BigInt(status.approvals.tokenRaw)>0n||BigInt(status.approvals.permitRaw)>0n)&&<button type="button" onClick={()=>void review('revoke')} disabled={busy||!provider||address.toLowerCase()!==status.ownerAddress.toLowerCase()}>Revoke and clear approvals</button>}
     </div>}

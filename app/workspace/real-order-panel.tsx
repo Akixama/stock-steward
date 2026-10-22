@@ -3,6 +3,7 @@ import {formatWorkspaceDate} from '@/lib/workspace-date';
 
 import { useEffect, useRef, useState } from 'react';
 import { matchingWallet, type WalletProvider } from '@/lib/browser-wallet';
+import { jsonResponse } from '@/lib/json-response';
 import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wallet-receipt';
 import { ArrowRight, Clock3 } from 'lucide-react';
 import OrderStatusTimeline from './order-status-timeline';
@@ -14,7 +15,7 @@ import OrderStatusTimeline from './order-status-timeline';
 const dollars = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 const tokens = (raw: string) => (Number(BigInt(raw)) / 1e18).toFixed(6);
 
-type Status = { permissionActive: false; blocked?: "activation" | "limits" | "wallet"; detail?: string; safe?: string; mandateVersion?: number } | {
+type Status = { permissionActive: false | null; blocked?: "activation" | "limits" | "wallet" | "unavailable"; detail?: string; safe?: string; mandateVersion?: number } | {
   permissionActive: true; safe: string; symbols: string[];
   perTrade: string; perTradeCents: number; daily: string; total: string;
   balanceCents: number | null;
@@ -70,9 +71,10 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
   async function loadStatus() {
     try {
       const response = await fetch('/api/workspace/orders/live/status', { cache: 'no-store', signal: AbortSignal.timeout(25000) });
-      const payload = await response.json() as Status & { error?: string };
+      const payload = await jsonResponse<Status & { error?: string }>(response, "Can't check buying permission right now. No order was sent.");
       if (!response.ok) throw new Error(payload.error ?? 'Order status unavailable.');
       setStatus(payload);
+      setError('');
       window.dispatchEvent(new Event('steward-order-updated'));
       if (payload.permissionActive && !hash) {
         let unsaved = null;
@@ -84,6 +86,8 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
       else if (payload.permissionActive && !symbol && payload.symbols.length) setSymbol(payload.symbols[0]);
       if (!payload.permissionActive && payload.blocked === 'activation' && payload.safe) void recover(payload.safe);
     } catch (cause) {
+      setStatus({ permissionActive: null, blocked: 'unavailable', detail: "Can't check buying permission right now. No order was sent." });
+      setPrepared(null);
       setError(cause instanceof Error ? cause.message : 'Order status unavailable.');
     }
   }
@@ -187,14 +191,14 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
       {/window ended|expired/i.test(status.detail??'') ? <div className="ws-order-blocked-next"><div><span>1</span> Open Overview</div><div><span>2</span> Review renewal and approve it in your wallet</div></div> : <div className="ws-order-blocked-next"><div><span>1</span> Save your updated limits</div><div><span>2</span> Approve the new permission in your wallet</div></div>}
       {/window ended|expired/i.test(status.detail??'') ? <button type="button" className="ws-action-primary" onClick={onOpenOverview??(()=>window.location.assign('/workspace'))} disabled={busy}>Review renewal on Overview <ArrowRight size={16} aria-hidden="true" /></button> : <button type="button" className="ws-action-primary" onClick={onOpenMandate} disabled={busy}>Update limits <ArrowRight size={16} aria-hidden="true" /></button>}</div>}
     {status && !status.permissionActive && status.blocked === "wallet" && <p className="ws-chain-note">Verify your wallet just above, then press Refresh on this card.</p>}
-    {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note">{status.detail ?? 'Turn on buying above before placing an order.'}</p>}
+    {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note" role={status.blocked === 'unavailable' ? 'status' : undefined}>{status.blocked === 'unavailable' ? "Can't check right now. Refresh to try again; no order was sent." : status.detail ?? 'Turn on buying above before placing an order.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
     {status?.permissionActive && preferredSymbol && !status.symbols.includes(preferredSymbol) && !hash && <div className="ws-order-plan ws-order-blocked" role="status"><strong>{preferredSymbol} is outside your approved stocks.</strong><p>Update your limits and activate the new permission before placing an order for this stock.</p><button type="button" className="ws-action-primary" onClick={onOpenMandate}>Update limits <ArrowRight size={16}/></button></div>}
     {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
       <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
       <label>Amount to pay · USD, set by your limits<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider}>Review purchase</button></div>}
-    {!provider && !hash && !(status && !status.permissionActive && status.blocked === 'limits') && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
+    {!provider && !hash && !(status && !status.permissionActive && (status.blocked === 'limits' || status.blocked === 'unavailable')) && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>REVIEW IN YOUR WALLET SOON</span>
       <strong>Pay {dollars(prepared.amountCents)} for at least {tokens(prepared.minimumOutputRaw)} {prepared.symbol}</strong>
