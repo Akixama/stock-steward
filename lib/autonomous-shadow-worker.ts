@@ -13,10 +13,10 @@ import {runTriggeredAutonomy} from './autonomous-production.ts';
 import {saveAutomaticEvent} from '../db/automatic-stage-events.ts';
 import {queueAutomaticPush} from './automatic-stage-push.ts';
 import {saveProposalInbox} from '../db/notification-inbox.ts';
-import {automaticStageIntent,type automaticStages} from './automatic-stages.ts';
+import {automaticStageIntent,automaticStages,stagesForWallet} from './automatic-stages.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
-export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>={shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,conflicting:false}){
+export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({})){
  const summary={checked:0,triggered:0,blocked:0,canceled:0,failed:0,transactionsSent:0,executionEnabled:stages.autoBuy};
  const ledger=new D1DecisionLedger(db);
  for(const plan of await dueShadowPlans(db,now)){
@@ -43,7 +43,9 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
    if(await finishShadowPlan(db,claim,decision)){
     if(decision.status==='would_trigger'){
      summary.triggered++;
-     const intent=automaticStageIntent(stages,true,buyDecision,decision.amountCents);
+     const ownership=await getOwnership(db,plan.owner_ref);
+     const walletStages=stagesForWallet(stages,ownership?.verifiedAt?ownership.address:null);
+     const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
       if(await saveAutomaticEvent(db,event)){
@@ -61,7 +63,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
        const started={id:`${decision.id}:auto_started`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_started' as const,status:'checking' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Checking capped automatic buy. No outcome confirmed yet.',transaction_hash:null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
        if(!await saveAutomaticEvent(db,started))continue;
        await queueAutomaticPush(db,started);
-       const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,stages,decision.id);
+       const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,walletStages,decision.id);
        await recordShadowExecution(db,claim,execution);
        if(execution.state==='submitted')summary.transactionsSent++;
        const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:execution.state==='submitted'?'submitted' as const:execution.state==='unknown'?'unknown' as const:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:execution.why.slice(0,500),transaction_hash:execution.hash??null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};

@@ -1,7 +1,9 @@
 {
   "shadowMode": true,
-  "approveByNotification": false,
+  "approveByNotification": true,
+  "approveNotificationWallets": ["0xdc7f175bca1c29a77286a52c857e7fef12f3f662"],
   "autoBuy": false,
+  "autoBuyWallets": [],
   "autoBuyMaxOrderCents": 100,
   "autoBuyMaxDailyCents": 200
 }

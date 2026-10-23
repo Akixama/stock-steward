@@ -2,6 +2,9 @@ import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import { backfillInbox, createTestInbox, inbox, markInboxRead } from '@/db/notification-inbox';
 import { sendInboxPush } from '@/lib/inbox-push';
+import {claimProposalReview} from '@/db/automatic-stage-events';
+import {getOwnership} from '@/db/wallet-ownership';
+import {automaticStages,stagesForWallet} from '@/lib/automatic-stages';
 
 const headers = { 'Cache-Control': 'no-store' };
 
@@ -26,6 +29,16 @@ export async function POST(request: Request) {
   if (body.action === 'read' && typeof body.id === 'string' && body.id.length <= 140) {
     try { return Response.json({ marked: await markInboxRead(env.DB, user.userId, body.id) }, { headers }); }
     catch { return Response.json({ error: 'Could not mark alert read.' }, { status: 503, headers }); }
+  }
+  if (body.action === 'review_proposal' && typeof body.id === 'string' && body.id.length <= 140) {
+    try {
+      const ownership=await getOwnership(env.DB,user.userId);
+      const stages=stagesForWallet(automaticStages(env),ownership?.verifiedAt?ownership.address:null);
+      if(!stages.approveByNotification)return Response.json({error:'Buy ideas are off for this wallet.'},{status:403,headers});
+      const claimed=await claimProposalReview(env.DB,user.userId,body.id.replace(/^proposal:/,''));
+      if(!claimed)return Response.json({error:'This idea expired or was already opened. No order was sent.'},{status:409,headers});
+      return Response.json({proposal:claimed,notice:'Open Buy for a fresh quote. Your wallet signature is still required.'},{headers});
+    }catch{return Response.json({error:'Could not open this idea. No order was sent.'},{status:503,headers});}
   }
   if (body.action === 'test' && Object.keys(body).length === 1) {
     try {

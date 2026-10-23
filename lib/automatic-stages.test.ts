@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {automaticStages,automaticStageIntent} from './automatic-stages.ts';
+import {automaticStages,automaticStageIntent,stagesForWallet} from './automatic-stages.ts';
 
 test('all automatic stages are off by default and a lone flag cannot spend',()=>{
-  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,conflicting:false});
+  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,conflicting:false,notificationWallets:[],autoWallets:[]});
   assert.equal(automaticStages({AUTO_BUY:'true'}).autoBuy,false);
   assert.equal(automaticStages({APPROVE_BY_NOTIFICATION:'true'}).approveByNotification,false);
+});
+test('stage flags are limited to verified owner wallet addresses',()=>{
+  const owner='0x'+'a'.repeat(40),other='0x'+'b'.repeat(40);
+  const stages=automaticStages({SHADOW_MODE:'true',APPROVE_BY_NOTIFICATION:'true',APPROVE_NOTIFICATION_WALLETS:owner,AUTO_BUY_WALLETS:owner});
+  assert.equal(stagesForWallet(stages,null).approveByNotification,false);
+  assert.equal(stagesForWallet(stages,other).approveByNotification,false);
+  assert.equal(stagesForWallet(stages,owner.toUpperCase().replace('0X','0x')).approveByNotification,true);
+  assert.equal(stagesForWallet(stages,owner).autoBuy,false);
+  assert.throws(()=>automaticStages({APPROVE_NOTIFICATION_WALLETS:'bad'}));
 });
 test('shadow runs alone and conflicting spend stages fail closed',()=>{
   assert.equal(automaticStages({SHADOW_MODE:'true'}).shadow,true);

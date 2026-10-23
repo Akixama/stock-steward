@@ -6,11 +6,13 @@ import {getShadowPlan,saveShadowPlan,controlShadowPlan,shadowHistory} from '@/db
 import {type AutonomousRule} from '@/lib/autonomous-live';
 import {automaticStages} from '@/lib/automatic-stages';
 import {automaticEvents} from '@/db/automatic-stage-events';
+import {getOwnership} from '@/db/wallet-ownership';
+import {stagesForWallet} from '@/lib/automatic-stages';
 const headers={'Cache-Control':'no-store'};
 export async function GET(){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});
- try{const stages=automaticStages(env),plan=await getShadowPlan(env.DB,user.userId),practice=await loadPractice(env.DB,user.userId);return Response.json({availableStrategy:practice.strategy??null,stages,notice:stages.autoBuy?'Automatic buys require separate signed authority and every release check.':stages.approveByNotification?'Ideas require your exact-order wallet signature.':'Strategy checks only. No spending or wallet signature.',plan:plan?{revision:plan.revision,rule:JSON.parse(plan.rule_json),enabled:plan.enabled===1,nextDueAt:plan.next_due_at,failures:plan.failures}:null,runs:await shadowHistory(env.DB,user.userId),events:await automaticEvents(env.DB,user.userId)},{headers});}
+ try{const ownership=await getOwnership(env.DB,user.userId),stages=stagesForWallet(automaticStages(env),ownership?.verifiedAt?ownership.address:null),plan=await getShadowPlan(env.DB,user.userId),practice=await loadPractice(env.DB,user.userId);return Response.json({availableStrategy:practice.strategy??null,stages,notice:stages.autoBuy?'Automatic buys require separate signed authority and every release check.':stages.approveByNotification?'Ideas require your exact-order wallet signature.':'Strategy checks only. No spending or wallet signature.',plan:plan?{revision:plan.revision,rule:JSON.parse(plan.rule_json),enabled:plan.enabled===1,nextDueAt:plan.next_due_at,failures:plan.failures}:null,runs:await shadowHistory(env.DB,user.userId),events:await automaticEvents(env.DB,user.userId)},{headers});}
  catch{return Response.json({error:'Shadow runner unavailable.'},{status:503,headers});}
 }
 export async function POST(request:Request){

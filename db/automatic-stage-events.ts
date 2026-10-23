@@ -11,3 +11,14 @@ export async function saveAutomaticEvent(db:D1Database,event:AutomaticStageEvent
 export async function automaticEvents(db:D1Database,owner:string):Promise<AutomaticStageEvent[]>{
   return (await db.prepare('SELECT * FROM automatic_stage_events WHERE owner_ref=? ORDER BY created_at DESC LIMIT 30').bind(owner).all<AutomaticStageEvent>()).results;
 }
+
+// Atomic one-use opening of a proposal. This authorizes no order: it only
+// reveals the existing manual Buy flow, which obtains a fresh quote/signature.
+export async function claimProposalReview(db:D1Database,owner:string,id:string,now=new Date()){
+  if(!/^0x[0-9a-f]{64}:proposal$/i.test(id))return null;
+  const result=await db.prepare("UPDATE automatic_stage_events SET status='checking' WHERE id=? AND owner_ref=? AND kind='proposal' AND status='proposed' AND expires_at>?")
+    .bind(id,owner,now.toISOString()).run();
+  if(result.meta.changes!==1)return null;
+  return db.prepare("SELECT symbol,amount_cents,expires_at FROM automatic_stage_events WHERE id=? AND owner_ref=? AND status='checking'")
+    .bind(id,owner).first<{symbol:string;amount_cents:number;expires_at:string}>();
+}

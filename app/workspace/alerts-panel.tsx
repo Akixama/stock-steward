@@ -21,7 +21,7 @@ async function activePushWorker(){
   return registration;
  }finally{if(timeout)clearTimeout(timeout);}
 }
-export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Mandate;onCount:(count:number)=>void;onReviewBuy:()=>void}){
+export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Mandate;onCount:(count:number)=>void;onReviewBuy:(symbol?:string)=>void}){
  const [alerts,setAlerts]=useState<PriceAlert[]>([]),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[lastChecked,setLastChecked]=useState<Date|null>(null);
  const [pushKey,setPushKey]=useState<string|null>(null),[pushAvailable,setPushAvailable]=useState(false),[deviceEnabled,setDeviceEnabled]=useState(false),[deviceBusy,setDeviceBusy]=useState(false);
  const [symbol,setSymbol]=useState(mandate.allowedSymbols[0]??'AAPL'),[direction,setDirection]=useState<'above'|'below'>('above'),[price,setPrice]=useState('');

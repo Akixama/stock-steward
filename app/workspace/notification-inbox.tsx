@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { InboxItem } from '@/db/notification-inbox';
 import { formatWorkspaceDate } from '@/lib/workspace-date';
 
-export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (count: number) => void; onReviewBuy: () => void }) {
+export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (count: number) => void; onReviewBuy: (symbol?: string) => void }) {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +22,7 @@ export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (
   }, [load]);
   async function post(body: object) {
     const response = await fetch('/api/workspace/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const data = await response.json() as { error?: string; push?: string };
+    const data = await response.json() as { error?: string; push?: string; proposal?:{symbol:string} };
     if (!response.ok) throw Error(data.error ?? 'Alert action unavailable.');
     return data;
   }
@@ -33,16 +33,22 @@ export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (
     finally { setBusy(false); }
   }
   async function open(item: InboxItem) {
+    if(item.kind==='proposal'){
+      if(busy)return;setBusy(true);setError('');
+      try{const result=await post({action:'review_proposal',id:item.id});await load();onReviewBuy(result.proposal?.symbol);}
+      catch(cause){setError(cause instanceof Error?cause.message:'This idea could not open. No order was sent.');}
+      finally{setBusy(false);}
+      return;
+    }
     if (!item.read_at) {
       try { await post({ action: 'read', id: item.id }); await load(); }
       catch { setError('Could not mark this alert as read.'); }
     }
-    if (item.kind === 'proposal') onReviewBuy();
   }
   return <section className="ws-inbox" aria-label="Notification inbox">
     <div className="ws-alert-list-head"><div><span className="ws-label">INBOX</span><h2>Updates for you</h2><small>Saved here without browser permissions. Device notifications are optional.</small></div><button type="button" className="ws-action-secondary" disabled={busy} onClick={() => void testAlert()}>{busy ? 'Sending…' : 'Send me a test alert'}</button></div>
     {notice && <p className="ws-alert-notice" role="status">{notice}</p>}{error && <p className="ws-error" role="alert">{error}</p>}
     {!items.length && <p className="ws-alert-empty">No updates yet. Test the inbox or set a price alert.</p>}
-    {items.map(item => <div className="ws-inbox-item" data-unread={!item.read_at} key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{formatWorkspaceDate(item.created_at, { dateStyle: 'medium', timeStyle: 'short' })}</small></div><button type="button" className="ws-action-quiet" onClick={() => void open(item)}>{item.kind === 'proposal' ? 'Open Buy for a fresh quote' : item.read_at ? 'Read' : 'Mark read'}</button></div>)}
+    {items.map(item => {const expired=item.kind==='proposal'&&(!item.proposal_expires_at||Date.parse(item.proposal_expires_at)<=Date.now()),used=item.kind==='proposal'&&item.proposal_status!=='proposed';return <div className="ws-inbox-item" data-unread={!item.read_at} key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{formatWorkspaceDate(item.created_at, { dateStyle: 'medium', timeStyle: 'short' })}{item.kind==='proposal'&&<> · {used?'Already opened':expired?'Expired':`Expires ${formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}`}</>}</small></div><button type="button" disabled={busy||!!expired||!!used} className="ws-action-quiet" onClick={() => void open(item)}>{item.kind === 'proposal' ? used?'Already opened':expired?'Expired':'Open Buy for a fresh quote' : item.read_at ? 'Read' : 'Mark read'}</button></div>;})}
   </section>;
 }

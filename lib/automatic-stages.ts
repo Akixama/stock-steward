@@ -1,7 +1,9 @@
 export type AutomaticStageConfig = {
   SHADOW_MODE?: string;
   APPROVE_BY_NOTIFICATION?: string;
+  APPROVE_NOTIFICATION_WALLETS?: string;
   AUTO_BUY?: string;
+  AUTO_BUY_WALLETS?: string;
   AUTO_BUY_MAX_ORDER_CENTS?: string;
   AUTO_BUY_MAX_DAILY_CENTS?: string;
 };
@@ -32,6 +34,23 @@ export function automaticStages(config: AutomaticStageConfig) {
     maxOrderCents,
     maxDailyCents,
     conflicting,
+    notificationWallets: walletList(config.APPROVE_NOTIFICATION_WALLETS),
+    autoWallets: walletList(config.AUTO_BUY_WALLETS),
+  };
+}
+
+function walletList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const wallets = raw.split(',').map(value => value.trim().toLowerCase());
+  if (wallets.some(value => !/^0x[0-9a-f]{40}$/.test(value))) throw Error('Invalid automatic stage wallet allowlist.');
+  return [...new Set(wallets)];
+}
+
+export function stagesForWallet(stages: ReturnType<typeof automaticStages>, address: string | null | undefined) {
+  const wallet = address?.toLowerCase();
+  return { ...stages,
+    approveByNotification: !!wallet && stages.approveByNotification && stages.notificationWallets.includes(wallet),
+    autoBuy: !!wallet && stages.autoBuy && stages.autoWallets.includes(wallet),
   };
 }
 
