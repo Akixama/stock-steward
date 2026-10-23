@@ -116,4 +116,37 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 /* The phone menu bar is fixed to the bottom (64px). Every tab keeps room for it,
    not only Home; Home keeps its existing 150px total so its action bar still fits. */
 @media(max-width:700px){.ws-main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}.ws-v2-overview{padding-bottom:54px}}
+/* Shared pieces for the Strategy editor and Alerts at every width. */
+.ws-alerts-grid{display:grid;gap:14px;align-items:start}.ws-alerts-col{display:grid;gap:14px;align-content:start;min-width:0}
+.ws-v6-strategy .ws-strategy-fields .ws-execution-choice,.ws-v6-strategy .ws-strategy-fields .ws-portfolio-targets,.ws-v6-strategy .ws-strategy-fields .ws-strategy-hint{grid-column:1/-1}
+.ws-v6-strategy .ws-strategy-review-action{display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px 20px}
+.ws-v6-strategy .ws-strategy-review-action>.ws-builder-kicker{margin:0}
+.ws-v6-strategy .ws-strategy-review-action>button{justify-self:end;white-space:nowrap}
+.ws-v6-strategy .ws-strategy-review-action>span{grid-column:1/-1;font-size:13px;color:#a8adba}
+/* 641px and up: field pairs side by side at a sensible width; type cards 3 per row
+   (2 per row for the 4-card group) so no card sits alone on a row. Every editor
+   section uses the full editor width so dividers line up. */
+@media(min-width:641px){
+ .ws-v6-strategy .ws-strategy-setup>*{width:100%;max-width:none!important}
+ .ws-v6-strategy .ws-strategy-fields{grid-template-columns:repeat(2,minmax(0,320px))!important;justify-content:start}
+ .ws-v6-strategy .ws-strategy-group-options{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .ws-v6-strategy .ws-strategy-group-options:has(>:nth-child(4):last-child){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .ws-v6-strategy .ws-strategy-types .ws-strategy-group-options button{min-height:72px!important}
+}
+/* Desktop (900px and up): two columns using the full content width. */
+@media(min-width:900px){
+ .ws-v6-strategy,.ws-v6-alerts{max-width:1440px;padding-inline:32px}
+ .ws-v6-strategy:not([hidden]):has(>.ws-shadow){display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,28vw,420px);column-gap:clamp(24px,2.5vw,40px);align-items:start}
+ .ws-v6-strategy:has(>.ws-shadow)>.ws-checks-bar{grid-column:1/-1;grid-row:1}
+ .ws-v6-strategy:has(>.ws-shadow)>.ws-strategy{grid-column:1;grid-row:2;min-width:0}
+ /* The right column stays in view while the editor scrolls; it scrolls on its own if taller than the screen. */
+ .ws-v6-strategy:has(>.ws-shadow)>.ws-shadow{grid-column:2;grid-row:2;position:sticky;top:82px;max-height:calc(100vh - 98px);overflow-y:auto;overscroll-behavior:contain;margin-top:12px;padding:0 4px 16px 0;border-top:0;scrollbar-width:thin}
+ .ws-v6-strategy .ws-shadow-head h3{font-size:1.4rem}
+ .ws-alerts-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+ .ws-alerts-span{grid-column:1/-1}
+ .ws-v6-alerts .ws-alerts,.ws-v6-alerts .ws-inbox{width:100%;max-width:none}
+}
+/* Idea cards stack when their own column is narrow (e.g. the 300px right column at 1024px). */
+.ws-shadow,.ws-alerts-col{container-type:inline-size}
+@container (max-width:380px){.ws-idea{flex-direction:column;align-items:stretch}.ws-idea button{width:100%;justify-content:center}.ws-shadow-facts div{flex-direction:column;gap:2px}.ws-shadow-facts dd{text-align:left}}
 @media(prefers-reduced-motion:reduce){.ws-v6-strategy *,.ws-v6-alerts *,.ws-idea-amount *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

@@ -41,10 +41,15 @@ export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Manda
  const shownStocks=[...matchingStocks.filter(stock=>stock.symbol===symbol),...matchingStocks.filter(stock=>stock.symbol!==symbol)].slice(0,6);
  const pushSupported=pushAvailable&&typeof window!=='undefined'&&'Notification' in window&&'serviceWorker' in navigator&&'PushManager' in window;
  return <section className="ws-alerts" aria-busy={busy}>
-  <NotificationInbox onCount={onCount} onReviewBuy={onReviewBuy}/>
   {error&&<p className="ws-error" role="alert">{error}</p>}
   {notice&&<p className="ws-alert-notice" role="status"><Check size={15}/> {notice}</p>}
-
+  <NotificationInbox onCount={onCount} onReviewBuy={onReviewBuy} aside={<>
+  <article className="ws-alert-card ws-alert-device" aria-label="Device notifications">
+   <div><h3>Device notifications</h3><small>{deviceEnabled?'On for this device.':pushSupported?'Optional. Get alerts while the site is closed. Turn on per device; on iPhone, add to Home Screen first.':'Not available in this browser. On iPhone, add Stock Steward to your Home Screen and open it there.'}</small></div>
+   {pushSupported&&<button type="button" className={deviceEnabled?'ws-action-quiet':'ws-action-secondary'} disabled={deviceBusy} onClick={()=>void (deviceEnabled?disableDevice():enableDevice())}>{deviceBusy?'Updating…':deviceEnabled?'Turn off':'Turn on'}</button>}
+  </article>
+  <p className="ws-alert-footnote">Short price moves may be missed. Alerts never buy or sell.</p>
+  </>}>
   <article className="ws-alert-card ws-alert-list" aria-label="Your alerts">
    <div className="ws-alert-card-head"><div><h3>Your alerts</h3><small>{lastChecked?`Last checked ${formatWorkspaceDate(lastChecked,{hour:'numeric',minute:'2-digit'})}`:'Checked about every 15 minutes'}</small></div><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check now'}</button></div>
    {!loaded&&!error&&<p className="ws-muted" role="status">Loading your alerts…</p>}
@@ -67,11 +72,6 @@ export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Manda
    <button className="ws-action-primary" disabled={busy||stockLoading||!!stockError||!stocks.some(stock=>stock.symbol===symbol)||!price.trim()}>Set alert for {stockLoading?'…':symbol} <BellRing size={16}/></button>
    <small className="ws-muted">Uses the regular share price. A stock token can cost a little different.</small>
   </form>
-
-  <article className="ws-alert-card ws-alert-device" aria-label="Device notifications">
-   <div><h3>Device notifications</h3><small>{deviceEnabled?'On for this device.':pushSupported?'Optional. Get alerts while the site is closed. Turn on per device; on iPhone, add to Home Screen first.':'Not available in this browser. On iPhone, add Stock Steward to your Home Screen and open it there.'}</small></div>
-   {pushSupported&&<button type="button" className={deviceEnabled?'ws-action-quiet':'ws-action-secondary'} disabled={deviceBusy} onClick={()=>void (deviceEnabled?disableDevice():enableDevice())}>{deviceBusy?'Updating…':deviceEnabled?'Turn off':'Turn on'}</button>}
-  </article>
-  <p className="ws-alert-footnote">Short price moves may be missed. Alerts never buy or sell.</p>
+  </NotificationInbox>
  </section>;
 }

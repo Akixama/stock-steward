@@ -1,10 +1,10 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { InboxItem } from '@/db/notification-inbox';
 import { formatWorkspaceDate } from '@/lib/workspace-date';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
 
-export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (count: number) => void; onReviewBuy: (idea: BuyIdea) => void }) {
+export default function NotificationInbox({ onCount, onReviewBuy, aside, children }: { onCount: (count: number) => void; onReviewBuy: (idea: BuyIdea) => void; aside?: ReactNode; children?: ReactNode }) {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -51,18 +51,25 @@ export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (
   const pastIdeas=items.filter(item=>item.kind==='proposal'&&!ideas.includes(item));
   const updates=items.filter(item=>item.kind!=='proposal');
   const amount=(item:InboxItem)=>item.proposal_amount_cents==null?'amount unavailable':`$${(item.proposal_amount_cents/100).toFixed(2)}`;
-  return <section className="ws-inbox" aria-label="Notification inbox">
-    {notice && <p className="ws-alert-notice" role="status">{notice}</p>}{error && <p className="ws-error" role="alert">{error}</p>}
+  // Two columns on desktop: ideas (plus `aside`) on the left, updates (plus `children`) on the right.
+  return <section className="ws-inbox ws-alerts-grid" aria-label="Notification inbox">
+    {notice && <p className="ws-alert-notice ws-alerts-span" role="status">{notice}</p>}{error && <p className="ws-error ws-alerts-span" role="alert">{error}</p>}
+    <div className="ws-alerts-col">
     <article className="ws-alert-card" aria-label="Buy ideas">
       <div className="ws-alert-card-head"><div><h3>Buy ideas</h3><small>Ideas spend nothing. Buy uses your saved per-buy amount and a fresh quote.</small></div>{!!ideas.length&&<span className="ws-count">{ideas.length}</span>}</div>
       {!ideas.length&&<p className="ws-muted">No ideas right now.</p>}
       {ideas.map(item=><div className="ws-idea" key={item.id}><div><strong>{item.symbol??'Stock'} <span>· {amount(item)}</span></strong><small>Expires {formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void open(item)}>Review in Buy</button></div>)}
       {!!pastIdeas.length&&<details className="ws-past-ideas"><summary>Past ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(item=><div className="ws-past-idea" key={item.id}><strong>{item.symbol??'Stock'} · {amount(item)}</strong><small>{item.proposal_status==='proposed'?'Expired':'Opened'} · {formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>)}</details>}
     </article>
+    {aside}
+    </div>
+    <div className="ws-alerts-col">
     <article className="ws-alert-card" aria-label="Updates">
       <div className="ws-alert-card-head"><div><h3>Updates</h3><small>Saved here. No setup needed.</small></div><button type="button" className="ws-action-quiet" disabled={busy} onClick={() => void testAlert()}>{busy ? 'Sending…' : 'Send test'}</button></div>
       {!updates.length && <p className="ws-muted">No updates yet.</p>}
       {updates.map(item=><div className="ws-inbox-item" data-unread={!item.read_at} key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>{item.read_at?<small className="ws-muted">Read</small>:<button type="button" disabled={busy} className="ws-action-quiet" onClick={()=>void open(item)}>Mark read</button>}</div>)}
     </article>
+    {children}
+    </div>
   </section>;
 }
