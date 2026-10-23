@@ -5,6 +5,7 @@ import { sendInboxPush } from '@/lib/inbox-push';
 import {claimProposalReview} from '@/db/automatic-stage-events';
 import {getOwnership} from '@/db/wallet-ownership';
 import {automaticStages,stagesForWallet} from '@/lib/automatic-stages';
+import {ipLocationBlock,tradeAgreement} from '@/lib/trade-agreement';
 
 const headers = { 'Cache-Control': 'no-store' };
 
@@ -35,6 +36,8 @@ export async function POST(request: Request) {
       const ownership=await getOwnership(env.DB,user.userId);
       const stages=stagesForWallet(automaticStages(env),ownership?.verifiedAt?ownership.address:null);
       if(!stages.approveByNotification)return Response.json({error:'Buy ideas are off for this wallet.'},{status:403,headers});
+      const location=ipLocationBlock(request,env);if(location)return Response.json({error:location},{status:403,headers});
+      if(!(await tradeAgreement(env.DB,user.userId)).accepted)return Response.json({error:'Accept the current terms on Overview before opening this idea. No order was sent.'},{status:409,headers});
       const claimed=await claimProposalReview(env.DB,user.userId,body.id.replace(/^proposal:/,''));
       if(!claimed)return Response.json({error:'This idea expired or was already opened. No order was sent.'},{status:409,headers});
       return Response.json({proposal:claimed,notice:'Open Buy for a fresh quote. Your wallet signature is still required.'},{headers});
