@@ -1,5 +1,5 @@
 // Keep this guide in sync with the mandate UI and lib/decision.ts when either changes.
-export const guideRevision = "18 October 2026";
+export const guideRevision = "23 October 2026";
 
 export const guideChapters = [
   { id: "overview", number: "01", title: "The model" },

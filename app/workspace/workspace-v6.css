@@ -51,4 +51,10 @@
 .ws-past-ideas{padding:18px 0;border-top:1px solid #303440}.ws-past-ideas summary{cursor:pointer;font-size:15px;color:#d7d7e1}.ws-past-ideas summary span{color:#aab0bc}.ws-past-idea{display:flex;justify-content:space-between;gap:18px;padding:12px 0;border-bottom:1px solid #303440}.ws-past-idea strong{font-size:14px;color:#d5d5df}.ws-past-idea small{color:#a6aaba}
 .ws-idea-amount{padding:16px 18px;margin:14px 0;border-left:3px solid #a9aed1;border-radius:0 10px 10px 0;background:#202330;color:#f0eff7}.ws-idea-amount strong{font-size:16px}.ws-idea-amount p{margin:7px 0;line-height:1.5;color:#d1d1df}.ws-idea-amount label{display:flex;align-items:flex-start;gap:10px;margin-top:14px;line-height:1.5;cursor:pointer}.ws-idea-amount input{width:18px;height:18px;flex:none;accent-color:#b9bde2}
 @media(max-width:640px){.ws-v6-strategy,.ws-v6-alerts{padding-inline:16px}.ws-v6-strategy .ws-strategy-fields,.ws-v6-strategy .ws-shadow-fields,.ws-v6-alerts .ws-alert-fields,.ws-v6-strategy .ws-strategy-group-options{grid-template-columns:1fr!important}.ws-idea{align-items:stretch;flex-direction:column}.ws-idea button{width:100%}.ws-past-idea{flex-direction:column;gap:4px}}
+/* Phone tap targets: text-style buttons and links get a 44px tall touch area. */
+.ws-mode-help{font-size:12px;line-height:1.4;text-align:left}
+@media(max-width:640px){.ws-v2-empty button,.ws-mode-help{display:inline-flex;align-items:center;min-height:44px}.ws-v2-empty button{padding-inline:12px}.ws-trade-agreement p a{display:inline-block;padding-block:12px;margin-block:-12px}}
+/* The phone menu bar is fixed to the bottom (64px). Every tab keeps room for it,
+   not only Home; Home keeps its existing 150px total so its action bar still fits. */
+@media(max-width:700px){.ws-main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}.ws-v2-overview{padding-bottom:54px}}
 @media(prefers-reduced-motion:reduce){.ws-v6-strategy *,.ws-v6-alerts *,.ws-idea-amount *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
