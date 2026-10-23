@@ -12,6 +12,7 @@ import {readAutonomousSignal} from './autonomous-signal.ts';
 import {runTriggeredAutonomy} from './autonomous-production.ts';
 import {saveAutomaticEvent} from '../db/automatic-stage-events.ts';
 import {queueAutomaticPush} from './automatic-stage-push.ts';
+import {saveProposalInbox} from '../db/notification-inbox.ts';
 import {automaticStageIntent,type automaticStages} from './automatic-stages.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
@@ -45,7 +46,10 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      const intent=automaticStageIntent(stages,true,buyDecision,decision.amountCents);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
-      if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+      if(await saveAutomaticEvent(db,event)){
+       await saveProposalInbox(db,event);
+       await queueAutomaticPush(db,event);
+      }
      }
      if(intent==='auto'||intent==='blocked'){
       // Automatic execution has independent per-order and UTC-day caps, an

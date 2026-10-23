@@ -1,6 +1,7 @@
 import {buildPushPayload,type PushSubscription} from '@block65/webcrypto-web-push';
 import {checkAlerts} from '../db/price-alerts.ts';
 import type {PriceAlert} from './price-alerts.ts';
+import {savePriceInbox} from '../db/notification-inbox.ts';
 
 export type DeviceSubscription=PushSubscription;
 type DeviceRow={id:string;owner_ref:string;endpoint:string;p256dh:string;auth:string};
@@ -70,10 +71,10 @@ export async function sendPendingPush(db:D1Database,keys:{publicKey:string;priva
 }
 
 export async function checkBackgroundAlerts(db:D1Database,keys:{publicKey:string;privateKey:string}){
- const owners=(await db.prepare("SELECT DISTINCT a.owner_ref FROM price_alerts a JOIN push_subscriptions s ON s.owner_ref=a.owner_ref WHERE a.status='active' ORDER BY RANDOM() LIMIT 100").all<{owner_ref:string}>()).results??[];
+ const owners=(await db.prepare("SELECT DISTINCT owner_ref FROM price_alerts WHERE status='active' ORDER BY RANDOM() LIMIT 100").all<{owner_ref:string}>()).results??[];
  let checked=0,triggered=0;
  for(let start=0;start<owners.length;start+=8){
-  const results=await Promise.allSettled(owners.slice(start,start+8).map(async ({owner_ref})=>{const result=await checkAlerts(db,owner_ref);await queueAlertPush(db,owner_ref,result.triggered);return result.triggered.length;}));
+  const results=await Promise.allSettled(owners.slice(start,start+8).map(async ({owner_ref})=>{const result=await checkAlerts(db,owner_ref);await savePriceInbox(db,owner_ref,result.triggered);await queueAlertPush(db,owner_ref,result.triggered);return result.triggered.length;}));
   for(const result of results)if(result.status==='fulfilled'){checked++;triggered+=result.value;}
  }
  const delivery=await sendPendingPush(db,keys);

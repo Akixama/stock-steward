@@ -29,7 +29,7 @@ export async function sendAutomaticPush(db:D1Database,keys:{publicKey:string;pri
       const body=row.kind==='proposal'
         ?`${row.symbol}: your rule suggests about $${(row.amount_cents/100).toFixed(2)}. Open Stock Steward for a fresh quote and sign only if you agree.`
         :`${row.symbol}: ${row.status}. ${row.detail}`;
-      const payload=await buildPushPayload({data:JSON.stringify({id:row.id,title,body,url:'https://stocksteward.app/workspace?view=strategy'}),options:{ttl:3600}},
+      const payload=await buildPushPayload({data:JSON.stringify({id:row.id,title,body,url:row.kind==='proposal'?'https://stocksteward.app/workspace?review=buy':'https://stocksteward.app/workspace?view=strategy'}),options:{ttl:3600}},
         {endpoint:row.endpoint,expirationTime:null,keys:{p256dh:row.p256dh,auth:row.auth}},
         {subject:'https://stocksteward.app',publicKey:keys.publicKey,privateKey:keys.privateKey});
       const response=await fetcher(row.endpoint,{...payload,signal:AbortSignal.timeout(8000)});
