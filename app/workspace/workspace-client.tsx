@@ -31,8 +31,8 @@ import "./workspace-v6.css";
 
 type View = "overview" | "strategy" | "alerts" | "activity" | "mandate";
 type StrategyMode = "real" | "practice";
-// Old deep links keep working: practice opens Strategy (Practice), trail opens Activity, goal opens Strategy.
-const LINKED_VIEWS: Record<string, [View, StrategyMode?]> = { overview: ["overview"], home: ["overview"], strategy: ["strategy", "real"], practice: ["strategy", "practice"], goal: ["strategy", "real"], alerts: ["alerts"], trail: ["activity"], activity: ["activity"], mandate: ["mandate"], limits: ["mandate"] };
+// Old deep links keep working: practice opens Strategy (Practice), trail opens Activity, goal opens the Savings goal on Home.
+const LINKED_VIEWS: Record<string, [View, StrategyMode?]> = { overview: ["overview"], home: ["overview"], strategy: ["strategy", "real"], practice: ["strategy", "practice"], goal: ["overview"], alerts: ["alerts"], trail: ["activity"], activity: ["activity"], mandate: ["mandate"], limits: ["mandate"] };
 const initial: Mandate = NEW_USER_MANDATE;
 const oldDeviceStore = "stock-steward-brokerage-mandate-v1";
 const usd = (cents: number) => new Intl.NumberFormat("en-US", {
@@ -45,6 +45,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const [view, setView] = useState<View>("overview");
   const [strategyMode, setStrategyMode] = useState<StrategyMode>("real");
   const [goalOpen, setGoalOpen] = useState(false);
+  const [portfolioCents, setPortfolioCents] = useState<number|null>(null);
   const [buyIdeaRequest,setBuyIdeaRequest]=useState<(BuyIdea&{id:number})|null>(null);
   const [unreadAlerts, setUnreadAlerts] = useState<number | null>(null);
   useEffect(()=>{const linked=LINKED_VIEWS[new URLSearchParams(window.location.search).get('view')??''];if(!linked)return;const timer=setTimeout(()=>{setView(linked[0]);if(linked[1])setStrategyMode(linked[1]);if(new URLSearchParams(window.location.search).get('view')==='goal')setGoalOpen(true);},0);return()=>clearTimeout(timer);},[]);
@@ -213,11 +214,11 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
           <div className="ws-strategy-switch" role="group" aria-label="Real or practice"><button type="button" aria-pressed={strategyMode==='real'} onClick={()=>setStrategyMode('real')}>Real money</button><button type="button" aria-pressed={strategyMode==='practice'} onClick={()=>setStrategyMode('practice')}>Practice</button></div>
           <div hidden={strategyMode!=='practice'} className="ws-strategy-practice"><StrategyPanel mandate={mandate} surface="practice" onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>document.getElementById('ws-strategy-builder')?.scrollIntoView({behavior:'smooth',block:'start'})} onPractice={()=>window.scrollTo({top:0,behavior:'smooth'})} onTrail={()=>navigate('activity')}/></div>
           {view==='strategy'&&strategyMode==='real'&&<AutomaticPanel mandate={mandate} onReviewBuy={openBuyIdea}/>}
-          {view==='strategy'&&strategyMode==='real'&&<details className="ws-strategy-goal" id="ws-goal" open={goalOpen} onToggle={e=>setGoalOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>Your plan</summary>{goalOpen&&<GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>openStrategy('practice')}/>}</details>}
         </div>
         {view === 'alerts' && <div className="ws-view ws-v6-alerts" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Price alerts and buy ideas in one place. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate} onCount={setUnreadAlerts} onReviewBuy={openBuyIdea}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
-          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} buyIdeaRequest={buyIdeaRequest} onBuyIdeaOpened={()=>setBuyIdeaRequest(null)} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} buyIdeaRequest={buyIdeaRequest} onBuyIdeaOpened={()=>setBuyIdeaRequest(null)} onPortfolioValue={setPortfolioCents} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <details className="ws-strategy-goal ws-home-goal" id="ws-goal" open={goalOpen} onToggle={e=>setGoalOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>Savings goal</summary>{goalOpen&&<GoalPanel mandateVersion={mandate.version} portfolioCents={portfolioCents} onLimits={()=>navigate('mandate')} onPractice={()=>openStrategy('practice')}/>}</details>
           <details className="ws-v2-more"><summary>Help</summary><ChainPanel mandate={mandate} /></details>
         </div>}
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">

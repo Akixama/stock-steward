@@ -22,7 +22,7 @@ type Progress={done:number;total:number;next:string;complete:boolean;action:'set
 type EarlierWallet={safe:string;mandateVersion:number;usdg:string|null;holdings:{symbol:string;tokens:string|null}[];verified:boolean};
 type Asset={symbol:string;quantity:string|null};
 
-export default function WalletOrdersPanel({mandate,onOpenMandate,progress,publicMode,buyIdeaRequest,onBuyIdeaOpened}:{mandate:Mandate;onOpenMandate:()=>void;progress:Progress;publicMode:boolean;buyIdeaRequest?:(BuyIdea&{id:number})|null;onBuyIdeaOpened?:()=>void}){
+export default function WalletOrdersPanel({mandate,onOpenMandate,progress,publicMode,buyIdeaRequest,onBuyIdeaOpened,onPortfolioValue}:{mandate:Mandate;onOpenMandate:()=>void;progress:Progress;publicMode:boolean;buyIdeaRequest?:(BuyIdea&{id:number})|null;onBuyIdeaOpened?:()=>void;onPortfolioValue?:(cents:number|null)=>void}){
   const [walletProvider,setWalletProvider]=useState<WalletProvider|null>(null);
   const [address,setAddress]=useState('');
   const [verified,setVerified]=useState(false);
@@ -97,7 +97,7 @@ export default function WalletOrdersPanel({mandate,onOpenMandate,progress,public
     <div id="ws-trade-agreement"><TradeAgreement onReady={receiveTradeReady}/></div>
     {(page==='move-funds'||!showSetup)&&<div hidden aria-hidden="true"><WalletSetup onProvider={receiveProvider} onAddress={receiveAddress} onVerified={receiveVerified} disabled={false} view="connect"/></div>}
     {page==='overview'?<>
-      <PortfolioHome address={address} onAction={open} publicMode={publicMode}/>
+      <PortfolioHome address={address} onAction={open} publicMode={publicMode} onValue={onPortfolioValue}/>
       {address&&verified&&<PermissionMaintenance provider={walletProvider} address={address}/>}
       <nav className="ws-v2-action-bar" aria-label="Wallet actions"><button type="button" disabled={!tradeReady} onClick={()=>open('buy')}><ArrowDownLeft size={20}/><span>Buy</span></button><button type="button" disabled={!tradeReady} onClick={()=>open('sell')}><ArrowUpRight size={20}/><span>Sell</span></button><button type="button" disabled={!tradeReady} onClick={()=>open('send')}><ArrowUpRight size={20}/><span>Send</span></button></nav>
       {hasEarlier&&!earlierDismissed&&<aside className="ws-v3-earlier-banner" role="note"><div><span>EARLIER WALLET · VERSION {earlierWallet.mandateVersion}</span><strong>Funds are still in your earlier Steward wallet.</strong><p>{visibleAssets.map(asset=>`${asset.quantity??'Unavailable'} ${asset.symbol}`).join(' · ')}. New buys use your current Steward wallet.</p></div><button type="button" className="ws-v3-banner-action" onClick={()=>setPage('move-funds')}>Review funds <ChevronRight size={17}/></button><button type="button" className="ws-v3-banner-dismiss" onClick={()=>setEarlierDismissed(true)} aria-label="Dismiss earlier wallet notice"><X size={17}/></button></aside>}

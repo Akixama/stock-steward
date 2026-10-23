@@ -200,7 +200,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
     {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
       <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
       <label>Amount to pay · USD, set by your limits<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
-      <button type="button" onClick={prepare} disabled={busy || !provider || (ideaAmountCents!=null && ideaAmountCents!==status.perTradeCents && !amountAcknowledged)}>{ideaAmountCents!=null?`Review ${dollars(status.perTradeCents)} purchase`:'Review purchase'}</button></div>}
+      <button type="button" onClick={prepare} disabled={busy || !provider || (ideaAmountCents!=null && ideaAmountCents!==status.perTradeCents && !amountAcknowledged)}>{ideaAmountCents!=null?`Next: review ${dollars(status.perTradeCents)} buy`:'Next: review buy'}</button></div>}
     {!provider && !hash && !(status && !status.permissionActive && (status.blocked === 'limits' || status.blocked === 'unavailable')) && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>REVIEW IN YOUR WALLET SOON</span>
@@ -212,7 +212,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
         <div><dt>Quote expires</dt><dd>{formatWorkspaceDate(prepared.expiresAt,{hour:'numeric',minute:'2-digit',timeZoneName:'short'})}</dd></div>
       </dl>
       <p>The output is a minimum estimate, not a guaranteed market price. The network fee may change. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
-      <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>
+      <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Buy in wallet'}</button>
       <button type="button" className="ws-action-quiet" onClick={() => setPrepared(null)} disabled={busy}>Discard</button></div>}
     {hash && <div className="ws-order-events"><OrderStatusTimeline stage={receiptState==='verified'?'verified':receiptState==='confirmed'?'confirmed':receiptState==='reorged'?'reorged':receiptState==='reverted'?'reverted':'submitted'}/><span>{receiptState === 'verified' ? 'PURCHASE CONFIRMED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · FINAL IN ABOUT 15 MINUTES' : receiptState === 'reorged' ? 'CHAIN CHANGED · OUTCOME UNRESOLVED' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
       <div><b>{receiptState === 'confirmed' ? 'Stock-token purchase confirmed' : receiptState === 'included' ? 'Payment sent; checking your purchase' : receiptState === 'verified' ? 'Purchase verified' : receiptState === 'reverted' ? 'No purchase completed' : 'Transaction sent'}</b><small>{hash.slice(0, 18)}…</small></div>

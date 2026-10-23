@@ -185,9 +185,9 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 @media(max-width:640px){.ws-strategy-switch{align-self:stretch}.ws-strategy-switch button{flex:1}.ws-buy-limits-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ws-v6-strategy *,.ws-v6-alerts *,.ws-idea-amount *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
-/* Saved goal, shown inside Strategy → Real */
+/* Savings goal, shown on Home */
 .ws-strategy-goal{margin-top:24px;border:1px solid var(--ws-line, rgba(127,127,127,.25));border-radius:12px;padding:0 16px;max-width:100%;overflow:hidden}
 .ws-strategy-goal>summary{cursor:pointer;padding:14px 0;font-weight:600;list-style-position:inside}
 .ws-strategy-goal[open]>summary{border-bottom:1px solid var(--ws-line, rgba(127,127,127,.25));margin-bottom:16px}
 .ws-strategy-goal .ws-goal{padding-bottom:16px}
-.ws-strategy-goal .goal-heading h1{font-size:clamp(1.4rem,4vw,2rem)}
+.ws-strategy-goal .goal-heading h1,.ws-strategy-goal .goal-heading h2{font-size:clamp(1.4rem,4vw,2rem)}
