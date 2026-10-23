@@ -107,7 +107,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
     <div className="ws-shadow-card-head"><h4>Ready to buy</h4>{ideas.length>0&&<span className="ws-count">{ideas.length}</span>}</div>
     {status&&!ideas.length&&<p className="ws-muted">Nothing to buy yet.{plan?.enabled?' When the price is right, a buy shows up here for you to approve.':''}</p>}
     {ideas.map(event=><div className="ws-idea" key={event.id}><div><strong>{event.symbol} <span>· {money(event.amount_cents)}</span></strong><small>Good until {clock(event.expires_at)}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void openIdea(event)}>Review and buy</button></div>)}
-    {pastIdeas.length>0&&<details className="ws-past-ideas"><summary>Earlier buys you skipped <span>{pastIdeas.length}</span></summary>{pastIdeas.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status==='proposed'?'Expired':'Opened'} · {when(event.created_at)}</small></div>)}</details>}
+    {pastIdeas.length>0&&<details className="ws-past-ideas"><summary>Earlier buy ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status==='proposed'?'Expired':'Opened'} · {when(event.created_at)}</small></div>)}</details>}
    </article>
 
    {(status?.runs.length??0)>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Price checks</h4><span className="ws-count">{status!.runs.length}</span></summary>
