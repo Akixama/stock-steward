@@ -103,7 +103,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
     {status?.availableStrategy&&shadowOn&&<div className="ws-shadow-copy"><p>Or check your Practice strategy: <strong>{kindName(status.availableStrategy.kind)} · {money(status.availableStrategy.amountCents)}</strong></p><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void change('use_strategy')}>Use it for checks</button></div>}
    </article>
 
-   <article className="ws-shadow-card" aria-label="Ideas to review">
+   <article className="ws-shadow-card ws-shadow-ideas" aria-label="Ideas to review">
     <div className="ws-shadow-card-head"><h4>Ideas to review</h4>{ideas.length>0&&<span className="ws-count">{ideas.length}</span>}</div>
     {status&&!ideas.length&&<p className="ws-muted">No ideas right now.{plan?.enabled?' New ones appear here when your rule passes.':''}</p>}
     {ideas.map(event=><div className="ws-idea" key={event.id}><div><strong>{event.symbol} <span>· {money(event.amount_cents)}</span></strong><small>Expires {clock(event.expires_at)}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void openIdea(event)}>Review in Buy</button></div>)}

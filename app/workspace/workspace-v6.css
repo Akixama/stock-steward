@@ -136,12 +136,6 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 /* Desktop (900px and up): two columns using the full content width. */
 @media(min-width:900px){
  .ws-v6-strategy,.ws-v6-alerts{max-width:1440px;padding-inline:32px}
- .ws-v6-strategy:not([hidden]):has(>.ws-shadow){display:grid;grid-template-columns:minmax(0,1fr) clamp(300px,28vw,420px);column-gap:clamp(24px,2.5vw,40px);align-items:start}
- .ws-v6-strategy:has(>.ws-shadow)>.ws-checks-bar{grid-column:1/-1;grid-row:1}
- .ws-v6-strategy:has(>.ws-shadow)>.ws-strategy{grid-column:1;grid-row:2;min-width:0}
- /* The right column stays in view while the editor scrolls; it scrolls on its own if taller than the screen. */
- .ws-v6-strategy:has(>.ws-shadow)>.ws-shadow{grid-column:2;grid-row:2;position:sticky;top:82px;max-height:calc(100vh - 98px);overflow-y:auto;overscroll-behavior:contain;margin-top:12px;padding:0 4px 16px 0;border-top:0;scrollbar-width:thin}
- .ws-v6-strategy .ws-shadow-head h3{font-size:1.4rem}
  .ws-alerts-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
  .ws-alerts-span{grid-column:1/-1}
  .ws-v6-alerts .ws-alerts,.ws-v6-alerts .ws-inbox{width:100%;max-width:none}
@@ -149,4 +143,44 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 /* Idea cards stack when their own column is narrow (e.g. the 300px right column at 1024px). */
 .ws-shadow,.ws-alerts-col{container-type:inline-size}
 @container (max-width:380px){.ws-idea{flex-direction:column;align-items:stretch}.ws-idea button{width:100%;justify-content:center}.ws-shadow-facts div{flex-direction:column;gap:2px}.ws-shadow-facts dd{text-align:left}}
+/* Five-tab layout (v7): Real / Practice switch, Activity, Buy limits checker. */
+.ws-v6-strategy [hidden],.ws-v7-activity [hidden]{display:none!important}
+.ws-strategy-switch{order:-2;display:inline-flex;align-self:flex-start;gap:4px;margin:10px 0 6px;padding:4px;border:1px solid #2c303b;border-radius:12px;background:#15171e}
+.ws-strategy-switch button{min-width:96px;min-height:40px;padding:8px 18px;border:0;border-radius:9px;background:transparent;color:#a8adba;font-size:14px;font-weight:600;cursor:pointer}
+.ws-strategy-switch button[aria-pressed=true]{background:#262a36;color:#f1f0f6}
+.ws-v6-strategy[data-mode=real] .ws-shadow{margin-top:18px;padding-top:0;border-top:0}
+.ws-v6-strategy[data-mode=practice] .ws-strategy-practice{min-width:0}
+.ws-activity{display:grid;gap:14px}
+.ws-activity-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #262a34}
+.ws-activity-row>div{flex:1;min-width:0}
+.ws-activity-row strong{display:block;font-size:15px;font-weight:600;color:#f0eff5}.ws-activity-row strong span{font-weight:500;color:#c2c4d5}
+.ws-activity-row small{display:block;margin-top:3px;font-size:12px;color:#a8adba}
+.ws-activity-kind{flex:none;min-width:52px;padding:3px 8px;border-radius:999px;background:#262a36;color:#d9dbe6;font-size:11px;font-weight:700;text-align:center}
+.ws-activity-row[data-kind=buy] .ws-activity-kind{background:#26331a;color:#bfe39a}.ws-activity-row[data-kind=sell] .ws-activity-kind{background:#3a2a1a;color:#e6c07a}
+.ws-activity-practice>summary{display:grid;gap:4px;cursor:pointer;list-style:none;min-height:44px}.ws-activity-practice>summary::-webkit-details-marker{display:none}
+.ws-activity-practice>summary h3{margin:0}.ws-activity-practice>summary small{font-size:13px;color:#a8adba}
+.ws-buy-limits{margin:10px 0 14px;padding:12px 14px;border:1px solid #2c303b;border-radius:12px;background:#15171e}
+.ws-buy-limits>summary{min-height:36px;display:flex;align-items:center;cursor:pointer;font-size:14px;font-weight:600;color:#e6e6ee}
+.ws-buy-limits-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.ws-buy-limits-fields label{display:grid;gap:6px;font-size:13px;color:#ced0dc}
+.ws-buy-limits-fields input,.ws-buy-limits-fields select{min-height:44px;padding:8px 10px;border:1px solid #3a3f4c;border-radius:10px;background:#10121a;color:#f2f2f5;font-size:15px}
+.ws-buy-limits ul{display:grid;gap:6px;margin:0 0 8px;padding:0;list-style:none}
+.ws-buy-limits li{display:flex;align-items:baseline;gap:6px;font-size:13px;color:#c4c6d2}.ws-buy-limits li strong{color:#f0eff5}
+.ws-buy-limits li[data-ok=true] svg{color:#9fd36a}.ws-buy-limits li[data-ok=false] svg{color:#e0896a}
+@media(min-width:900px){
+ /* Real: plan and history left, ideas right and in view. */
+ .ws-v6-strategy[data-mode=real] .ws-shadow{grid-template-columns:minmax(0,1fr) clamp(320px,32vw,460px);column-gap:clamp(24px,2.5vw,40px);align-items:start}
+ .ws-v6-strategy[data-mode=real] .ws-shadow>*{grid-column:1;min-width:0}
+ .ws-v6-strategy[data-mode=real] .ws-shadow>.ws-shadow-ideas{grid-column:2;grid-row:1 / span 8;position:sticky;top:82px;max-height:calc(100vh - 98px);overflow-y:auto}
+ /* Practice: rule builder left, practice session right and in view. */
+ .ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel{display:grid;grid-template-columns:minmax(0,1fr) clamp(320px,32vw,460px);column-gap:clamp(24px,2.5vw,40px);align-items:start}
+ .ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>*{grid-column:1;min-width:0}
+ .ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-practice-side{grid-column:2;grid-row:1 / span 12;position:sticky;top:82px;max-height:calc(100vh - 98px);overflow-y:auto;display:grid;gap:14px;align-content:start}
+}
+.ws-practice-side .ws-practice-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ws-buy-limits li strong{white-space:nowrap}
+@media(max-width:380px){.ws-header .ws-brand>*:not(:first-child){display:none}}
+@media(max-width:700px){.ws-header-actions .ws-guide-link{display:inline-flex!important;align-items:center;gap:4px;width:auto!important;height:auto!important;min-height:40px;padding:0 12px!important;border-radius:999px!important;font-size:13px;white-space:nowrap}.ws-header-actions .ws-guide-link svg{display:none}.ws-header-actions{gap:6px}}
+@media(max-width:899px){.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel{display:flex;flex-direction:column}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>*{order:2}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-page-head{order:0}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-practice-side{order:1;margin-bottom:18px}}
+@media(max-width:640px){.ws-strategy-switch{align-self:stretch}.ws-strategy-switch button{flex:1}.ws-buy-limits-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.ws-v6-strategy *,.ws-v6-alerts *,.ws-idea-amount *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}

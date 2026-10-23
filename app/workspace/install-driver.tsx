@@ -267,7 +267,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
               setPhase({ ...phase, checks: verify.checks, installed: verify.installed });
               if (verify.installed) {
                 setNext(phase.steps.length);
-                say('Verified onchain: the permission is already fully active. Nothing more to sign.');
+                say('Confirmed: the permission is already fully active. Nothing more to sign.');
                 return;
               }
             }
@@ -292,7 +292,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
                 setModule(resumeModule);
                 if (inspect.installed) {
                   setNext((inspect.steps ?? []).length);
-                  say('Verified onchain: the permission is already fully active. Nothing more to sign.');
+                  say('Confirmed: the permission is already fully active. Nothing more to sign.');
                 } else {
                   setNext(0);
                   say('Found your earlier module. Continuing with it.');
@@ -321,7 +321,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       if (!/^0x[0-9a-f]{64}$/i.test(hash)) throw new Error('Wallet returned no transaction hash.');
       say(`${step.label}: sent to Robinhood Chain. Waiting for confirmation.`);
       const receipt = await waitForReceipt(hash);
-      if (receipt.status !== '0x1') throw new Error(`Step reverted onchain: ${step.label}. Nothing further is offered.`);
+      if (receipt.status !== '0x1') throw new Error(`Step failed on the chain: ${step.label}. Nothing further is offered.`);
       confirmedOnChain = true;
       say(`${step.label}: confirmed.`);
       // The module address is the created proxy in the factory's creation event.
@@ -433,7 +433,7 @@ export default function InstallDriver({ provider, address, policyVersion, feesOk
       : readUnavailable
       ? { label: "Can't check right now", reason: 'Refresh status before setup. Nothing was sent.' }
       : finalSetupOnChain && !phase?.installed
-      ? { label: 'Buying approval needs renewal', reason: 'The setup is onchain, but funding approval is missing or expired. Use the Renew review above; refreshing cannot extend an expired approval.' }
+      ? { label: 'Buying approval needs renewal', reason: 'The setup is on the chain, but funding approval is missing or expired. Use the Renew review above; refreshing cannot extend an expired approval.' }
       : !provider
     ? { label: 'Disabled', reason: 'Connect and verify your wallet first.' }
     : !policyVersion

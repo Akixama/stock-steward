@@ -45,7 +45,7 @@ export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Manda
   {notice&&<p className="ws-alert-notice" role="status"><Check size={15}/> {notice}</p>}
   <NotificationInbox onCount={onCount} onReviewBuy={onReviewBuy} aside={<>
   <article className="ws-alert-card ws-alert-device" aria-label="Device notifications">
-   <div><h3>Device notifications</h3><small>{deviceEnabled?'On for this device.':pushSupported?'Optional. Get alerts while the site is closed. Turn on per device; on iPhone, add to Home Screen first.':'Not available in this browser. On iPhone, add Stock Steward to your Home Screen and open it there.'}</small></div>
+   <div><h3>Device notifications</h3><small>{deviceEnabled?'On for this device.':pushSupported?'Get alerts when the site is closed.':'Not available here. On iPhone, add to Home Screen first.'}</small></div>
    {pushSupported&&<button type="button" className={deviceEnabled?'ws-action-quiet':'ws-action-secondary'} disabled={deviceBusy} onClick={()=>void (deviceEnabled?disableDevice():enableDevice())}>{deviceBusy?'Updating…':deviceEnabled?'Turn off':'Turn on'}</button>}
   </article>
   <p className="ws-alert-footnote">Short price moves may be missed. Alerts never buy or sell.</p>

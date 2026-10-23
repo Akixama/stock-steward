@@ -83,7 +83,7 @@ export default function BridgePanel({ provider, address }: {
     for (let attempt = 0; attempt < 90; attempt++) {
       const receipt = await rpc<{ status?: string } | null>(provider!, 'eth_getTransactionReceipt', [hash]);
       if (receipt) {
-        if (receipt.status !== '0x1') throw new Error('The transaction reverted onchain. Nothing further was sent.');
+        if (receipt.status !== '0x1') throw new Error('The transaction failed on the chain. Nothing further was sent.');
         return;
       }
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -144,7 +144,7 @@ export default function BridgePanel({ provider, address }: {
         setTracked(`Bridge reports: ${status}${payload.substatus ? ` · ${payload.substatus}` : ''}.`);
         if (status === 'DONE') {
           setDone(true);
-          setTracked('Arrived on Robinhood Chain. Press Refresh balances in Chain to record it as evidence.');
+          setTracked('Arrived on Robinhood Chain. Check balances in Help to see it.');
           return;
         }
         if (status === 'FAILED' || status === 'REFUNDED') {

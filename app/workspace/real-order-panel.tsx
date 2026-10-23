@@ -162,12 +162,12 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
         signal: AbortSignal.timeout(30000),
       });
       const payload = await response.json() as { outcome?: string; paidUsdg?: string | null; why?: string; error?: string; confirmedFill?: boolean; transactionSucceeded?: boolean; awaitingFinality?: boolean; reorged?: boolean };
-      if (!response.ok) throw new Error(payload.error ?? 'Reconciliation unavailable.');
+      if (!response.ok) throw new Error(payload.error ?? 'Status check unavailable.');
       setReceiptState(previous => payload.outcome === 'verified_fill' ? 'verified' : payload.outcome === 'reverted' ? 'reverted' : payload.reorged || previous === 'confirmed' && !payload.transactionSucceeded ? 'reorged' : payload.confirmedFill ? 'confirmed' : payload.transactionSucceeded ? 'included' : 'checking');
-      setOutcome(`${payload.outcome === 'verified_fill' ? 'Purchase verified' : payload.outcome === 'reverted' ? 'Transaction reverted' : payload.confirmedFill ? 'Buy confirmed — finality pending' : payload.transactionSucceeded && payload.awaitingFinality ? 'Transaction succeeded — final verification pending' : 'Verification pending'}${payload.paidUsdg ? ` · paid ${payload.paidUsdg}` : ''}. ${payload.why ?? ''}`);
+      setOutcome(`${payload.outcome === 'verified_fill' ? 'Purchase verified' : payload.outcome === 'reverted' ? 'Transaction reverted' : payload.confirmedFill ? 'Buy confirmed — final check pending' : payload.transactionSucceeded && payload.awaitingFinality ? 'Transaction succeeded — final verification pending' : 'Verification pending'}${payload.paidUsdg ? ` · paid ${payload.paidUsdg}` : ''}. ${payload.why ?? ''}`);
       void loadStatus();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Reconciliation unavailable.');
+      setError(cause instanceof Error ? cause.message : 'Status check unavailable.');
     } finally { setBusy(false); }
   }
 
@@ -214,7 +214,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
       <p>The output is a minimum estimate, not a guaranteed market price. The network fee may change. Review the figures, then sign in your wallet. Nothing moves until you sign.</p>
       <button type="button" className="ws-action-primary" onClick={sign} disabled={busy}>{busy ? 'Working…' : 'Sign in wallet'}</button>
       <button type="button" className="ws-action-quiet" onClick={() => setPrepared(null)} disabled={busy}>Discard</button></div>}
-    {hash && <div className="ws-order-events"><OrderStatusTimeline stage={receiptState==='verified'?'verified':receiptState==='confirmed'?'confirmed':receiptState==='reorged'?'reorged':receiptState==='reverted'?'reverted':'submitted'}/><span>{receiptState === 'verified' ? 'PURCHASE FINALIZED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · FINAL IN ABOUT 15 MINUTES' : receiptState === 'reorged' ? 'CHAIN CHANGED · OUTCOME UNRESOLVED' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
+    {hash && <div className="ws-order-events"><OrderStatusTimeline stage={receiptState==='verified'?'verified':receiptState==='confirmed'?'confirmed':receiptState==='reorged'?'reorged':receiptState==='reverted'?'reverted':'submitted'}/><span>{receiptState === 'verified' ? 'PURCHASE CONFIRMED' : receiptState === 'confirmed' ? 'BUY CONFIRMED · FINAL IN ABOUT 15 MINUTES' : receiptState === 'reorged' ? 'CHAIN CHANGED · OUTCOME UNRESOLVED' : receiptState === 'included' ? 'PAYMENT SENT · CHECKING PURCHASE' : receiptState === 'reverted' ? 'PURCHASE FAILED' : 'SENT · CHECKING'}</span>
       <div><b>{receiptState === 'confirmed' ? 'Stock-token purchase confirmed' : receiptState === 'included' ? 'Payment sent; checking your purchase' : receiptState === 'verified' ? 'Purchase verified' : receiptState === 'reverted' ? 'No purchase completed' : 'Transaction sent'}</b><small>{hash.slice(0, 18)}…</small></div>
       <a className="ws-recheck" href={`https://robinhoodchain.blockscout.com/tx/${hash}`} target="_blank" rel="noopener noreferrer">View transaction ↗</a>
       <p className="ws-chain-note">No additional funds are needed for this submitted order.</p>

@@ -42,7 +42,7 @@ export default function StockSelector({ selected, onChange }: {
   }
 
   return <div className="ws-stock-picker ws-field-wide">
-    <div className="ws-stock-picker-head"><div><label htmlFor="ws-stock-search">Stocks you can buy</label><p>Choose the stocks you want to allow. Saving this list does not buy anything.</p></div><span>{selected.length} / {MAX_STOCKS} selected</span></div>
+    <div className="ws-stock-picker-head"><div><label htmlFor="ws-stock-search">Stocks you can buy</label><p>Choose the stocks you want to allow.</p></div><span>{selected.length} / {MAX_STOCKS} selected</span></div>
     {selected.length > 0 && <div className="ws-stock-selected" aria-label="Selected stocks">{selected.map((symbol) => <button key={symbol} type="button" onClick={() => toggle(symbol)} aria-label={`Remove ${symbol}`}><span>{symbol}</span><X size={13} aria-hidden="true" /></button>)}</div>}
     <div className="ws-stock-search"><Search size={17} aria-hidden="true" /><input id="ws-stock-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Apple, AAPL, Microsoft…" autoComplete="off" aria-controls="ws-stock-results" /></div>
     <div className="ws-stock-list-head"><strong>Available on Robinhood Chain</strong><span>{loading ? 'Loading…' : error ? 'Unavailable' : `${results.length} ${results.length === 1 ? 'stock' : 'stocks'}`}</span></div>
