@@ -3,16 +3,16 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { publicTradingVars } from '../scripts/public-trading-release.mjs';
 
-test('single public release config enables manual trading with high app-wide caps and US IP block', () => {
+test('single public release config keeps manual trading private with the same caps and US IP block', () => {
   const release = JSON.parse(fs.readFileSync('config/public-trading-release.json', 'utf8'));
   assert.deepEqual(publicTradingVars(release), {
-    PUBLIC_MODE: 'true',
+    PUBLIC_MODE: 'false',
     STEWARD_PUBLIC_MAX_ORDER_CENTS: '100000000',
     STEWARD_PUBLIC_MAX_DAILY_CENTS: '100000000',
     STEWARD_MAX_EDITABLE_LIMIT_CENTS: '1000000',
     STEWARD_US_IP_BLOCK_ENABLED: 'true',
   });
-  assert.equal(publicTradingVars({...release, enabled: false}).PUBLIC_MODE, 'false');
+  assert.equal(publicTradingVars({...release, enabled: true}).PUBLIC_MODE, 'true');
   assert.throws(() => publicTradingVars({ ...release, maxEditableLimitCents: 0 }));
 });
 
