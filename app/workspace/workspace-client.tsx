@@ -9,6 +9,7 @@ import { BrandMark, BrandName } from "@/components/brand";
 import {flushSync} from 'react-dom';
 import { RouteLink } from "@/components/route-transition";
 import type { Mandate } from "@/lib/decision";
+import { editableLimitsValid, MAX_EDITABLE_LIMIT_CENTS, NEW_USER_MANDATE } from "@/lib/editable-limits";
 import OverviewMotion from './overview-motion';
 import GoalPanel from './goal-panel';
 import AlertsPanel from './alerts-panel';
@@ -27,11 +28,7 @@ import "./workspace-v4.css";
 import "./workspace-v5.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
-const initial: Mandate = {
-  version: 0, allowedSymbols: [], maxOrderCents: 10_000,
-  maxDailyBuyCents: 25_000, maxPositionBps: 1_500, requireApproval: true,
-  executionPreference: "approval",
-};
+const initial: Mandate = NEW_USER_MANDATE;
 const oldDeviceStore = "stock-steward-brokerage-mandate-v1";
 const usd = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 2,
@@ -113,7 +110,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const positionBps = Math.round(Number(maxPosition) * 100);
   const valid = allowedSymbols.length <= 3 && allowedSymbols.every((symbol) => /^[A-Z.]{1,8}$/.test(symbol)) &&
     [maxOrder, maxDaily, maxPosition].every((value) => value.trim() !== "" && Number.isFinite(Number(value))) &&
-    Number(maxOrder) >= 0.01 && Number(maxDaily) >= Number(maxOrder) && Number(maxDaily) <= 1_000_000 &&
+    editableLimitsValid(orderCents, dailyCents) &&
     Number(maxPosition) > 0 && Number(maxPosition) <= 100;
   const dirty = mandate.version === 0 || allowedSymbols.join(",") !== mandate.allowedSymbols.join(",") ||
     orderCents !== mandate.maxOrderCents || dailyCents !== mandate.maxDailyBuyCents ||
@@ -218,8 +215,9 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
               <div className="ws-editor-intro"><span className="ws-label">PURCHASE LIMITS</span><h2>Choose what works for you.</h2></div>
               <div className="ws-fields">
                 <StockSelector selected={allowedSymbols} onChange={(next) => setSymbols(next.join(', '))} />
-                <label className="ws-field"><span>Most per buy</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxOrder} onChange={(event) => setMaxOrder(event.target.value)} /></div></label>
-                <label className="ws-field"><span>Most per day</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" step="0.01" value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} /></div><small>Across two days, that is {Number.isFinite(dailyCents)?usd(dailyCents*2):'—'}.</small></label>
+                <label className="ws-field"><span>Most per buy</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" max={MAX_EDITABLE_LIMIT_CENTS/100} step="0.01" value={maxOrder} onChange={(event) => setMaxOrder(event.target.value)} /></div></label>
+                <label className="ws-field"><span>Most per day</span><div className="ws-input-unit"><b>$</b><input type="number" min="0.01" max={MAX_EDITABLE_LIMIT_CENTS/100} step="0.01" value={maxDaily} onChange={(event) => setMaxDaily(event.target.value)} /></div><small>Across two days, that is {Number.isFinite(dailyCents)?usd(dailyCents*2):'—'}. New limits can be up to {usd(MAX_EDITABLE_LIMIT_CENTS)} per buy and per day.</small></label>
+                {(orderCents>MAX_EDITABLE_LIMIT_CENTS||dailyCents>MAX_EDITABLE_LIMIT_CENTS)&&<p className="ws-field ws-field-wide" role="status">Your saved limits still work. To save an edit, set both amounts to {usd(MAX_EDITABLE_LIMIT_CENTS)} or less.</p>}
                 <label className="ws-field ws-field-wide"><span>Most you can hold in one stock</span><div className="ws-input-unit"><input type="number" min="0" max="100" step="0.1" value={maxPosition} onChange={(event) => setMaxPosition(event.target.value)} /><b>%</b></div><small>0 to 100% of the account value.</small></label>
                 <div className="ws-order-rule"><span className="ws-label">HOW ORDERS WORK</span><strong>{executionPreference === "approval" ? "You approve every real purchase" : "Buying is turned off"}</strong><p>{executionPreference === "approval" ? "Steward checks your limits first. You review and sign each exact order in your wallet. Use Practice to try decisions with simulated funds." : "This older setting blocks real buys. Switch to wallet approval and save your limits to buy."}</p>{executionPreference === "automatic" && <button type="button" onClick={() => setExecutionPreference("approval")}>Use wallet approval <ArrowRight size={16} /></button>}</div>
               </div>

@@ -9,9 +9,11 @@ test('single public release config enables manual trading with high app-wide cap
     PUBLIC_MODE: 'true',
     STEWARD_PUBLIC_MAX_ORDER_CENTS: '100000000',
     STEWARD_PUBLIC_MAX_DAILY_CENTS: '100000000',
+    STEWARD_MAX_EDITABLE_LIMIT_CENTS: '1000000',
     STEWARD_US_IP_BLOCK_ENABLED: 'true',
   });
   assert.equal(publicTradingVars({...release, enabled: false}).PUBLIC_MODE, 'false');
+  assert.throws(() => publicTradingVars({ ...release, maxEditableLimitCents: 0 }));
 });
 
 test('public release config rejects missing or unsafe values', () => {
