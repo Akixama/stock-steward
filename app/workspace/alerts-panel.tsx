@@ -37,33 +37,41 @@ export default function AlertsPanel({mandate,onCount,onReviewBuy}:{mandate:Manda
  async function remove(id:string){setBusy(true);setError('');try{const r=await fetch('/api/workspace/alerts',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});const data=await r.json() as {removed?:boolean;error?:string};if(!r.ok||!data.removed)throw Error(data.error??'Could not remove the alert.');setAlerts(alerts.filter(a=>a.id!==id));}catch(e){setError(e instanceof Error?e.message:'Could not remove the alert.');}finally{setBusy(false);}}
  async function enableDevice(){if(!pushKey)return;setDeviceBusy(true);setError('');try{const permission=await Notification.requestPermission();if(permission!=='granted')throw Error('Notifications were not allowed. You can enable them in this browser’s site settings.');const registration=await activePushWorker();const bytes=Uint8Array.from(atob(pushKey.replace(/-/g,'+').replace(/_/g,'/')),character=>character.charCodeAt(0));const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes.buffer as ArrayBuffer});const response=await fetch('/api/workspace/alerts/devices',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(subscription)});const data=await response.json() as {error?:string};if(!response.ok)throw Error(data.error??'Could not save this device.');setDeviceEnabled(true);setNotice('Notifications are on for this device. Alerts are checked about every 15 minutes.');}catch(e){setError(e instanceof Error?e.message:'Could not enable notifications.');}finally{setDeviceBusy(false);}}
  async function disableDevice(){setDeviceBusy(true);setError('');try{const registration=await navigator.serviceWorker.getRegistration('/');const subscription=await registration?.pushManager.getSubscription();if(subscription){const response=await fetch('/api/workspace/alerts/devices',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:subscription.endpoint})});if(!response.ok)throw Error('Could not remove this device.');await subscription.unsubscribe();}setDeviceEnabled(false);setNotice('Notifications are off for this device.');}catch(e){setError(e instanceof Error?e.message:'Could not turn off notifications.');}finally{setDeviceBusy(false);}}
+ // The selected stock always stays visible, then the first other matches.
+ const shownStocks=[...matchingStocks.filter(stock=>stock.symbol===symbol),...matchingStocks.filter(stock=>stock.symbol!==symbol)].slice(0,6);
+ const pushSupported=pushAvailable&&typeof window!=='undefined'&&'Notification' in window&&'serviceWorker' in navigator&&'PushManager' in window;
  return <section className="ws-alerts" aria-busy={busy}>
   <NotificationInbox onCount={onCount} onReviewBuy={onReviewBuy}/>
   {error&&<p className="ws-error" role="alert">{error}</p>}
   {notice&&<p className="ws-alert-notice" role="status"><Check size={15}/> {notice}</p>}
-  {!loaded&&!error&&<p role="status">Loading your alerts…</p>}
-  <div className="ws-alert-device"><div><span className="ws-label">DEVICE NOTIFICATIONS</span><strong>{deviceEnabled?'On for this device':'Get alerts on your laptop or phone'}</strong><p>{deviceEnabled?'Stock Steward checks armed alerts about every 15 minutes, even when the site is closed. Delivery also depends on your device and browser settings.':'Turn on notifications separately on each device. On iPhone or iPad, add Stock Steward to your Home Screen, open it there, then enable notifications.'}</p></div>{pushAvailable&&typeof window!=='undefined'&&'Notification' in window&&'serviceWorker' in navigator&&'PushManager' in window?<button type="button" className="ws-action-secondary" disabled={deviceBusy} onClick={()=>void (deviceEnabled?disableDevice():enableDevice())}>{deviceBusy?'Updating…':deviceEnabled?'Turn off on this device':'Enable notifications'}</button>:<small>Notifications are unavailable in this browser. Open Stock Steward in a supported browser or install it on your phone.</small>}</div>
-  <div className="ws-alert-layout">
-   <form className="ws-alert-form" onSubmit={e=>{e.preventDefault();void create();}}>
-    <div className="ws-alert-fields">
-     <div className="ws-alert-stock-field"><label htmlFor="ws-alert-stock-search">Stock to watch</label><p>Alerts can watch any supported stock. Your buying limits still decide which stocks you can buy.</p><div className="ws-stock-search"><Search size={16} aria-hidden="true"/><input id="ws-alert-stock-search" type="search" value={stockSearch} onChange={event=>setStockSearch(event.target.value)} placeholder="Search by company or ticker" aria-controls="ws-alert-stock-results"/></div><div className="ws-alert-stock-choice">Selected: <strong>{stockLoading?'Loading…':symbol}</strong></div>{stockLoading?<small role="status">Loading available stocks…</small>:stockError?<small role="alert">{stockError} <button type="button" onClick={()=>{setStockLoading(true);setStockRetry(value=>value+1);}}>Try again</button></small>:<div id="ws-alert-stock-results" className="ws-alert-stock-results" role="group" aria-label="Available stocks">{matchingStocks.length?matchingStocks.map(stock=><button type="button" key={stock.symbol} aria-pressed={symbol===stock.symbol} onClick={()=>setSymbol(stock.symbol)}><strong>{stock.symbol}</strong><span>{stock.name}</span>{symbol===stock.symbol&&<Check size={15} aria-hidden="true"/>}</button>):<small>No match. Try another name or ticker.</small>}</div>}</div>
-     <label>Alert me when the price is<select value={direction} onChange={e=>setDirection(e.target.value as 'above'|'below')}><option value="above">at or above</option><option value="below">at or below</option></select></label>
-     <label>Target price · USD<input required inputMode="decimal" value={price} onChange={e=>setPrice(e.target.value)} placeholder="e.g. 175.00"/></label>
-    </div>
-    <button className="ws-action-primary" disabled={busy||stockLoading||!!stockError||!stocks.some(stock=>stock.symbol===symbol)||!price.trim()}>Set alert <BellRing size={16}/></button>
-    <small>Based on the regular share price. A stock token may cost something different.</small>
-   </form>
-   <div className="ws-alert-list">
-    <div className="ws-alert-list-head"><div><span className="ws-label">YOUR ALERTS</span><small>{lastChecked?`Last checked ${formatWorkspaceDate(lastChecked,{hour:'numeric',minute:'2-digit'})}`:'Not checked this visit'}</small></div><button className="ws-action-secondary" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check prices now'}</button></div>
-    {loaded&&!alerts.length&&<p className="ws-alert-empty">No alerts yet. Set one to watch a price without trading.</p>}
-    {alerts.map(alert=><div key={alert.id} className="ws-alert-row" data-status={alert.status}>
-     <div><strong>{alert.symbol}</strong><small>{alert.direction==='above'?'At or above':'At or below'} {money(alert.priceCents)}</small></div>
-     <div className="ws-alert-price"><span>Current price</span><strong>{alert.observedPriceCents?money(alert.observedPriceCents):'Check to update'}</strong></div>
-     <span className="ws-alert-status">{alert.status==='triggered'?'Triggered':'Waiting'}</span>
-     <button className="ws-action-quiet" disabled={busy} onClick={()=>void remove(alert.id)} aria-label={`Delete alert for ${alert.symbol}`}><X size={15}/> Delete</button>
-    </div>)}
+
+  <article className="ws-alert-card ws-alert-list" aria-label="Your alerts">
+   <div className="ws-alert-card-head"><div><h3>Your alerts</h3><small>{lastChecked?`Last checked ${formatWorkspaceDate(lastChecked,{hour:'numeric',minute:'2-digit'})}`:'Checked about every 15 minutes'}</small></div><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void load(true)}>{busy?'Checking…':'Check now'}</button></div>
+   {!loaded&&!error&&<p className="ws-muted" role="status">Loading your alerts…</p>}
+   {loaded&&!alerts.length&&<p className="ws-muted">No alerts yet.</p>}
+   {alerts.map(alert=><div key={alert.id} className="ws-alert-row" data-status={alert.status}>
+    <div><strong>{alert.symbol} <span className="ws-alert-status">{alert.status==='triggered'?'Triggered':'Waiting'}</span></strong><small>{alert.direction==='above'?'At or above':'At or below'} {money(alert.priceCents)} · now {alert.observedPriceCents?money(alert.observedPriceCents):'not checked yet'}</small></div>
+    <button type="button" className="ws-icon-button" disabled={busy} onClick={()=>void remove(alert.id)} aria-label={`Delete alert for ${alert.symbol}`}><X size={16}/></button>
+   </div>)}
+  </article>
+
+  <form className="ws-alert-card ws-alert-form" aria-label="New price alert" onSubmit={e=>{e.preventDefault();void create();}}>
+   <div className="ws-alert-card-head"><div><h3>New alert</h3><small>Watch any supported stock. Your limits still decide what you can buy.</small></div></div>
+   <div className="ws-alert-stock-field"><label htmlFor="ws-alert-stock-search">Stock</label><div className="ws-stock-search"><Search size={16} aria-hidden="true"/><input id="ws-alert-stock-search" type="search" value={stockSearch} onChange={event=>setStockSearch(event.target.value)} placeholder="Search by company or ticker" aria-controls="ws-alert-stock-results"/></div>
+    {stockLoading?<small role="status">Loading stocks…</small>:stockError?<small role="alert">{stockError} <button type="button" onClick={()=>{setStockLoading(true);setStockRetry(value=>value+1);}}>Try again</button></small>:<div id="ws-alert-stock-results" className="ws-alert-stock-results" role="group" aria-label="Matching stocks">{shownStocks.length?shownStocks.map(stock=><button type="button" key={stock.symbol} aria-pressed={symbol===stock.symbol} onClick={()=>setSymbol(stock.symbol)}><strong>{stock.symbol}</strong><span>{stock.name}</span>{symbol===stock.symbol&&<Check size={15} aria-hidden="true"/>}</button>):<small>No match. Try another name or ticker.</small>}{matchingStocks.length>shownStocks.length&&<small className="ws-muted">{matchingStocks.length-shownStocks.length} more. Type to narrow the list.</small>}</div>}
    </div>
-  </div>
-  <p className="ws-alert-footnote">We check regular share prices about every 15 minutes. Short price moves may be missed. Alerts never buy or sell for you.</p>
+   <div className="ws-alert-fields">
+    <label>When the price is<select value={direction} onChange={e=>setDirection(e.target.value as 'above'|'below')}><option value="above">at or above</option><option value="below">at or below</option></select></label>
+    <label>Price · USD<input required inputMode="decimal" value={price} onChange={e=>setPrice(e.target.value)} placeholder="175.00"/></label>
+   </div>
+   <button className="ws-action-primary" disabled={busy||stockLoading||!!stockError||!stocks.some(stock=>stock.symbol===symbol)||!price.trim()}>Set alert for {stockLoading?'…':symbol} <BellRing size={16}/></button>
+   <small className="ws-muted">Uses the regular share price. A stock token can cost a little different.</small>
+  </form>
+
+  <article className="ws-alert-card ws-alert-device" aria-label="Device notifications">
+   <div><h3>Device notifications</h3><small>{deviceEnabled?'On for this device.':pushSupported?'Optional. Get alerts while the site is closed. Turn on per device; on iPhone, add to Home Screen first.':'Not available in this browser. On iPhone, add Stock Steward to your Home Screen and open it there.'}</small></div>
+   {pushSupported&&<button type="button" className={deviceEnabled?'ws-action-quiet':'ws-action-secondary'} disabled={deviceBusy} onClick={()=>void (deviceEnabled?disableDevice():enableDevice())}>{deviceBusy?'Updating…':deviceEnabled?'Turn off':'Turn on'}</button>}
+  </article>
+  <p className="ws-alert-footnote">Short price moves may be missed. Alerts never buy or sell.</p>
  </section>;
 }

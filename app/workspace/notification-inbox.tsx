@@ -37,7 +37,7 @@ export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (
     if(item.kind==='proposal'){
       if(busy)return;setBusy(true);setError('');
       try{const result=await post({action:'review_proposal',id:item.id});const idea=buyIdeaFromClaim(result.proposal);await load();onReviewBuy(idea);}
-      catch(cause){setError(cause instanceof Error?cause.message:'This idea could not open. No order was sent.');}
+      catch(cause){setError(cause instanceof Error?cause.message:'This idea could not open. No order was sent.');await load().catch(()=>{});}
       finally{setBusy(false);}
       return;
     }
@@ -50,12 +50,19 @@ export default function NotificationInbox({ onCount, onReviewBuy }: { onCount: (
   const ideas=items.filter(item=>item.kind==='proposal'&&item.proposal_status==='proposed'&&!!item.proposal_expires_at&&Date.parse(item.proposal_expires_at)>current);
   const pastIdeas=items.filter(item=>item.kind==='proposal'&&!ideas.includes(item));
   const updates=items.filter(item=>item.kind!=='proposal');
+  const amount=(item:InboxItem)=>item.proposal_amount_cents==null?'amount unavailable':`$${(item.proposal_amount_cents/100).toFixed(2)}`;
   return <section className="ws-inbox" aria-label="Notification inbox">
-    <div className="ws-alert-list-head"><div><span className="ws-label">INBOX</span><h2>Updates for you</h2><small>Saved here without browser permissions. Device notifications are optional.</small></div><button type="button" className="ws-action-secondary" disabled={busy} onClick={() => void testAlert()}>{busy ? 'Sending…' : 'Send me a test alert'}</button></div>
     {notice && <p className="ws-alert-notice" role="status">{notice}</p>}{error && <p className="ws-error" role="alert">{error}</p>}
-    {!items.length && <p className="ws-alert-empty">No updates yet. Test the inbox or set a price alert.</p>}
-    {!!ideas.length&&<div className="ws-ideas"><div className="ws-ideas-heading"><span className="ws-label">BUY IDEAS</span><p>Ideas spend nothing. Buy opens a fresh quote using your saved per-buy amount; you still sign in your wallet.</p></div>{ideas.map(item=><article className="ws-idea" key={item.id}><div><strong>{item.symbol??'Stock'} <span>· {item.proposal_amount_cents==null?'Amount unavailable':`$${(item.proposal_amount_cents/100).toFixed(2)}`} idea</span></strong><small>{formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})} · Expires {formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void open(item)}>Review idea</button></article>)}</div>}
-    {updates.map(item=><div className="ws-inbox-item" data-unread={!item.read_at} key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div><button type="button" disabled={busy} className="ws-action-quiet" onClick={()=>void open(item)}>{item.read_at?'Read':'Mark read'}</button></div>)}
-    {!!pastIdeas.length&&<details className="ws-past-ideas"><summary>Past ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(item=><div className="ws-past-idea" key={item.id}><strong>{item.symbol??'Stock'} · {item.proposal_amount_cents==null?'Amount unavailable':`$${(item.proposal_amount_cents/100).toFixed(2)}`}</strong><small>{item.proposal_status==='proposed'?'Expired':'Already opened'} · {formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>)}</details>}
+    <article className="ws-alert-card" aria-label="Buy ideas">
+      <div className="ws-alert-card-head"><div><h3>Buy ideas</h3><small>Ideas spend nothing. Buy uses your saved per-buy amount and a fresh quote.</small></div>{!!ideas.length&&<span className="ws-count">{ideas.length}</span>}</div>
+      {!ideas.length&&<p className="ws-muted">No ideas right now.</p>}
+      {ideas.map(item=><div className="ws-idea" key={item.id}><div><strong>{item.symbol??'Stock'} <span>· {amount(item)}</span></strong><small>Expires {formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void open(item)}>Review in Buy</button></div>)}
+      {!!pastIdeas.length&&<details className="ws-past-ideas"><summary>Past ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(item=><div className="ws-past-idea" key={item.id}><strong>{item.symbol??'Stock'} · {amount(item)}</strong><small>{item.proposal_status==='proposed'?'Expired':'Opened'} · {formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>)}</details>}
+    </article>
+    <article className="ws-alert-card" aria-label="Updates">
+      <div className="ws-alert-card-head"><div><h3>Updates</h3><small>Saved here. No setup needed.</small></div><button type="button" className="ws-action-quiet" disabled={busy} onClick={() => void testAlert()}>{busy ? 'Sending…' : 'Send test'}</button></div>
+      {!updates.length && <p className="ws-muted">No updates yet.</p>}
+      {updates.map(item=><div className="ws-inbox-item" data-unread={!item.read_at} key={item.id}><div><strong>{item.title}</strong><p>{item.body}</p><small>{formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>{item.read_at?<small className="ws-muted">Read</small>:<button type="button" disabled={busy} className="ws-action-quiet" onClick={()=>void open(item)}>Mark read</button>}</div>)}
+    </article>
   </section>;
 }

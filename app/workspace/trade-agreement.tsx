@@ -34,6 +34,7 @@ export default function TradeAgreement({ onReady }: { onReady: (ready: boolean) 
   if (status?.accepted && !status.locationBlock) return null;
   return <section className="ws-trade-agreement" aria-label="Before your first real trade">
     <span>BEFORE YOUR FIRST REAL TRADE</span><h2>Review the risks and eligibility.</h2>
+    <p className="ws-trade-agreement-note">Only needed for real-money trades. Practice, Markets and Alerts work without it.</p>
     <p>{TRADING_RISK_TEXT}</p><p>{US_RESTRICTION_TEXT} Availability may also be restricted elsewhere. Your confirmation and IP location do not prove legal eligibility.</p>
     <p><a href="/terms" target="_blank" rel="noopener noreferrer">Read the terms ↗</a> · Version {TERMS_VERSION}</p>
     {status?.locationBlock ? <p role="alert">{status.locationBlock}</p> : <><label><input type="checkbox" checked={checked} onChange={event => setChecked(event.target.checked)}/>{TRADE_AGREEMENT_LABEL}</label>

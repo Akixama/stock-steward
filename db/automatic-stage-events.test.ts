@@ -7,9 +7,9 @@ import {queueAutomaticPush} from '../lib/automatic-stage-push.ts';
 
 function database(){
  const sql=new DatabaseSync(':memory:');
- sql.exec('CREATE TABLE autonomous_shadow_plans(enabled INTEGER,lease_token TEXT,lease_until TEXT)');
+ sql.exec('CREATE TABLE autonomous_shadow_plans(owner_ref TEXT PRIMARY KEY,revision INTEGER,enabled INTEGER,lease_token TEXT,lease_until TEXT)');
  sql.exec('CREATE TABLE autonomous_shadow_runs(id TEXT PRIMARY KEY,revision INTEGER)');
- sql.exec("INSERT INTO autonomous_shadow_plans VALUES(1,'old-lease','2026-10-22T00:00:00Z')");
+ sql.exec("INSERT INTO autonomous_shadow_plans VALUES('alice',3,1,'old-lease','2026-10-22T00:00:00Z')");
  sql.exec(readFileSync(new URL('../drizzle/0036_automatic_stage_events.sql',import.meta.url),'utf8'));
  sql.exec('CREATE TABLE push_subscriptions(id TEXT PRIMARY KEY,owner_ref TEXT,endpoint TEXT,p256dh TEXT,auth TEXT)');
  const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...values:unknown[]){args=values;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async first<T>(){return sql.prepare(query).get(...args as never[]) as T|null??null;},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
@@ -33,8 +33,25 @@ test('proposal is saved once and queued to the owner device only',async()=>{
   assert.equal((await automaticEvents(db,'bob')).length,0);
  }finally{sql.close();}
 });
+test('no idea is saved while the plan is paused or after it changed',async()=>{
+ const {sql,db}=database();try{
+  // The migration pauses the plan; a paused plan never gets an idea.
+  const proposal=event('proposal');sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(proposal.run_id,3);
+  assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),false);
+  // Pause then resume bumps the revision: a check from the old revision saves nothing.
+  sql.exec("UPDATE autonomous_shadow_plans SET enabled=1,revision=5");
+  assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),false);
+  // Another owner's running plan does not count.
+  sql.exec("UPDATE autonomous_shadow_plans SET owner_ref='bob',revision=3");
+  assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),false);
+  assert.equal(Number(sql.prepare('SELECT COUNT(*) AS n FROM automatic_stage_events').get()!.n),0);
+  sql.exec("UPDATE autonomous_shadow_plans SET owner_ref='alice'");
+  assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),true);
+ }finally{sql.close();}
+});
 test('a live idea is not duplicated for the same running rule',async()=>{
  const {sql,db}=database();try{
+  sql.exec('UPDATE autonomous_shadow_plans SET enabled=1');
   const first=event('proposal'),secondId='0x'+'b'.repeat(64);
   const second={...first,id:`${secondId}:proposal`,run_id:secondId,created_at:'2026-10-21T00:02:00.000Z'};
   sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(first.run_id,3);
@@ -65,5 +82,24 @@ test('pre-action alert persists once before an outcome and cannot be reused as a
   assert.equal(await saveAutomaticEvent(db,{...event('auto_action'),status:'unknown'}),true);
   assert.equal((await automaticEvents(db,'alice')).length,2);
   await assert.rejects(saveAutomaticEvent(db,{...started,id:`${runId}:proposal`}));
+ }finally{sql.close();}
+});
+
+test('idea to Buy: opens once, carries its amount, and flags a saved amount that differs',async()=>{
+ const {buyIdeaFromClaim,buyIdeaAmount}=await import('../lib/buy-idea.ts');
+ const {sql,db}=database();try{
+  sql.exec('UPDATE autonomous_shadow_plans SET enabled=1');
+  const proposal={...event('proposal'),amount_cents:1000};sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(proposal.run_id,3);
+  assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),true);
+  const idea=buyIdeaFromClaim(await claimProposalReview(db,'alice',proposal.id,new Date('2026-10-21T00:05:00Z')));
+  assert.deepEqual(idea,{symbol:'AAPL',amountCents:1000});
+  // Same saved amount: no acknowledgement needed. Different saved amount: the review says which amount it uses.
+  assert.equal(buyIdeaAmount(idea.amountCents,1000).differs,false);
+  const differs=buyIdeaAmount(idea.amountCents,500);
+  assert.equal(differs.differs,true);assert.match(differs.label,/will use \$5\.00, not the idea amount/);
+  // Opened ideas and expired ideas never open again, so Buy cannot be reached twice from one idea.
+  assert.equal(await claimProposalReview(db,'alice',proposal.id,new Date('2026-10-21T00:06:00Z')),null);
+  const late={...proposal,id:`${'0x'+'d'.repeat(64)}:proposal`,run_id:'0x'+'d'.repeat(64)};await saveAutomaticEvent(db,late);
+  assert.equal(await claimProposalReview(db,'alice',late.id,new Date('2026-10-21T00:15:00Z')),null);
  }finally{sql.close();}
 });

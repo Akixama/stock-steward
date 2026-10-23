@@ -36,7 +36,7 @@ button:hover{background:#fff}
 footer{margin-top:14px;font-size:12px;color:#6b7383}
 </style></head><body><main>
 <h1>Stock Steward</h1>
-<p>Practice mode with real market prices. No real money and no real brokerage accounts are used here. Each visitor gets their own practice workspace.</p>
+<p>Practice with real market prices and fake money. Real-money buying is a private pilot, and every real order needs your own wallet approval. Each visitor gets their own workspace.</p>
 <form method="post" action="/signin-with-chatgpt">
 <input type="hidden" name="return_to" value="${escapeHtml(returnTo)}">
 <label for="display_name">Name shown in the workspace (optional)</label>
@@ -46,7 +46,7 @@ footer{margin-top:14px;font-size:12px;color:#6b7383}
 ${codeError ? '<p class="error">That sign-in code is not valid or has expired.</p>' : ""}
 <button type="submit">Enter</button>
 </form>
-<footer>Practice mode. Nothing here trades or moves funds.</footer>
+<footer>Signing in never trades or moves funds.</footer>
 </main></body></html>`;
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 }
