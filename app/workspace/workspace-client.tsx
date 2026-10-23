@@ -16,6 +16,7 @@ import ActivityPanel from './activity-panel';
 import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
 import AutomaticPanel from './automatic-panel';
+import GoalPanel from './goal-panel';
 import type {BuyIdea} from '@/lib/buy-idea';
 import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
@@ -43,9 +44,10 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
   const [strategyMode, setStrategyMode] = useState<StrategyMode>("real");
+  const [goalOpen, setGoalOpen] = useState(false);
   const [buyIdeaRequest,setBuyIdeaRequest]=useState<(BuyIdea&{id:number})|null>(null);
   const [unreadAlerts, setUnreadAlerts] = useState<number | null>(null);
-  useEffect(()=>{const linked=LINKED_VIEWS[new URLSearchParams(window.location.search).get('view')??''];if(!linked)return;const timer=setTimeout(()=>{setView(linked[0]);if(linked[1])setStrategyMode(linked[1]);},0);return()=>clearTimeout(timer);},[]);
+  useEffect(()=>{const linked=LINKED_VIEWS[new URLSearchParams(window.location.search).get('view')??''];if(!linked)return;const timer=setTimeout(()=>{setView(linked[0]);if(linked[1])setStrategyMode(linked[1]);if(new URLSearchParams(window.location.search).get('view')==='goal')setGoalOpen(true);},0);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('review')!=='buy')return;url.searchParams.delete('review');window.history.replaceState(null,'',url.pathname+url.search);const timer=window.setTimeout(()=>window.dispatchEvent(new Event('stock-steward:open-buy')),500);return()=>window.clearTimeout(timer);},[]);
   useEffect(()=>{let active=true;const refresh=async()=>{try{const response=await fetch('/api/workspace/notifications',{cache:'no-store'});const data=await response.json() as {unread?:number};if(active&&response.ok&&typeof data.unread==='number')setUnreadAlerts(data.unread);}catch{}};void refresh();const timer=window.setInterval(()=>void refresh(),60000);return()=>{active=false;window.clearInterval(timer);};},[]);
   useEffect(()=>{const nav=navRef.current;if(!nav)return;const measure=()=>{const selected=nav.querySelector<HTMLButtonElement>('button.selected');if(selected)setIndicator({left:selected.offsetLeft,width:selected.offsetWidth});};measure();const observer=new ResizeObserver(measure);observer.observe(nav);return()=>observer.disconnect();},[view]);
@@ -211,6 +213,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
           <div className="ws-strategy-switch" role="group" aria-label="Real or practice"><button type="button" aria-pressed={strategyMode==='real'} onClick={()=>setStrategyMode('real')}>Real</button><button type="button" aria-pressed={strategyMode==='practice'} onClick={()=>setStrategyMode('practice')}>Practice</button></div>
           <div hidden={strategyMode!=='practice'} className="ws-strategy-practice"><StrategyPanel mandate={mandate} surface="practice" onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>document.getElementById('ws-strategy-builder')?.scrollIntoView({behavior:'smooth',block:'start'})} onPractice={()=>window.scrollTo({top:0,behavior:'smooth'})} onTrail={()=>navigate('activity')}/></div>
           {view==='strategy'&&strategyMode==='real'&&<AutomaticPanel mandate={mandate} onReviewBuy={openBuyIdea}/>}
+          {view==='strategy'&&strategyMode==='real'&&<details className="ws-strategy-goal" id="ws-goal" open={goalOpen} onToggle={e=>setGoalOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>Your plan</summary>{goalOpen&&<GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>openStrategy('practice')}/>}</details>}
         </div>
         {view === 'alerts' && <div className="ws-view ws-v6-alerts" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Price alerts and buy ideas in one place. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate} onCount={setUnreadAlerts} onReviewBuy={openBuyIdea}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
