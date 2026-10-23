@@ -8,6 +8,8 @@ import {automaticStages} from '@/lib/automatic-stages';
 import {automaticEvents} from '@/db/automatic-stage-events';
 import {getOwnership} from '@/db/wallet-ownership';
 import {stagesForWallet} from '@/lib/automatic-stages';
+import {tickAutonomousShadow} from '@/lib/autonomous-shadow-worker';
+import {chainTransport} from '@/lib/chain-transport';
 const headers={'Cache-Control':'no-store'};
 export async function GET(){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
@@ -21,10 +23,18 @@ export async function POST(request:Request){
  if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});
  const text=await request.text();if(text.length>1500)return Response.json({error:'Request too large.'},{status:413,headers});
  let body:{action?:unknown;revision?:unknown;rule?:unknown;strategyVersion?:unknown};try{body=JSON.parse(text);}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}
- if(!body||!Number.isSafeInteger(body.revision)||Number(body.revision)<0||!['save','use_strategy','pause','resume'].includes(String(body.action)))return Response.json({error:'Use save, pause or resume with the current revision.'},{status:400,headers});
+ if(!body||!Number.isSafeInteger(body.revision)||Number(body.revision)<0||!['save','use_strategy','pause','resume','check_now'].includes(String(body.action)))return Response.json({error:'Use save, pause or resume with the current revision.'},{status:400,headers});
  // No action on this endpoint can activate a real-money signer.
  if(body.action!=='pause'&&(!automaticStages(env).shadow||!env.STEWARD_WORKER_KEY))return Response.json({error:'Background strategy checks are off.'},{status:503,headers});
  try{
+ if(body.action==='check_now'){
+  const [plan,ownership]=await Promise.all([getShadowPlan(env.DB,user.userId),getOwnership(env.DB,user.userId)]);
+  if(!plan?.enabled||plan.revision!==body.revision||!ownership?.verifiedAt)return Response.json({error:'Start a rule and verify your wallet first.'},{status:409,headers});
+  const stages=stagesForWallet(automaticStages(env),ownership.address);
+  // A manual check is always no-spend, even if an autonomous release is later enabled.
+  const summary=await tickAutonomousShadow(env.DB,chainTransport(env.ALCHEMY_API_KEY),new Date(),{...stages,autoBuy:false},user.userId);
+  return Response.json({summary,executionEnabled:false},{headers});
+ }
  if(body.action==='use_strategy'){
   const practice=await loadPractice(env.DB,user.userId),strategy=practice.strategy,mandate=await new D1DecisionLedger(env.DB).getMandate(user.userId);
   if(!strategy||strategy.version!==body.strategyVersion||!mandate)throw Error('Saved strategy changed.');

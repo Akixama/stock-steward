@@ -12,14 +12,15 @@ import {readAutonomousSignal} from './autonomous-signal.ts';
 import {runTriggeredAutonomy} from './autonomous-production.ts';
 import {saveAutomaticEvent} from '../db/automatic-stage-events.ts';
 import {queueAutomaticPush} from './automatic-stage-push.ts';
-import {saveProposalInbox} from '../db/notification-inbox.ts';
+import {saveProposalInbox,saveAutoRenewalReminder} from '../db/notification-inbox.ts';
+import {RENEW_NOTICE_SECONDS} from './permission-window.ts';
 import {automaticStageIntent,automaticStages,stagesForWallet} from './automatic-stages.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
-export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({})){
+export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
  const summary={checked:0,triggered:0,blocked:0,canceled:0,failed:0,transactionsSent:0,executionEnabled:stages.autoBuy};
  const ledger=new D1DecisionLedger(db);
- for(const plan of await dueShadowPlans(db,now)){
+ for(const plan of await dueShadowPlans(db,now,owner)){
   const claim=await claimShadowPlan(db,plan,now);if(!claim)continue;
   summary.checked++;
   try{
@@ -57,6 +58,17 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
       // Automatic execution has independent per-order and UTC-day caps, an
       // owner-signed session grant and activation, and the global kill switch.
       if(intent==='blocked'){await recordShadowExecution(db,claim,{state:'blocked',why:'Automatic per-order cap exceeded.'});continue;}
+      const grant=await getSessionGrant(db,plan.owner_ref);
+      let expiry=0;
+      try{expiry=Number(JSON.parse(grant?.policy_json??'{}').expiresAt);}catch{}
+      if(grant&&(!Number.isSafeInteger(expiry)||expiry*1000<=now.getTime()+RENEW_NOTICE_SECONDS*1000)){
+       await recordShadowExecution(db,claim,{state:'blocked',why:'Approval expires soon or could not be checked. Renew manually; no order was sent.'});
+       if(Number.isSafeInteger(expiry)&&expiry>0&&await saveAutoRenewalReminder(db,plan.owner_ref,grant.id,expiry,now)){
+        const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Approval expires soon. Automatic buys stopped; renew it yourself in Overview.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+        if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+       }
+       continue;
+      }
       if(await recordShadowExecution(db,claim,{state:'checking',why:'Checking autonomous release controls.'})){
        // Persist an alert before any signer can be reached. A duplicate run
        // never gets a second chance to send an unknown transaction.

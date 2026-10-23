@@ -5,22 +5,23 @@ import {verifyReleaseProof,releaseProofChecks,type ReviewAuthorities,type Releas
 import {AUTONOMOUS_SOURCE_DIGEST} from '@/lib/autonomous-release-manifest';import type {PolicyLease} from '@/lib/policy-lease';import type {Hex} from 'viem';
 import {getActivation,saveActivation,pauseActivation} from '@/db/autonomous-controls';import {activationMessage,verifyActivation,controlDigest,type ActivationConsent} from '@/lib/autonomous-activation';import {automaticStages} from '@/lib/automatic-stages';import {getShadowPlan} from '@/db/autonomous-shadow';import {D1DecisionLedger} from '@/db/ledger';import {getOwnership} from '@/db/wallet-ownership';import {mandateDigest} from '@/lib/policy-lease';
 import {assertTradingEnabled,tradingAdmission} from '@/lib/trading-controls';
+import {ownerAutomaticStages} from '@/lib/wallet-stage-access';
 const headers={'Cache-Control':'no-store'};
 function authorities():ReviewAuthorities{try{return JSON.parse(env.STEWARD_AUTONOMY_REVIEW_AUTHORITIES??'{}');}catch{return {};}}
 export async function GET(){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});
  try{
- const grant=await getSessionGrant(env.DB,user.userId);if(!grant)return Response.json({grant:null,releaseEnabled:automaticStages(env).autoBuy,executionEnabled:false},{headers});
+ const grant=await getSessionGrant(env.DB,user.userId),stages=await ownerAutomaticStages(env.DB,user.userId,env);if(!grant)return Response.json({grant:null,releaseEnabled:stages.autoBuy,executionEnabled:false},{headers});
   const lease=JSON.parse(grant.lease_json) as PolicyLease,binding={owner:lease.owner,account:lease.account,grantId:grant.id,policyHash:lease.policyHash};
   const fee=await getFeeConsent(env.DB,user.userId,grant.id),consent=fee?JSON.parse(fee.consent_json) as FeeConsent:null;
   const feeVerified=!!consent&&consent.grantId===grant.id&&consent.policyHash===lease.policyHash&&consent.owner===lease.owner&&await verifyFeeConsent(consent,fee!.signature);
   const activation=await getActivation(env.DB,user.userId,grant.id);
-  return Response.json({grant:grant.id,binding,expiresAt:new Date(JSON.parse(grant.policy_json).expiresAt*1000).toISOString(),sourceDigest:AUTONOMOUS_SOURCE_DIGEST,fee:feeVerified?consent:null,reviews:await releaseProofChecks(await listReleaseEvidence(env.DB,user.userId,grant.id),authorities(),binding),activationState:activation?.state??'not_started',releaseEnabled:automaticStages(env).autoBuy,executionEnabled:false},{headers});
+  return Response.json({grant:grant.id,binding,expiresAt:new Date(JSON.parse(grant.policy_json).expiresAt*1000).toISOString(),sourceDigest:AUTONOMOUS_SOURCE_DIGEST,fee:feeVerified?consent:null,reviews:await releaseProofChecks(await listReleaseEvidence(env.DB,user.userId,grant.id),authorities(),binding),activationState:activation?.state??'not_started',releaseEnabled:stages.autoBuy,executionEnabled:false},{headers});
  }catch{return Response.json({error:'Release controls unavailable.'},{status:503,headers});}
 }
 export async function POST(request:Request){const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});const text=await request.text();if(text.length>10000)return Response.json({error:'Request too large.'},{status:413,headers});try{const body=JSON.parse(text),grant=await getSessionGrant(env.DB,user.userId);if(!grant||!['draft','verified'].includes(grant.state))return Response.json({error:'An available session draft is required.'},{status:409,headers});const lease=JSON.parse(grant.lease_json) as PolicyLease;
  if(body.action==='pause'){await pauseActivation(env.DB,user.userId,grant.id);return Response.json({paused:true,executionEnabled:false,notice:'Future submissions stopped. Pending transactions may still complete. Wallet revocation is separate.'},{headers});}
- if(!automaticStages(env).autoBuy)return Response.json({error:'Automatic setup is off; Pause remains available.'},{status:403,headers});
+ if(!await ownerAutomaticStages(env.DB,user.userId,env).then(s=>s.autoBuy).catch(()=>false))return Response.json({error:'Automatic setup is off for this wallet; Pause remains available.'},{status:403,headers});
  if(body.action==='start_challenge'||body.action==='approve_start'){
   if(!automaticStages(env).autoBuy||grant.state!=='verified')return Response.json({error:'Automatic trading is not released. Your wallet approvals remain available.'},{status:409,headers});
   await assertTradingEnabled(env.DB,env);

@@ -16,8 +16,8 @@ export async function controlShadowPlan(db:D1Database,owner:string,expected:numb
  const result=await db.prepare('UPDATE autonomous_shadow_plans SET enabled=?,revision=revision+1,next_due_at=?,lease_token=NULL,lease_until=NULL,failures=0,updated_at=? WHERE owner_ref=? AND revision=?').bind(enabled?1:0,now.toISOString(),now.toISOString(),owner,expected).run();
  return result.meta.changes===1;
 }
-export async function dueShadowPlans(db:D1Database,now=new Date()){
- return (await db.prepare('SELECT * FROM autonomous_shadow_plans WHERE enabled=1 AND next_due_at<=? AND (lease_until IS NULL OR lease_until<=?) ORDER BY next_due_at LIMIT 2').bind(now.toISOString(),now.toISOString()).all<ShadowPlan>()).results;
+export async function dueShadowPlans(db:D1Database,now=new Date(),owner?:string){
+ return (await db.prepare(`SELECT * FROM autonomous_shadow_plans WHERE enabled=1 AND next_due_at<=? AND (lease_until IS NULL OR lease_until<=?) ${owner?'AND owner_ref=?':''} ORDER BY next_due_at LIMIT 2`).bind(now.toISOString(),now.toISOString(),...(owner?[owner]:[])).all<ShadowPlan>()).results;
 }
 export async function claimShadowPlan(db:D1Database,plan:ShadowPlan,now=new Date()):Promise<ShadowClaim|null>{
  const token=crypto.randomUUID(),id=autonomousRunId(plan.owner_ref,plan.revision,plan.next_due_at),stamp=now.toISOString();

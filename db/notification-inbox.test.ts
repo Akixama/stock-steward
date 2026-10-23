@@ -3,7 +3,7 @@ import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { automaticStageIntent, automaticStages } from '../lib/automatic-stages.ts';
-import { backfillInbox, createTestInbox, inbox, markInboxRead, savePriceInbox, saveProposalInbox } from './notification-inbox.ts';
+import { backfillInbox, createTestInbox, inbox, markInboxRead, savePriceInbox, saveProposalInbox,saveAutoRenewalReminder } from './notification-inbox.ts';
 import type { AutomaticStageEvent } from './automatic-stage-events.ts';
 
 function fixture() {
@@ -65,4 +65,15 @@ test('reload repairs a missed alert write without marking a read alert unread', 
     await backfillInbox(db, 'alice');
     assert.equal((await inbox(db, 'alice')).unread, 0);
   } finally { sql.close(); }
+});
+test('expiring auto approval creates one inbox reminder and cannot consume test-alert quota',async()=>{
+  const {sql,db}=fixture();try{
+    const grant='123e4567-e89b-12d3-a456-426614174000',when=1761300000;
+    assert.equal(await saveAutoRenewalReminder(db,'alice',grant,when,new Date('2026-10-23T10:00:00Z')),true);
+    assert.equal(await saveAutoRenewalReminder(db,'alice',grant,when,new Date('2026-10-23T10:01:00Z')),false);
+    assert.match((await inbox(db,'alice')).items[0].body,/Renew it yourself/);
+    for(let i=0;i<5;i++)await createTestInbox(db,'alice',new Date('2026-10-23T10:00:00Z'));
+    await assert.rejects(createTestInbox(db,'alice',new Date('2026-10-23T10:00:00Z')),/five test alerts/);
+    assert.equal(Number(sql.prepare('SELECT COUNT(*) AS n FROM notification_inbox').get()!.n),6);
+  }finally{sql.close();}
 });

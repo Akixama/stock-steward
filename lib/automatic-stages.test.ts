@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {automaticStages,automaticStageIntent,stagesForWallet} from './automatic-stages.ts';
 
 test('all automatic stages are off by default and a lone flag cannot spend',()=>{
-  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,conflicting:false,notificationWallets:[],autoWallets:[]});
+  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,hardCeilingCents:500,conflicting:false,notificationWallets:[],autoWallets:[]});
   assert.equal(automaticStages({AUTO_BUY:'true'}).autoBuy,false);
   assert.equal(automaticStages({APPROVE_BY_NOTIFICATION:'true'}).approveByNotification,false);
 });

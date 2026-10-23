@@ -25,6 +25,12 @@ export async function saveProposalInbox(db: D1Database, event: AutomaticStageEve
     symbol: event.symbol, created_at: event.created_at });
 }
 
+export async function saveAutoRenewalReminder(db:D1Database,owner:string,grantId:string,expiresAt:number,now=new Date()){
+  if(!/^[0-9a-f-]{36}$/i.test(grantId)||!Number.isSafeInteger(expiresAt))throw Error('Invalid renewal reminder.');
+  const when=new Date(expiresAt*1000).toISOString().replace('.000Z',' UTC');
+  return saveInboxItem(db,owner,{id:`renewal:${grantId}:${expiresAt}`,kind:'test',title:'Renew approval before automatic buying',body:`Automatic buys are paused because your approval ends ${when}. Renew it yourself in Overview; Steward will not renew or spend while it is near expiry.`,symbol:null,created_at:now.toISOString()});
+}
+
 // Repair a missed inbox write from a completed price check or saved proposal.
 // The source records are immutable for these events; INSERT OR IGNORE keeps the
 // original unread/read state even when a visitor reloads the page.
@@ -55,7 +61,7 @@ export async function markInboxRead(db: D1Database, owner: string, id: string): 
 
 export async function createTestInbox(db: D1Database, owner: string, now = new Date()): Promise<InboxItem> {
   const day = now.toISOString().slice(0, 10);
-  const recent = await db.prepare("SELECT COUNT(*) AS n FROM notification_inbox WHERE owner_ref=? AND kind='test' AND created_at>=? AND created_at<?")
+  const recent = await db.prepare("SELECT COUNT(*) AS n FROM notification_inbox WHERE owner_ref=? AND kind='test' AND id LIKE 'test:%' AND created_at>=? AND created_at<?")
     .bind(owner, `${day}T00:00:00.000Z`, new Date(Date.parse(`${day}T00:00:00.000Z`) + 86400000).toISOString()).first<{ n: number }>();
   if ((recent?.n ?? 0) >= 5) throw Error('You can send up to five test alerts per UTC day.');
   const item: InboxItem = { id: `test:${crypto.randomUUID()}`, kind: 'test', title: 'Test alert',
