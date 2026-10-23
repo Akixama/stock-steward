@@ -7,6 +7,7 @@ import { jsonResponse } from '@/lib/json-response';
 import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wallet-receipt';
 import { ArrowRight, Clock3 } from 'lucide-react';
 import OrderStatusTimeline from './order-status-timeline';
+import {buyIdeaAmount} from '@/lib/buy-idea';
 
 // Stage 3: one real order at a time, each prepared server-side, signed in the
 // owner's own wallet, and reconciled against exact onchain evidence. The server
@@ -30,8 +31,8 @@ type Prepared = {
   symbol: string; amountCents: number; minimumOutputRaw: string; outputToken: string; expiresAt: string;
 };
 
-export default function RealOrderPanel({ provider, address, onOpenMandate, onOpenOverview, preferredSymbol }: {
-  provider: WalletProvider | null; address: string; onOpenMandate: () => void; onOpenOverview?: () => void; preferredSymbol?: string;
+export default function RealOrderPanel({ provider, address, onOpenMandate, onOpenOverview, preferredSymbol, ideaAmountCents }: {
+  provider: WalletProvider | null; address: string; onOpenMandate: () => void; onOpenOverview?: () => void; preferredSymbol?: string; ideaAmountCents?:number;
 }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [symbol, setSymbol] = useState(preferredSymbol ?? '');
@@ -43,6 +44,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [amountAcknowledged,setAmountAcknowledged]=useState(false);
   const recovered = useRef(false);
   const dismissedIntent = useRef('');
 
@@ -194,10 +196,11 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
     {status && !status.permissionActive && status.blocked !== "limits" && status.blocked !== "wallet" && <p className="ws-chain-note" role={status.blocked === 'unavailable' ? 'status' : undefined}>{status.blocked === 'unavailable' ? "Can't check right now. Refresh to try again; no order was sent." : status.detail ?? 'Turn on buying above before placing an order.'}</p>}
     {note && <p className="ws-chain-note" role="status">{note}</p>}
     {status?.permissionActive && preferredSymbol && !status.symbols.includes(preferredSymbol) && !hash && <div className="ws-order-plan ws-order-blocked" role="status"><strong>{preferredSymbol} is outside your approved stocks.</strong><p>Update your limits and activate the new permission before placing an order for this stock.</p><button type="button" className="ws-action-primary" onClick={onOpenMandate}>Update limits <ArrowRight size={16}/></button></div>}
+    {status?.permissionActive && ideaAmountCents!=null && <div className="ws-idea-amount" role="status"><strong>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).differs?'Order amount differs from the idea':'Idea amount matches'}</strong><p>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).label}</p>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).differs&&!prepared&&!hash&&<label><input type="checkbox" checked={amountAcknowledged} onChange={event=>setAmountAcknowledged(event.target.checked)}/> I understand this review will use {dollars(status.perTradeCents)}.</label>}</div>}
     {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
       <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
       <label>Amount to pay · USD, set by your limits<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
-      <button type="button" onClick={prepare} disabled={busy || !provider}>Review purchase</button></div>}
+      <button type="button" onClick={prepare} disabled={busy || !provider || (ideaAmountCents!=null && ideaAmountCents!==status.perTradeCents && !amountAcknowledged)}>{ideaAmountCents!=null?`Review ${dollars(status.perTradeCents)} purchase`:'Review purchase'}</button></div>}
     {!provider && !hash && !(status && !status.permissionActive && (status.blocked === 'limits' || status.blocked === 'unavailable')) && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}
     {prepared && <div className="ws-order-plan">
       <span>REVIEW IN YOUR WALLET SOON</span>

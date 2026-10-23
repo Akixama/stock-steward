@@ -17,6 +17,7 @@ import PracticeTrail from './practice-trail';
 import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
 import AutomaticPanel from './automatic-panel';
+import type {BuyIdea} from '@/lib/buy-idea';
 import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
 import StockSelector from './stock-selector';
@@ -26,6 +27,7 @@ import "./workspace-v2.css";
 import "./workspace-v3.css";
 import "./workspace-v4.css";
 import "./workspace-v5.css";
+import "./workspace-v6.css";
 
 type View = "overview" | "goal" | "mandate" | "trail" | "strategy" | "practice" | "alerts";
 const initial: Mandate = NEW_USER_MANDATE;
@@ -38,6 +40,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
   const [view, setView] = useState<View>("overview");
+  const [buyIdeaRequest,setBuyIdeaRequest]=useState<(BuyIdea&{id:number})|null>(null);
   const [unreadAlerts, setUnreadAlerts] = useState<number | null>(null);
   useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('view');if(requested!=='alerts'&&requested!=='mandate'&&requested!=='strategy')return;const timer=setTimeout(()=>setView(requested),0);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('review')!=='buy')return;url.searchParams.delete('review');window.history.replaceState(null,'',url.pathname+url.search);const timer=window.setTimeout(()=>window.dispatchEvent(new Event('stock-steward:open-buy')),500);return()=>window.clearTimeout(timer);},[]);
@@ -125,6 +128,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
     const panel=mainRef.current;
     if(enabled&&panel)motion.current=panel.animate([{opacity:.7,transform:'translateX('+(direction*12)+'px)'},{opacity:1,transform:'translateX(0)'}],{duration:200,easing:'cubic-bezier(.23,1,.32,1)'});
   }
+  function openBuyIdea(idea:BuyIdea){setBuyIdeaRequest({...idea,id:Date.now()});navigate('overview');}
 
   function resetDraft() {
     setSymbols(mandate.allowedSymbols.join(", "));
@@ -200,11 +204,11 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
 
       <main ref={mainRef} className="ws-main">
         {storageError && <p className="ws-error" role="alert">{storageError}</p>}
-        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/>{view==='strategy'&&<AutomaticPanel mandate={mandate} onReviewBuy={()=>navigate('alerts')}/>}</div>
+        <div hidden={view!=='strategy'&&view!=='practice'} className="ws-view ws-v6-strategy" data-animate={(view==='strategy'||view==='practice')&&animateView}><StrategyPanel mandate={mandate} surface={view==='practice'?'practice':'strategy'} onSetBoundaries={()=>navigate('mandate')} onOverview={()=>navigate('overview')} onStrategy={()=>navigate('strategy')} onPractice={()=>navigate('practice')} onTrail={()=>navigate('trail')}/>{view==='strategy'&&<AutomaticPanel mandate={mandate} onReviewBuy={openBuyIdea}/>}</div>
         {view === 'goal' && <GoalPanel mandateVersion={mandate.version} onLimits={()=>navigate('mandate')} onPractice={()=>navigate('practice')}/>}
-        {view === 'alerts' && <div className="ws-view" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Your inbox works in the app without setup. Optional device notifications can reach you while the site is closed. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate} onCount={setUnreadAlerts} onReviewBuy={(symbol)=>{navigate('overview');window.setTimeout(()=>window.dispatchEvent(new CustomEvent('stock-steward:open-buy',{detail:{symbol}})),0);}}/></div>}
+        {view === 'alerts' && <div className="ws-view ws-v6-alerts" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Your inbox works in the app without setup. Optional device notifications can reach you while the site is closed. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate} onCount={setUnreadAlerts} onReviewBuy={openBuyIdea}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
-          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} buyIdeaRequest={buyIdeaRequest} onBuyIdeaOpened={()=>setBuyIdeaRequest(null)} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
           <details className="ws-v2-more"><summary>More wallet details</summary><ChainPanel mandate={mandate} /></details>
         </div>}
         {view === "mandate" && <div className="ws-view" data-animate={animateView} key="mandate">

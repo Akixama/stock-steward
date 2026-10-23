@@ -8,6 +8,20 @@ export async function saveAutomaticEvent(db:D1Database,event:AutomaticStageEvent
   return result.meta.changes===1;
 }
 
+// One live idea per running rule revision. The single INSERT statement makes
+// the duplicate check and write atomic even when two scheduled checks overlap.
+export async function saveRuleProposal(db:D1Database,event:AutomaticStageEvent,revision:number,now=new Date()):Promise<boolean>{
+  if(event.kind!=='proposal'||!Number.isSafeInteger(revision)||revision<1)throw Error('Invalid rule proposal.');
+  if(!/^0x[0-9a-f]{64}:proposal$/i.test(event.id)||event.id!==`${event.run_id}:proposal`||!/^[A-Z][A-Z0-9.]{0,7}$/.test(event.symbol)||!Number.isSafeInteger(event.amount_cents)||event.amount_cents<1||event.amount_cents>1000)throw Error('Invalid rule proposal.');
+  const result=await db.prepare(`INSERT OR IGNORE INTO automatic_stage_events(id,owner_ref,run_id,kind,status,symbol,amount_cents,detail,transaction_hash,created_at,expires_at)
+    SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (
+      SELECT 1 FROM automatic_stage_events old JOIN autonomous_shadow_runs run ON run.id=old.run_id
+      WHERE old.owner_ref=? AND old.kind='proposal' AND old.status='proposed' AND old.expires_at>?
+        AND run.revision=? AND old.symbol=? AND old.amount_cents=?
+    )`).bind(event.id,event.owner_ref,event.run_id,event.kind,event.status,event.symbol,event.amount_cents,event.detail,event.transaction_hash,event.created_at,event.expires_at,event.owner_ref,now.toISOString(),revision,event.symbol,event.amount_cents).run();
+  return result.meta.changes===1;
+}
+
 export async function automaticEvents(db:D1Database,owner:string):Promise<AutomaticStageEvent[]>{
   return (await db.prepare('SELECT * FROM automatic_stage_events WHERE owner_ref=? ORDER BY created_at DESC LIMIT 30').bind(owner).all<AutomaticStageEvent>()).results;
 }

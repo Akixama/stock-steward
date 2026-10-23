@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {saveAutomaticEvent,automaticEvents,claimProposalReview,type AutomaticStageEvent} from './automatic-stage-events.ts';
+import {saveAutomaticEvent,saveRuleProposal,automaticEvents,claimProposalReview,type AutomaticStageEvent} from './automatic-stage-events.ts';
 import {queueAutomaticPush} from '../lib/automatic-stage-push.ts';
 
 function database(){
  const sql=new DatabaseSync(':memory:');
  sql.exec('CREATE TABLE autonomous_shadow_plans(enabled INTEGER,lease_token TEXT,lease_until TEXT)');
+ sql.exec('CREATE TABLE autonomous_shadow_runs(id TEXT PRIMARY KEY,revision INTEGER)');
  sql.exec("INSERT INTO autonomous_shadow_plans VALUES(1,'old-lease','2026-10-22T00:00:00Z')");
  sql.exec(readFileSync(new URL('../drizzle/0036_automatic_stage_events.sql',import.meta.url),'utf8'));
  sql.exec('CREATE TABLE push_subscriptions(id TEXT PRIMARY KEY,owner_ref TEXT,endpoint TEXT,p256dh TEXT,auth TEXT)');
@@ -30,6 +31,19 @@ test('proposal is saved once and queued to the owner device only',async()=>{
   assert.equal(sql.prepare('SELECT COUNT(*) n FROM automatic_stage_deliveries').get()!.n,1);
   assert.equal((await automaticEvents(db,'alice')).length,1);
   assert.equal((await automaticEvents(db,'bob')).length,0);
+ }finally{sql.close();}
+});
+test('a live idea is not duplicated for the same running rule',async()=>{
+ const {sql,db}=database();try{
+  const first=event('proposal'),secondId='0x'+'b'.repeat(64);
+  const second={...first,id:`${secondId}:proposal`,run_id:secondId,created_at:'2026-10-21T00:02:00.000Z'};
+  sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(first.run_id,3);
+  sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(second.run_id,3);
+  assert.equal(await saveRuleProposal(db,first,3,new Date('2026-10-21T00:00:00Z')),true);
+  assert.equal(await saveRuleProposal(db,second,3,new Date('2026-10-21T00:02:00Z')),false);
+  assert.equal(Number(sql.prepare('SELECT COUNT(*) AS n FROM automatic_stage_events').get()!.n),1);
+  assert.equal(await saveRuleProposal(db,second,3,new Date('2026-10-21T00:16:00Z')),true);
+  assert.equal(Number(sql.prepare('SELECT COUNT(*) AS n FROM automatic_stage_events').get()!.n),2);
  }finally{sql.close();}
 });
 test('one-use proposal cannot open for another owner, after expiry, or twice',async()=>{

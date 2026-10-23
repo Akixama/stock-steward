@@ -1,7 +1,7 @@
 import type { PriceAlert } from '../lib/price-alerts.ts';
 import type { AutomaticStageEvent } from './automatic-stage-events.ts';
 
-export type InboxItem = { id: string; kind: 'test' | 'price' | 'proposal'; title: string; body: string; symbol: string | null; created_at: string; read_at: string | null; proposal_status?:string|null; proposal_expires_at?:string|null };
+export type InboxItem = { id: string; kind: 'test' | 'price' | 'proposal'; title: string; body: string; symbol: string | null; created_at: string; read_at: string | null; proposal_status?:string|null; proposal_expires_at?:string|null; proposal_amount_cents?:number|null };
 
 export async function saveInboxItem(db: D1Database, owner: string, item: Omit<InboxItem, 'read_at'>): Promise<boolean> {
   const result = await db.prepare('INSERT OR IGNORE INTO notification_inbox(id,owner_ref,kind,title,body,symbol,created_at,read_at) VALUES(?,?,?,?,?,?,?,NULL)')
@@ -47,7 +47,7 @@ export async function backfillInbox(db: D1Database, owner: string): Promise<void
 
 export async function inbox(db: D1Database, owner: string) {
   const [items, count] = await Promise.all([
-    db.prepare("SELECT i.id,i.kind,i.title,i.body,i.symbol,i.created_at,i.read_at,e.status AS proposal_status,e.expires_at AS proposal_expires_at FROM notification_inbox i LEFT JOIN automatic_stage_events e ON i.kind='proposal' AND i.id='proposal:'||e.id AND i.owner_ref=e.owner_ref WHERE i.owner_ref=? ORDER BY i.created_at DESC LIMIT 100").bind(owner).all<InboxItem>(),
+    db.prepare("SELECT i.id,i.kind,i.title,i.body,i.symbol,i.created_at,i.read_at,e.status AS proposal_status,e.expires_at AS proposal_expires_at,e.amount_cents AS proposal_amount_cents FROM notification_inbox i LEFT JOIN automatic_stage_events e ON i.kind='proposal' AND i.id='proposal:'||e.id AND i.owner_ref=e.owner_ref WHERE i.owner_ref=? ORDER BY i.created_at DESC LIMIT 100").bind(owner).all<InboxItem>(),
     db.prepare('SELECT COUNT(*) AS n FROM notification_inbox WHERE owner_ref=? AND read_at IS NULL').bind(owner).first<{ n: number }>(),
   ]);
   return { items: items.results ?? [], unread: count?.n ?? 0 };

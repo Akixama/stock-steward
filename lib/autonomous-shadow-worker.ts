@@ -10,7 +10,7 @@ import {dueShadowPlans,claimShadowPlan,finishShadowPlan,recordShadowExecution} f
 import {evaluateAutonomousSignal,type AutonomousRule} from './autonomous-live.ts';
 import {readAutonomousSignal} from './autonomous-signal.ts';
 import {runTriggeredAutonomy} from './autonomous-production.ts';
-import {saveAutomaticEvent} from '../db/automatic-stage-events.ts';
+import {saveAutomaticEvent,saveRuleProposal} from '../db/automatic-stage-events.ts';
 import {queueAutomaticPush} from './automatic-stage-push.ts';
 import {saveProposalInbox,saveAutoRenewalReminder} from '../db/notification-inbox.ts';
 import {RENEW_NOTICE_SECONDS} from './permission-window.ts';
@@ -49,7 +49,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
-      if(await saveAutomaticEvent(db,event)){
+      if(await saveRuleProposal(db,event,plan.revision,now)){
        await saveProposalInbox(db,event);
        await queueAutomaticPush(db,event);
       }

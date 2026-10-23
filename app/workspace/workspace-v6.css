@@ -1,0 +1,54 @@
+/* Strategy and Alerts use one quiet reading column. Borders separate actions,
+   while the only raised surfaces are the ideas a person can act on. */
+.ws-v6-strategy,.ws-v6-alerts{max-width:880px;margin-inline:auto;color:#ececf2}
+.ws-v6-strategy .ws-strategy.ws-check-panel{padding:12px 0 20px;overflow:visible;background:transparent;border:0;box-shadow:none}
+.ws-v6-strategy .ws-strategy>.ws-account-head{padding:18px 0 26px;border-bottom:1px solid #303440}
+.ws-v6-strategy .ws-strategy h2,.ws-v6-alerts h1{font-size:clamp(2.1rem,5vw,3.5rem);line-height:1.07;letter-spacing:-.055em}
+.ws-v6-strategy .ws-strategy-setup{display:flex!important;flex-direction:column;gap:0;max-width:100%;margin-top:20px}
+.ws-v6-strategy .ws-strategy-start{order:0;margin:0 0 28px!important}
+.ws-v6-strategy .ws-strategy-types,.ws-v6-strategy .ws-strategy-fields{grid-column:auto;position:static;order:1;display:block!important;margin:0!important;padding:24px 0!important;border:0!important;border-top:1px solid #303440!important;border-radius:0!important;background:transparent!important;box-shadow:none}
+.ws-v6-strategy .ws-strategy-fields{order:2;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.ws-v6-strategy .ws-strategy-fields>.ws-builder-kicker{grid-column:1/-1}
+.ws-v6-strategy .ws-strategy-fields>label{padding:0;border:0!important;background:transparent!important;font-size:14px!important;gap:9px!important}
+.ws-v6-strategy .ws-strategy-fields input,.ws-v6-strategy .ws-strategy-fields select{min-height:52px;padding:13px 15px!important;border:1px solid #414753!important;border-radius:12px!important;background:#151820!important;color:#f2f2f5;font-size:15px!important}
+.ws-v6-strategy .ws-strategy-fields>label small{font-size:12px!important;color:#aab0bc}
+.ws-v6-strategy .ws-strategy-group-options{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.ws-v6-strategy .ws-strategy-types .ws-strategy-group-options button{min-height:84px!important;padding:16px!important;border:1px solid #3a3f4c!important;border-radius:12px!important;background:#151820!important}
+.ws-v6-strategy .ws-strategy-types .ws-strategy-group-options button[aria-pressed=true]{border-color:#a9aed1!important;background:#232637!important;box-shadow:none!important}
+.ws-v6-strategy .ws-strategy-types .ws-strategy-group-options button strong{font-size:15px!important;color:#f0eff7}
+.ws-v6-strategy .ws-strategy-types .ws-strategy-group-options button small{font-size:12px!important;color:#abb0bd}
+.ws-v6-strategy .ws-strategy-direction,.ws-v6-strategy .ws-ai,.ws-v6-strategy .ws-strategy-review-action,.ws-v6-strategy .ws-review-card,.ws-v6-strategy .ws-confirmed-strategy{border:0!important;border-top:1px solid #303440!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;padding:24px 0!important;margin:0!important}
+.ws-v6-strategy .ws-strategy-review-action{order:7}
+.ws-v6-strategy .ws-execution-choice label{border-color:#3a3f4c;background:#151820;border-radius:12px}
+.ws-v6-strategy .ws-execution-choice label:has(input:checked){border-color:#a9aed1;background:#232637}
+.ws-v6-strategy .ws-shadow-agent{max-width:880px;margin:18px 0 0;padding:30px 0;border:0;border-top:1px solid #303440;border-radius:0;background:transparent}
+.ws-v6-strategy .ws-shadow-agent h3{font-size:clamp(1.6rem,3vw,2.2rem);color:#f1f0f7}
+.ws-v6-strategy .ws-shadow-agent p{font-size:14px;color:#afb3c0}
+.ws-v6-strategy .ws-shadow-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.ws-v6-strategy .ws-shadow-fields label{font-size:14px;color:#ced0dc}
+.ws-v6-strategy .ws-shadow-fields input,.ws-v6-strategy .ws-shadow-fields select{min-height:50px;border-color:#414753;border-radius:12px;background:#151820;font-size:15px}
+.ws-v6-strategy .ws-shadow-history{margin-top:26px;border-top:1px solid #303440;padding-top:18px}
+.ws-v6-strategy .ws-shadow-history h4{font-size:18px;color:#eeeef3}
+.ws-v6-strategy .ws-shadow-history>div{padding:16px 0;border-bottom:1px solid #303440}
+.ws-v6-strategy .ws-auto-setup{border-top:1px solid #303440;padding-top:22px}
+.ws-v6-alerts>.ws-page-head{margin:0 0 24px;padding:10px 0 24px;border-bottom:1px solid #303440}
+.ws-v6-alerts .ws-alerts{display:flex;flex-direction:column;gap:20px}
+.ws-v6-alerts .ws-inbox{order:0;margin:0;padding:0;border:0;border-radius:0;background:transparent}
+.ws-v6-alerts .ws-alert-device{order:2;margin:0;padding:24px 0;border:0;border-top:1px solid #303440;border-radius:0;background:transparent}
+.ws-v6-alerts .ws-alert-device .ws-label{color:#a9aed1}
+.ws-v6-alerts .ws-alert-device strong{font-size:20px}
+.ws-v6-alerts .ws-alert-layout{order:1;display:flex;flex-direction:column;gap:28px}
+.ws-v6-alerts .ws-alert-form,.ws-v6-alerts .ws-alert-list{width:100%;margin:0;padding:26px 0;border:0;border-top:1px solid #303440;border-radius:0;background:transparent;box-shadow:none}
+.ws-v6-alerts .ws-alert-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.ws-v6-alerts .ws-alert-stock-field{grid-column:1/-1}
+.ws-v6-alerts .ws-alert-row{min-height:80px;padding:16px 0;border:0;border-bottom:1px solid #303440;border-radius:0;background:transparent}
+.ws-v6-alerts .ws-alert-row strong,.ws-v6-alerts .ws-inbox-item strong{font-size:18px;color:#f0eff5}
+.ws-v6-alerts .ws-alert-row small,.ws-v6-alerts .ws-inbox-item small{font-size:12px;color:#a8abb8}
+.ws-v6-alerts .ws-alert-footnote{order:3;font-size:12px;color:#aab0bc}
+.ws-ideas{margin:24px 0}.ws-ideas-heading{padding-bottom:12px}.ws-ideas-heading p{margin:8px 0 0;font-size:14px;line-height:1.5;color:#adb1bf}
+.ws-idea{display:flex;align-items:center;justify-content:space-between;gap:22px;margin:10px 0;padding:20px 22px;border:1px solid #45495b;border-radius:16px;background:#191c26}
+.ws-idea strong{display:block;color:#f1f0f6;font-size:clamp(20px,3vw,25px);letter-spacing:-.03em}.ws-idea strong span{color:#c2c4d5;font-weight:500}.ws-idea small{display:block;margin-top:8px;color:#aeb2c0;font-size:12px}.ws-idea button{flex:none;min-height:46px}
+.ws-past-ideas{padding:18px 0;border-top:1px solid #303440}.ws-past-ideas summary{cursor:pointer;font-size:15px;color:#d7d7e1}.ws-past-ideas summary span{color:#aab0bc}.ws-past-idea{display:flex;justify-content:space-between;gap:18px;padding:12px 0;border-bottom:1px solid #303440}.ws-past-idea strong{font-size:14px;color:#d5d5df}.ws-past-idea small{color:#a6aaba}
+.ws-idea-amount{padding:16px 18px;margin:14px 0;border-left:3px solid #a9aed1;border-radius:0 10px 10px 0;background:#202330;color:#f0eff7}.ws-idea-amount strong{font-size:16px}.ws-idea-amount p{margin:7px 0;line-height:1.5;color:#d1d1df}.ws-idea-amount label{display:flex;align-items:flex-start;gap:10px;margin-top:14px;line-height:1.5;cursor:pointer}.ws-idea-amount input{width:18px;height:18px;flex:none;accent-color:#b9bde2}
+@media(max-width:640px){.ws-v6-strategy,.ws-v6-alerts{padding-inline:16px}.ws-v6-strategy .ws-strategy-fields,.ws-v6-strategy .ws-shadow-fields,.ws-v6-alerts .ws-alert-fields,.ws-v6-strategy .ws-strategy-group-options{grid-template-columns:1fr!important}.ws-idea{align-items:stretch;flex-direction:column}.ws-idea button{width:100%}.ws-past-idea{flex-direction:column;gap:4px}}
+@media(prefers-reduced-motion:reduce){.ws-v6-strategy *,.ws-v6-alerts *,.ws-idea-amount *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
