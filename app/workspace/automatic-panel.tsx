@@ -17,13 +17,13 @@ type Plan={revision:number;rule:AutonomousRule;enabled:boolean;nextDueAt:string;
 type Status={availableStrategy?:Strategy|null;stages:{shadow:boolean;approveByNotification:boolean;autoBuy:boolean};notice:string;plan:Plan|null;runs:{id:string;state:string;decision_json:string|null;created_at:string}[];events:Event[]};
 
 const money=(cents:number)=>`$${(cents/100).toFixed(2)}`;
-const every=(minutes:number)=>minutes<60?`every ${minutes} min`:minutes===60?'every hour':minutes===1440?'every day':`every ${minutes/60} hours`;
+const every=(minutes:number)=>minutes<60?`every ${minutes} minutes`:minutes===60?'every hour':minutes===1440?'once a day':`every ${minutes/60} hours`;
 const when=(value:string)=>formatWorkspaceDate(value,{dateStyle:'medium',timeStyle:'short'});
 const clock=(value:string)=>formatWorkspaceDate(value,{hour:'numeric',minute:'2-digit'});
 const kindName=(kind:string)=>{const text=kind.replaceAll('_',' ');return text.charAt(0).toUpperCase()+text.slice(1);};
 function ruleLine(rule:AutonomousRule){
  if(rule.strategy)return `${kindName(rule.strategy.kind)} · ${rule.symbol} · ${money(rule.amountCents)}`;
- return rule.kind==='threshold'?`Buy ${money(rule.amountCents)} of ${rule.symbol} at or below ${money(rule.thresholdCents)}`:`Buy ${money(rule.amountCents)} of ${rule.symbol} on each check`;
+ return rule.kind==='threshold'?`Buy ${money(rule.amountCents)} of ${rule.symbol} when it drops to ${money(rule.thresholdCents)} or less`:`Buy ${money(rule.amountCents)} of ${rule.symbol} regularly`;
 }
 // The plan pauses itself after three checks in a row could not finish.
 const autoPaused=(plan:Plan)=>!plan.enabled&&plan.failures>=3;
@@ -61,57 +61,57 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
  const pastIdeas=status?.events.filter(event=>event.kind==='proposal'&&!liveIdea(event,now))??[];
  const actions=status?.events.filter(event=>event.kind!=='proposal')??[];
  const state=!status?'loading':!plan?(shadowOn?'none':'off'):plan.enabled?'running':autoPaused(plan)?'stopped':'paused';
- const headline={loading:error?'Checks status unavailable':'Loading checks…',off:'Background checks are off',none:'No checks set up',running:'Checks running',paused:'Checks paused',stopped:'Checks paused automatically'}[state];
- const detail=plan?`${ruleLine(plan.rule)} · ${every(plan.rule.intervalMinutes)}${plan.enabled?` · next after ${clock(plan.nextDueAt)}`:''}`:state==='none'?'Save a rule below. It starts paused.':state==='off'?'Practice and your saved rules still work.':'';
+ const headline={loading:error?'Could not load':'Loading…',off:'Watching is not available yet',none:'You are not watching a stock yet',running:'Watching the price for you',paused:'Watching is paused',stopped:'Watching stopped'}[state];
+ const detail=plan?`${ruleLine(plan.rule)} · checks ${every(plan.rule.intervalMinutes)}${plan.enabled?` · next check after ${clock(plan.nextDueAt)}`:''}`:state==='none'?'Choose a stock below to get started.':state==='off'?'You can still buy from Home and practice with fake money.':'';
  const showForm=shadowOn&&!plan?.rule.strategy&&(!plan||editing);
 
  return <>
   <section className="ws-checks-bar" data-state={state} aria-label="Background checks status" aria-live="polite">
    <span className="ws-checks-dot" aria-hidden="true"/>
-   <div className="ws-checks-text"><strong>{headline}</strong>{detail&&<small>{detail}</small>}{state==='stopped'&&<small>Three checks in a row could not finish. Start again when ready.</small>}</div>
-   {plan?<button type="button" className={plan.enabled?'ws-action-secondary':'ws-action-primary'} disabled={busy||(!plan.enabled&&!shadowOn)} onClick={()=>void change(plan.enabled?'pause':'resume')}>{plan.enabled?<><Pause size={15} aria-hidden="true"/> Pause checks</>:<><Play size={15} aria-hidden="true"/> Start checks</>}</button>
-    :state==='none'&&<button type="button" className="ws-action-secondary" onClick={()=>document.getElementById('ws-shadow-plan')?.scrollIntoView({behavior:'smooth',block:'start'})}>Set up checks</button>}
+   <div className="ws-checks-text"><strong>{headline}</strong>{detail&&<small>{detail}</small>}{state==='stopped'&&<small>The price could not be checked 3 times in a row. Tap Start watching to try again.</small>}</div>
+   {plan?<button type="button" className={plan.enabled?'ws-action-secondary':'ws-action-primary'} disabled={busy||(!plan.enabled&&!shadowOn)} onClick={()=>void change(plan.enabled?'pause':'resume')}>{plan.enabled?<><Pause size={15} aria-hidden="true"/> Pause watching</>:<><Play size={15} aria-hidden="true"/> Start watching</>}</button>
+    :state==='none'&&<button type="button" className="ws-action-secondary" onClick={()=>document.getElementById('ws-shadow-plan')?.scrollIntoView({behavior:'smooth',block:'start'})}>Choose a stock</button>}
   </section>
 
   <section className="ws-shadow" aria-busy={busy}>
-   <header className="ws-shadow-head"><span className="ws-label">BACKGROUND CHECKS · NO SPENDING</span><h3>Your rule, checked for you.</h3><p>Checks never buy. A passing check can leave an idea; you review it in Buy and sign in your wallet.</p></header>
+   <header className="ws-shadow-head"><span className="ws-label">BUY A STOCK AT YOUR PRICE</span><h3>Tell Steward what you want to buy.</h3><p>Pick a stock, how much to spend and the price you want. Steward watches the price for you. When it is right, a buy appears under <strong>Ready to buy</strong> and you approve it in your wallet. Steward never buys on its own.</p></header>
    {error&&<p className="ws-error" role="alert">{error}{!status&&<> <button type="button" className="ws-recheck" onClick={()=>void refresh()}>Retry</button></>}</p>}
 
    <article className="ws-shadow-card" id="ws-shadow-plan">
-    <div className="ws-shadow-card-head"><h4>Rule plan</h4><button type="button" className="ws-icon-button" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh checks status"><RefreshCw size={15} aria-hidden="true"/></button></div>
+    <div className="ws-shadow-card-head"><h4>What you want to buy</h4><button type="button" className="ws-icon-button" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh"><RefreshCw size={15} aria-hidden="true"/></button></div>
     {!status&&!error&&<p className="ws-muted" role="status">Loading…</p>}
     {plan&&!editing&&<dl className="ws-shadow-facts">
-     <div><dt>Rule</dt><dd>{ruleLine(plan.rule)}</dd></div>
-     <div><dt>Checks</dt><dd>{kindName(every(plan.rule.intervalMinutes))}</dd></div>
-     <div><dt>Status</dt><dd>{plan.enabled?'Running':'Paused'}</dd></div>
+     <div><dt>Plan</dt><dd>{ruleLine(plan.rule)}</dd></div>
+     <div><dt>Checks the price</dt><dd>{kindName(every(plan.rule.intervalMinutes))}</dd></div>
+     <div><dt>Status</dt><dd>{plan.enabled?'Watching':'Paused'}</dd></div>
     </dl>}
     {plan&&!editing&&<div className="ws-shadow-actions">
-     {plan.enabled&&<button type="button" className="ws-action-secondary" disabled={busy} onClick={()=>void change('check_now')}>Run a check now</button>}
-     {shadowOn&&!plan.rule.strategy&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(true)}>Edit rule</button>}
+     {plan.enabled&&<button type="button" className="ws-action-secondary" disabled={busy} onClick={()=>void change('check_now')}>Check the price now</button>}
+     {shadowOn&&!plan.rule.strategy&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(true)}>Change</button>}
     </div>}
-    {plan?.rule.strategy&&!editing&&<p className="ws-muted">Uses your Practice strategy. Change it above, then copy it here again.</p>}
+    {plan?.rule.strategy&&!editing&&<p className="ws-muted">This uses the strategy you built in Practice. To change it, edit it in Practice, then tap Use this instead again.</p>}
     {showForm&&<form className="ws-shadow-form" onSubmit={event=>{event.preventDefault();void change('save');}}>
-     <label>Stock<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
-     <label>Amount · USD<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
-     <label>Rule<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as typeof kind)}><option value="threshold">Buy below a price</option><option value="scheduled">Buy on a schedule</option></select></label>
-     {kind==='threshold'&&<label>Highest price · USD<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
-     <label>Check<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{[15,30,60,240,1440].map(n=><option value={n} key={n}>{kindName(every(n))}</option>)}</select></label>
-     <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save rule</button>{editing&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button>}</div>
-     <small className="ws-muted">{!mandate.allowedSymbols.length?'Save your limits first.':'Saving pauses checks until you start them.'}</small>
+     <label>Stock to buy<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
+     <label>How much to spend · USD<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
+     <label>When to buy<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as typeof kind)}><option value="threshold">When the price drops low enough</option><option value="scheduled">Regularly, whatever the price</option></select></label>
+     {kind==='threshold'&&<label>Buy at this price or lower · USD<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
+     <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{[15,30,60,240,1440].map(n=><option value={n} key={n}>{kindName(every(n))}</option>)}</select></label>
+     <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save</button>{editing&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button>}</div>
+     <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':'After saving, tap Start watching at the top.'}</small>
     </form>}
-    {status&&!shadowOn&&!plan&&<p className="ws-muted">Background checks are off for now.</p>}
-    {status?.availableStrategy&&shadowOn&&<div className="ws-shadow-copy"><p>Or check your Practice strategy: <strong>{kindName(status.availableStrategy.kind)} · {money(status.availableStrategy.amountCents)}</strong></p><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void change('use_strategy')}>Use it for checks</button></div>}
+    {status&&!shadowOn&&!plan&&<p className="ws-muted">Watching a stock is not available yet.</p>}
+    {status?.availableStrategy&&shadowOn&&<div className="ws-shadow-copy"><p>Or use the strategy you built in Practice: <strong>{kindName(status.availableStrategy.kind)} · {money(status.availableStrategy.amountCents)}</strong></p><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void change('use_strategy')}>Use this instead</button></div>}
    </article>
 
-   <article className="ws-shadow-card ws-shadow-ideas" aria-label="Ideas to review">
-    <div className="ws-shadow-card-head"><h4>Ideas to review</h4>{ideas.length>0&&<span className="ws-count">{ideas.length}</span>}</div>
-    {status&&!ideas.length&&<p className="ws-muted">No ideas right now.{plan?.enabled?' New ones appear here when your rule passes.':''}</p>}
-    {ideas.map(event=><div className="ws-idea" key={event.id}><div><strong>{event.symbol} <span>· {money(event.amount_cents)}</span></strong><small>Expires {clock(event.expires_at)}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void openIdea(event)}>Review in Buy</button></div>)}
-    {pastIdeas.length>0&&<details className="ws-past-ideas"><summary>Past ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status==='proposed'?'Expired':'Opened'} · {when(event.created_at)}</small></div>)}</details>}
+   <article className="ws-shadow-card ws-shadow-ideas" aria-label="Ready to buy">
+    <div className="ws-shadow-card-head"><h4>Ready to buy</h4>{ideas.length>0&&<span className="ws-count">{ideas.length}</span>}</div>
+    {status&&!ideas.length&&<p className="ws-muted">Nothing to buy yet.{plan?.enabled?' When the price is right, a buy shows up here for you to approve.':''}</p>}
+    {ideas.map(event=><div className="ws-idea" key={event.id}><div><strong>{event.symbol} <span>· {money(event.amount_cents)}</span></strong><small>Good until {clock(event.expires_at)}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void openIdea(event)}>Review and buy</button></div>)}
+    {pastIdeas.length>0&&<details className="ws-past-ideas"><summary>Earlier buys you skipped <span>{pastIdeas.length}</span></summary>{pastIdeas.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status==='proposed'?'Expired':'Opened'} · {when(event.created_at)}</small></div>)}</details>}
    </article>
 
-   {(status?.runs.length??0)>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Recent checks</h4><span className="ws-count">{status!.runs.length}</span></summary>
-    {status!.runs.map(run=>{let decision:AutonomousDecision|null=null;try{decision=run.decision_json?JSON.parse(run.decision_json) as AutonomousDecision:null;}catch{}const label=decision?.status==='would_trigger'?'Rule passed':decision?'Held':run.state==='canceled'?'Stopped by pause':run.state;return <details key={run.id} className="ws-run"><summary><span data-passed={decision?.status==='would_trigger'}>{label}</span><small>{when(run.created_at)}</small></summary>{decision?.execution&&<p>{runExecutionMessage(decision.execution)}</p>}{decision?.execution?.hash&&<p>Transaction: <code>{decision.execution.hash}</code></p>}<ul>{decision?.checks.map(check=><li key={check.name} data-passed={check.passed}><strong>{check.passed?'Passed':'Held'} · {check.name}</strong> {check.detail}</li>)}</ul></details>;})}
+   {(status?.runs.length??0)>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Price checks</h4><span className="ws-count">{status!.runs.length}</span></summary>
+    {status!.runs.map(run=>{let decision:AutonomousDecision|null=null;try{decision=run.decision_json?JSON.parse(run.decision_json) as AutonomousDecision:null;}catch{}const label=decision?.status==='would_trigger'?'Time to buy':decision?'Not yet':run.state==='canceled'?'Stopped by pause':run.state;return <details key={run.id} className="ws-run"><summary><span data-passed={decision?.status==='would_trigger'}>{label}</span><small>{when(run.created_at)}</small></summary>{decision?.execution&&<p>{runExecutionMessage(decision.execution)}</p>}{decision?.execution?.hash&&<p>Transaction: <code>{decision.execution.hash}</code></p>}<ul>{decision?.checks.map(check=><li key={check.name} data-passed={check.passed}><strong>{check.passed?'OK':'Not yet'} · {check.name}</strong> {check.detail}</li>)}</ul></details>;})}
     <button type="button" className="ws-action-quiet" onClick={download}>Download receipts</button>
    </details>}
 
