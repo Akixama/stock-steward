@@ -27,6 +27,19 @@ The build creates `dist/server/wrangler.json`. Local D1 state is kept under igno
 6. Deploy with Wrangler using `dist/server/wrangler.json`.
 7. Run `node scripts/audit-live-site.mjs` and complete authenticated desktop and mobile review.
 
+Never deploy straight from a fresh clone with `wrangler deploy`: the generated config names a placeholder Worker and database until step 2 rewrites it.
+
+### Rolling back
+
+Wrangler prints a version ID on every deploy. To return to an earlier version (no rebuild needed):
+
+```
+node node_modules/wrangler/bin/wrangler.js deployments list --name stock-steward
+node node_modules/wrangler/bin/wrangler.js rollback <version-id> --name stock-steward
+```
+
+Recent known-good versions: `a504010e-b622-47e4-83a8-45ce24692f27` (five tabs + saved goal in Strategy), `b0c18f95-16fa-4f19-b40d-574d876b1647` (five tabs), `0fc96abd-8ce1-449c-9835-e7750dc88a8f` (before five tabs).
+
 The demo sign-in uses `STEWARD_DEMO_AUTH`. Scheduled wakes use a matching `STEWARD_WORKER_KEY` in the site and scheduler. AI drafting uses a private Workers AI binding or server credentials. The chain reader uses `ALCHEMY_API_KEY`. This branch's release config stages Shadow checks only; notification proposals and automatic buying remain off. See `docs/automatic-stages-review.md`.
 
 ## Visibility flags

@@ -24,7 +24,7 @@ export default function ActivityPanel({mandateVersion,onLimits,onStrategy,onPrac
     {item.hash&&<a className="ws-icon-button" href={`https://robinhoodchain.blockscout.com/tx/${item.hash}`} target="_blank" rel="noreferrer" aria-label={`View ${KIND[item.kind]} transaction`}><ArrowUpRight size={16}/></a>}
    </div>)}
   </article>
-  <details className="ws-alert-card ws-activity-practice"><summary><h3>Practice decisions</h3><small>Fake-money buys, sales and holds.</small></summary>
+  <details className="ws-alert-card ws-activity-practice"><summary><h3>Practice decisions · fake money</h3><small>Not real trades. Buys, sales and holds from Practice.</small></summary>
    <PracticeTrail mandateVersion={mandateVersion} onLimits={onLimits} onStrategy={onStrategy} onPractice={onPractice}/>
   </details>
  </div>;
