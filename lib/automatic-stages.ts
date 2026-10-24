@@ -64,8 +64,10 @@ export function stagesForWallet(stages: ReturnType<typeof automaticStages>, addr
 }
 
 // armed: the owner has a verified session permission and a signed Start.
-export function automaticStageIntent(stages:ReturnType<typeof automaticStages>,triggered:boolean,isBuy:boolean,amountCents:number,armed=true):'none'|'proposal'|'auto'|'blocked'{
-  if(!stages.shadow||!triggered||!isBuy)return 'none';
+// canSell: the armed permission includes a sale lot. Sells never become proposals.
+export function automaticStageIntent(stages:ReturnType<typeof automaticStages>,triggered:boolean,isBuy:boolean,amountCents:number,armed=true,canSell=false):'none'|'proposal'|'auto'|'blocked'{
+  if(!stages.shadow||!triggered)return 'none';
+  if(!isBuy)return stages.autoBuy&&armed&&canSell?(amountCents<=stages.maxOrderCents?'auto':'blocked'):'none';
   if(stages.autoBuy&&armed)return amountCents<=stages.maxOrderCents?'auto':'blocked';
   if(stages.approveByNotification)return 'proposal';
   return 'none';

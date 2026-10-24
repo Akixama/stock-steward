@@ -9,6 +9,10 @@ import {automaticStages} from '@/lib/automatic-stages';
 import {ownerAutomaticStages} from '@/lib/wallet-stage-access';
 import {executionAccountingSources} from '@/lib/execution-sources';
 import {CHAIN} from '@/lib/robinhood-chain';
+import {getShadowPlan} from '@/db/autonomous-shadow';
+import {addReviewedSales} from '@/lib/session-sale-draft';
+import {saleLot,isSellKind} from '@/lib/session-sale-lot';
+import type {AutonomousRule} from '@/lib/autonomous-live';
 import {lastRetiredSession} from '@/db/session-lifecycle';import {draftSessionRenewal} from '@/lib/session-renewal';import {inspectSessionRetirement} from '@/lib/session-retirement';import {locateSafe} from '@/app/api/workspace/orders/live/_shared';import {registry} from '@/lib/robinhood-chain';
 const headers={'Cache-Control':'no-store'};
 export async function GET(){const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});try{const grant=await getSessionGrant(env.DB,user.userId),stages=await ownerAutomaticStages(env.DB,user.userId,env);return Response.json({executionEnabled:stages.autoBuy,signerStorageConfigured:!!env.STEWARD_SIGNER_ENCRYPTION_KEY,grant:grant?{id:grant.id,state:grant.state,session:grant.session_address,mandateVersion:grant.mandate_version,policy:JSON.parse(grant.policy_json),transaction:JSON.parse(grant.transaction_json),createdAt:grant.created_at}:null,notice:grant?.state==='verified'?'Saved session grant verified. Current execution checks still apply; automatic trading requires your separate start approval.':grant?.state==='paused'?'Server session purchases paused. Onchain revocation must be verified separately.':'Unsigned draft only. Automatic trading is off.'},{headers});}catch{return Response.json({error:'Session enrollment unavailable.'},{status:503,headers});}}
@@ -16,7 +20,7 @@ export async function POST(request:Request){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});
  if(!env.DB||!await ownerAutomaticStages(env.DB,user.userId,env).then(s=>s.autoBuy).catch(()=>false))return Response.json({error:'Automatic session setup is off for this wallet. No key or grant was created.'},{status:403,headers});
  if(!env.DB||!env.STEWARD_SIGNER_ENCRYPTION_KEY)return Response.json({error:'Encrypted session storage is not configured. No key or grant was created.'},{status:503,headers});
- const text=await request.text();if(text.length>200)return Response.json({error:'Request too large.'},{status:413,headers});try{const body=JSON.parse(text);if(body.includeSales===true)return Response.json({error:'Automatic buying is buy-only.'},{status:400,headers});if(body.action!=='draft')return Response.json({error:'Only a reviewable draft may be created.'},{status:400,headers});}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}
+ const text=await request.text();if(text.length>200)return Response.json({error:'Request too large.'},{status:413,headers});try{const body=JSON.parse(text);if(body.action!=='draft')return Response.json({error:'Only a reviewable draft may be created.'},{status:400,headers});}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}
  let created:string|null=null;
  try{
   if(await getSessionGrant(env.DB,user.userId))return Response.json({error:'A session draft already exists. Review it instead of creating another.'},{status:409,headers});
@@ -34,9 +38,22 @@ export async function POST(request:Request){
   const ref=await saveSessionSigner(env.DB,user.userId,session,key);created=session;
   const caps={orderCents:automaticStages(env).maxOrderCents,dailyCents:automaticStages(env).maxDailyCents};
   const draft=old&&retirement?draftSessionRenewal(snapshot,ref,live.policy,JSON.parse(old.lease_json),retirement,live.plan.outputs,new Date(),BigInt(bound.upperMicroUsd),caps):draftAutonomousGrant(snapshot,ref,live.policy,live.plan.outputs,new Date(),BigInt(bound.upperMicroUsd),caps);
-  const id=await saveSessionGrantDraft(env.DB,user.userId,draft);
+  // v2 auto-sell: a saved sell rule adds one fixed sale lot for its stock. The
+  // quantity is worth at most the rule amount and the minimum USDG proceeds are
+  // encoded onchain. Sales share the permission's trade-count limit.
+  let reviewed=draft;
+  const plan=await getShadowPlan(env.DB,user.userId),rule=plan?JSON.parse(plan.rule_json) as AutonomousRule:null;
+  if(rule&&isSellKind(rule.kind)){
+   const token=live.plan.outputs.find(o=>o.symbol===rule.symbol)?.token,output=token?draft.policy.outputs.find(o=>o.token.toLowerCase()===token.toLowerCase()):undefined;
+   if(!output)throw Error('The sell rule stock is not in your limits.');
+   const [decimals,price]=await Promise.all([sources.tokenDecimals(output.token),sources.priceBound(rule.symbol)]);
+   if(decimals===null||!price)throw Error('Fresh token data required for a sale lot.');
+   const lot=saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)});
+   reviewed=addReviewedSales(draft as Parameters<typeof addReviewedSales>[0],[lot],snapshot,ref);
+  }
+  const id=await saveSessionGrantDraft(env.DB,user.userId,reviewed);
   if(!id){await removeSessionSigner(env.DB,user.userId,session);created=null;return Response.json({error:'Another enrollment request won. Load the existing draft.'},{status:409,headers});}
   created=null;
-  return Response.json({id,session,policy:draft.policy,transaction:{from:draft.from,to:draft.to,value:draft.value,data:draft.data},executionEnabled:false,activationEnabled:false,notice:draft.notice},{headers});
+  return Response.json({id,session,policy:reviewed.policy,transaction:{from:reviewed.from,to:reviewed.to,value:reviewed.value,data:reviewed.data},executionEnabled:false,activationEnabled:false,notice:reviewed.notice},{headers});
  }catch{if(created)await removeSessionSigner(env.DB,user.userId,created);return Response.json({error:'Session draft unavailable. No transaction was submitted.'},{status:503,headers});}
 }

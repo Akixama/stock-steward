@@ -47,9 +47,9 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      summary.triggered++;
      const ownership=await getOwnership(db,plan.owner_ref);
      const walletStages=stagesForWallet(stages,ownership?.verifiedAt?ownership.address:null);
-     let armed=false;
-     if(walletStages.autoBuy){const grant=await getSessionGrant(db,plan.owner_ref);armed=!!grant&&grant.state==='verified'&&(await getActivation(db,plan.owner_ref,grant.id))?.state==='armed';}
-     const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents,armed);
+     let armed=false,canSell=false;
+     if(walletStages.autoBuy){const grant=await getSessionGrant(db,plan.owner_ref);armed=!!grant&&grant.state==='verified'&&(await getActivation(db,plan.owner_ref,grant.id))?.state==='armed';try{canSell=armed&&!!(JSON.parse(grant!.policy_json) as {sales?:unknown[]}).sales?.length;}catch{canSell=false;}}
+     const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents,armed,canSell);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
       if(await saveRuleProposal(db,event,plan.revision,now)){
@@ -75,7 +75,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
       if(await recordShadowExecution(db,claim,{state:'checking',why:'Checking autonomous release controls.'})){
        // Persist an alert before any signer can be reached. A duplicate run
        // never gets a second chance to send an unknown transaction.
-       const started={id:`${decision.id}:auto_started`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_started' as const,status:'checking' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Checking capped automatic buy. No outcome confirmed yet.',transaction_hash:null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+       const started={id:`${decision.id}:auto_started`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_started' as const,status:'checking' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:buyDecision?'Checking capped automatic buy. No outcome confirmed yet.':'Checking capped automatic sale. No outcome confirmed yet.',transaction_hash:null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
        if(!await saveAutomaticEvent(db,started))continue;
        await queueAutomaticPush(db,started);
        const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,walletStages,decision.id);

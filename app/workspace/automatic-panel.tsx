@@ -12,6 +12,8 @@ import SessionWalletActions from './session-wallet-actions';
 import AutonomyControls from './autonomy-controls';
 import AutonomyRehearsal from './autonomy-rehearsal';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
+import {isSellKind} from '@/lib/session-sale-lot';
+type RuleKind='scheduled'|'threshold'|'sell_below'|'sell_threshold';
 type Event={id:string;kind:'proposal'|'auto_started'|'auto_action';status:string;symbol:string;amount_cents:number;detail:string;transaction_hash:string|null;created_at:string;expires_at:string};
 type Plan={revision:number;rule:AutonomousRule;enabled:boolean;nextDueAt:string;failures:number};
 type Status={availableStrategy?:Strategy|null;stages:{shadow:boolean;approveByNotification:boolean;autoBuy:boolean};notice:string;plan:Plan|null;runs:{id:string;state:string;decision_json:string|null;created_at:string}[];events:Event[]};
@@ -22,6 +24,8 @@ const when=(value:string)=>formatWorkspaceDate(value,{dateStyle:'medium',timeSty
 const clock=(value:string)=>formatWorkspaceDate(value,{hour:'numeric',minute:'2-digit'});
 const kindName=(kind:string)=>{const text=kind.replaceAll('_',' ');return text.charAt(0).toUpperCase()+text.slice(1);};
 function ruleLine(rule:AutonomousRule){
+ if(rule.kind==='sell_below')return `Sell ${money(rule.amountCents)} of ${rule.symbol} if it drops to ${money(rule.thresholdCents)} or less`;
+ if(rule.kind==='sell_threshold')return `Sell ${money(rule.amountCents)} of ${rule.symbol} when it rises to ${money(rule.thresholdCents)} or more`;
  if(rule.strategy)return `${kindName(rule.strategy.kind)} · ${rule.symbol} · ${money(rule.amountCents)}`;
  return rule.kind==='threshold'?`Buy ${money(rule.amountCents)} of ${rule.symbol} when it drops to ${money(rule.thresholdCents)} or less`:`Buy ${money(rule.amountCents)} of ${rule.symbol} regularly`;
 }
@@ -32,14 +36,16 @@ const liveIdea=(event:Event,now:number)=>event.kind==='proposal'&&event.status==
 export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;onReviewBuy:(idea:BuyIdea)=>void}){
  const wallet=useWalletSession();
  const [status,setStatus]=useState<Status|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[editing,setEditing]=useState(false);
- const [symbol,setSymbol]=useState(mandate.allowedSymbols[0]??'AAPL'),[amount,setAmount]=useState('10'),[threshold,setThreshold]=useState('350'),[kind,setKind]=useState<'scheduled'|'threshold'>('threshold'),[interval,setInterval]=useState('15');
+ const [symbol,setSymbol]=useState(mandate.allowedSymbols[0]??'AAPL'),[amount,setAmount]=useState('10'),[threshold,setThreshold]=useState('350'),[kind,setKind]=useState<RuleKind>('threshold'),[interval,setInterval]=useState('15');
  const ticket=useRef(0);useEffect(()=>()=>{ticket.current++;},[]);
- async function refresh(){const generation=++ticket.current;setBusy(true);setError('');try{const r=await fetch('/api/workspace/automatic',{cache:'no-store'}),body=await r.json() as Status&{error?:string};if(!r.ok)throw Error(body.error??'Status unavailable.');if(ticket.current===generation){setStatus(body);if(body.plan){const saved=body.plan.rule;setSymbol(saved.symbol);setAmount((saved.amountCents/100).toFixed(2));setThreshold((saved.thresholdCents/100).toFixed(2));setKind(saved.kind==='threshold'?'threshold':'scheduled');setInterval(String(saved.intervalMinutes));}}}catch(e){if(ticket.current===generation)setError(e instanceof Error?e.message:'Status unavailable.');}finally{if(ticket.current===generation)setBusy(false);}}
+ async function refresh(){const generation=++ticket.current;setBusy(true);setError('');try{const r=await fetch('/api/workspace/automatic',{cache:'no-store'}),body=await r.json() as Status&{error?:string};if(!r.ok)throw Error(body.error??'Status unavailable.');if(ticket.current===generation){setStatus(body);if(body.plan){const saved=body.plan.rule;setSymbol(saved.symbol);setAmount((saved.amountCents/100).toFixed(2));setThreshold((saved.thresholdCents/100).toFixed(2));setKind(saved.kind==='threshold'||saved.kind==='sell_below'||saved.kind==='sell_threshold'?saved.kind:'scheduled');setInterval(String(saved.intervalMinutes));}}}catch(e){if(ticket.current===generation)setError(e instanceof Error?e.message:'Status unavailable.');}finally{if(ticket.current===generation)setBusy(false);}}
  useEffect(()=>{const timer=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(timer);},[]);
  async function change(action:'save'|'use_strategy'|'pause'|'resume'|'check_now'){
   if(busy)return;const generation=++ticket.current;setBusy(true);setError('');
   try{const cents=(s:string)=>{if(!/^\d+(\.\d{1,2})?$/.test(s))throw Error('Use positive amounts with up to two decimal places.');return Math.round(Number(s)*100);};
-   const rule:AutonomousRule|undefined=action!=='save'?undefined:{version:(status?.plan?.rule.version??0)+1,symbol,amountCents:cents(amount),kind,intervalMinutes:Number(interval),thresholdCents:cents(threshold)};
+   const base=action!=='save'?undefined:{version:(status?.plan?.rule.version??0)+1,symbol,amountCents:cents(amount),kind,intervalMinutes:Number(interval),thresholdCents:cents(threshold)};
+   // Sell rules run through the strategy engine, which checks you hold the stock.
+   const rule:AutonomousRule|undefined=base&&isSellKind(base.kind)?{...base,strategy:{version:base.version,kind:base.kind,direction:base.kind==='sell_below'?'Stop-loss':'Take profit',symbol:base.symbol,amountCents:base.amountCents,reserveCents:0,intervalHours:1,thresholdCents:base.thresholdCents,targetBps:5000,driftBps:100,maxMovementBps:100,mode:'automatic'}}:base;
    const r=await fetch('/api/workspace/automatic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,strategyVersion:status?.availableStrategy?.version,revision:status?.plan?.revision??0,...(action==='save'?{rule}:{})})}),body=await r.json() as {error?:string};if(!r.ok)throw Error(body.error??'Controls could not be saved.');
    if(ticket.current===generation){setBusy(false);if(action==='save'||action==='use_strategy')setEditing(false);await refresh();}
   }catch(e){if(ticket.current===generation){setError(e instanceof Error?e.message:'Controls unavailable.');setBusy(false);}}
@@ -63,7 +69,8 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
  const state=!status?'loading':!plan?(shadowOn?'none':'off'):plan.enabled?'running':autoPaused(plan)?'stopped':'paused';
  const headline={loading:error?'Could not load':'Loading…',off:'Watching is not available yet',none:'You are not watching a stock yet',running:'Watching the price for you',paused:'Watching is paused',stopped:'Watching stopped'}[state];
  const detail=plan?`${ruleLine(plan.rule)} · checks ${every(plan.rule.intervalMinutes)}${plan.enabled?` · next check after ${clock(plan.nextDueAt)}`:''}`:state==='none'?'Choose a stock below to get started.':state==='off'?'You can still buy from Home and practice with fake money.':'';
- const showForm=shadowOn&&!plan?.rule.strategy&&(!plan||editing);
+ const ownRule=!plan?.rule.strategy||isSellKind(plan.rule.kind);
+ const showForm=shadowOn&&ownRule&&(!plan||editing);
 
  return <>
   <section className="ws-checks-bar" data-state={state} aria-label="Background checks status" aria-live="polite">
@@ -87,17 +94,17 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
     </dl>}
     {plan&&!editing&&<div className="ws-shadow-actions">
      {plan.enabled&&<button type="button" className="ws-action-secondary" disabled={busy} onClick={()=>void change('check_now')}>Check the price now</button>}
-     {shadowOn&&!plan.rule.strategy&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(true)}>Change</button>}
+     {shadowOn&&ownRule&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(true)}>Change</button>}
     </div>}
-    {plan?.rule.strategy&&!editing&&<p className="ws-muted">This uses the strategy you built in Practice. To change it, edit it in Practice, then tap Use this instead again.</p>}
+    {plan?.rule.strategy&&!ownRule&&!editing&&<p className="ws-muted">This uses the strategy you built in Practice. To change it, edit it in Practice, then tap Use this instead again.</p>}
     {showForm&&<form className="ws-shadow-form" onSubmit={event=>{event.preventDefault();void change('save');}}>
-     <label>Stock to buy<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
-     <label>How much to spend · USD<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
-     <label>When to buy<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as typeof kind)}><option value="threshold">When the price drops low enough</option><option value="scheduled">Regularly, whatever the price</option></select></label>
-     {kind==='threshold'&&<label>Buy at this price or lower · USD<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
+     <label>{isSellKind(kind)?'Stock to sell':'Stock to buy'}<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
+     <label>{isSellKind(kind)?'How much to sell · USD':'How much to spend · USD'}<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
+     <label>What to do<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as RuleKind)}><optgroup label="Buy"><option value="threshold">Buy when the price drops low enough</option><option value="scheduled">Buy regularly, whatever the price</option></optgroup><optgroup label="Sell"><option value="sell_below">Sell if the price drops to (stop-loss)</option><option value="sell_threshold">Sell when the price rises to (take profit)</option></optgroup></select></label>
+     {kind!=='scheduled'&&<label>{kind==='threshold'?'Buy at this price or lower · USD':kind==='sell_below'?'Sell at this price or lower · USD':'Sell at this price or higher · USD'}<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
      <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{[15,30,60,240,1440].map(n=><option value={n} key={n}>{kindName(every(n))}</option>)}</select></label>
      <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save</button>{editing&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button>}</div>
-     <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':'After saving, tap Start watching at the top.'}</small>
+     <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':isSellKind(kind)?'Sell rules only act with automatic selling on: set up the permission below after saving, so it includes this stock.':'After saving, tap Start watching at the top.'}</small>
     </form>}
     {status&&!shadowOn&&!plan&&<p className="ws-muted">Watching a stock is not available yet.</p>}
     {status?.availableStrategy&&shadowOn&&<div className="ws-shadow-copy"><p>Or use the strategy you built in Practice: <strong>{kindName(status.availableStrategy.kind)} · {money(status.availableStrategy.amountCents)}</strong></p><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void change('use_strategy')}>Use this instead</button></div>}
@@ -117,7 +124,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
 
    {actions.length>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Automatic actions</h4><span className="ws-count">{actions.length}</span></summary>{actions.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status} · {when(event.created_at)}</small><p className="ws-muted">{event.detail}</p>{event.transaction_hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${event.transaction_hash}`} target="_blank" rel="noreferrer">View transaction</a>}</div>)}</details>}
 
-   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy for you</h4><p>Off until you do three things in your wallet: sign a separate session permission, approve a network fee limit, and choose Start. After that, when your rule passes, Steward buys on its own without asking. Each automatic buy is at most $1, at most $2 a day, and the two-day permission can never spend more than $5. Pause stops future buys right away; revoking removes the permission from your wallet.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
+   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy and sell for you</h4><p>Off until you do three things in your wallet: sign a separate session permission, approve a network fee limit, and choose Start. After that, when your rule passes, Steward buys or sells on its own without asking. A sell rule (stop-loss or take profit) adds one fixed sale of that stock to the permission, with a minimum price written onchain. Each automatic trade is at most $1, at most $2 a day, and the two-day permission can never spend more than $5. Pause stops future buys right away; revoking removes the permission from your wallet.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
   </section>
  </>;
 }

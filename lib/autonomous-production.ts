@@ -48,7 +48,8 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
   if(!grant||grant.state!=='verified'||!grant.creation_transaction||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='approval')throw Error('Current owner-approved mandate and verified session grant required.');
   const policy=JSON.parse(grant.policy_json) as RolesPolicy,lease=JSON.parse(grant.lease_json) as PolicyLease,rule=JSON.parse(plan.rule_json) as AutonomousRule,snapshot={owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)};
-  if(!manual&&!['scheduled','threshold','allocation','accumulate','news_buy'].includes(rule.kind))throw Error('Automatic stage buys only.');
+  if(!manual&&!['scheduled','threshold','allocation','accumulate','news_buy','sell_below','sell_threshold','sell_scheduled'].includes(rule.kind))throw Error('This rule type cannot run automatically.');
+  if(!manual&&['sell_below','sell_threshold','sell_scheduled'].includes(rule.kind)&&(!rule.strategy||!policy.sales?.length))throw Error('Automatic sales need a session permission that includes a sale lot.');
   if(!manual&&rule.amountCents>stages.maxOrderCents)throw Error('Automatic per-order cap exceeded.');
   if(rule.strategy){
    if(!await current(compileRolesPolicy(policy).policyHash,mandateDigest(snapshot)))throw Error('Release evidence or strategy controls changed.');

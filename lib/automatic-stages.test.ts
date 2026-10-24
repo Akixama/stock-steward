@@ -24,7 +24,10 @@ test('both stages can be on: armed owners auto-buy, everyone else gets a proposa
   assert.equal(automaticStageIntent(both,true,true,100,true),'auto');
   assert.equal(automaticStageIntent(both,true,true,100,false),'proposal');
   assert.equal(automaticStageIntent(both,true,true,101,true),'blocked');
-  assert.equal(automaticStageIntent(both,true,false,100,true),'none');
+  assert.equal(automaticStageIntent(both,true,false,100,true),'none','no sale lot');
+  assert.equal(automaticStageIntent(both,true,false,100,true,true),'auto','armed with a sale lot');
+  assert.equal(automaticStageIntent(both,true,false,101,true,true),'blocked','sale over the cap');
+  assert.equal(automaticStageIntent(both,true,false,100,false,true),'none','sells never become proposals');
 });
 test('a * allowlist opens a stage to every verified wallet, never to an unverified one',()=>{
   const all=automaticStages({SHADOW_MODE:'true',AUTO_BUY:'true',AUTO_BUY_WALLETS:'*',APPROVE_BY_NOTIFICATION:'true',APPROVE_NOTIFICATION_WALLETS:'*'});

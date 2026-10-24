@@ -16,8 +16,8 @@ export async function routePrerequisites(route:RouteEvidence,mandate:Mandate|nul
  let serial=0;
  async function rpc(method:string,params:unknown[]){const id=++serial;const r=await fetcher(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id,method,params}),signal:AbortSignal.timeout(10000),cache:'no-store'});if(!r.ok)throw Error('Prerequisite RPC unavailable');const b=await r.json() as {id:number;result?:Hex;error?:unknown};if(b.id!==id||b.error||typeof b.result!=='string'||!/^0x(?:[0-9a-f]{2})*$/i.test(b.result))throw Error('Prerequisite evidence unavailable');return b.result;}
  const [token,permit,code,manager]=await Promise.allSettled([
- rpc('eth_call',[{to:route.settlement,data:encodeFunctionData({abi:tokenAbi,functionName:'allowance',args:[route.address as Hex,EXECUTION_CONTRACTS.permit2]})},route.block]),
- rpc('eth_call',[{to:EXECUTION_CONTRACTS.permit2,data:encodeFunctionData({abi:permitAbi,functionName:'allowance',args:[route.address as Hex,route.settlement as Hex,EXECUTION_CONTRACTS.router]})},route.block]),
+ rpc('eth_call',[{to:intent.inputToken,data:encodeFunctionData({abi:tokenAbi,functionName:'allowance',args:[route.address as Hex,EXECUTION_CONTRACTS.permit2]})},route.block]),
+ rpc('eth_call',[{to:EXECUTION_CONTRACTS.permit2,data:encodeFunctionData({abi:permitAbi,functionName:'allowance',args:[route.address as Hex,intent.inputToken as Hex,EXECUTION_CONTRACTS.router]})},route.block]),
  rpc('eth_getCode',[EXECUTION_CONTRACTS.router,route.block]),
  rpc('eth_call',[{to:EXECUTION_CONTRACTS.router,data:encodeFunctionData({abi:routerAbi,functionName:'poolManager'})},route.block]),
  ]);
