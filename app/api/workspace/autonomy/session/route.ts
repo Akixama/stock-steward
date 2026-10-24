@@ -14,6 +14,7 @@ import {saveSetupChoices} from '@/db/autonomous-controls';
 import {listShadowPlans} from '@/db/autonomous-shadow';
 import {addReviewedSales} from '@/lib/session-sale-draft';
 import {saleLot,isSellKind} from '@/lib/session-sale-lot';
+import {trailingStop} from '@/lib/trailing';
 import type {AutonomousRule} from '@/lib/autonomous-live';
 import {lastRetiredSession} from '@/db/session-lifecycle';import {draftSessionRenewal} from '@/lib/session-renewal';import {inspectSessionRetirement} from '@/lib/session-retirement';import {locateSafe} from '@/app/api/workspace/orders/live/_shared';import {registry} from '@/lib/robinhood-chain';
 const headers={'Cache-Control':'no-store'};
@@ -54,7 +55,7 @@ export async function POST(request:Request){
    if(!output)throw Error('A sell rule stock is not in your limits.');
    const [decimals,price]=await Promise.all([sources.tokenDecimals(output.token),sources.priceBound(rule.symbol)]);
    if(decimals===null||!price)throw Error('Fresh token data required for a sale lot.');
-   lots.push(saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)}));
+   lots.push(saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.trailBps?trailingStop(Number(BigInt(price.lowerMicroUsd)/10_000n),rule.trailBps):rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)}));
   }
   if(lots.length)reviewed=addReviewedSales(draft as Parameters<typeof addReviewedSales>[0],lots,snapshot,ref);
   const id=await saveSessionGrantDraft(env.DB,user.userId,reviewed);

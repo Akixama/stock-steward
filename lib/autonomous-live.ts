@@ -7,11 +7,14 @@ import type {AutonomousRunExecution} from './autonomous-run-status.ts';
 // release flag, an owner-signed session permission, fee limit and Start, the
 // $1/$2 caps and the kill switch before any key is loaded.
 export const AUTONOMOUS_RELEASE_ENABLED = true;
-export type AutonomousRule = {version:number;symbol:string;amountCents:number;kind:Strategy['kind'];strategy?:Strategy;intervalMinutes:number;thresholdCents:number};
+// trailBps/trailSince turn a stop-loss into a trailing stop (see trailing.ts).
+export type AutonomousRule = {version:number;symbol:string;amountCents:number;kind:Strategy['kind'];strategy?:Strategy;intervalMinutes:number;thresholdCents:number;trailBps?:number;trailSince?:string};
+const FAST_KINDS=['sell_below','sell_threshold'];
 export type AutonomousSignal = {chainId:number;symbol:string;askCents:number;observedAt:string;halted:boolean;source:string};
 export type AutonomousDecision = {id:Hex;mode:'shadow';status:'blocked'|'would_trigger';symbol:string;amountCents:number;createdAt:string;checks:{name:string;passed:boolean;detail:string}[];executionEnabled:false;transactionsSent:0;execution?:AutonomousRunExecution};
 export function validateAutonomousRule(rule:AutonomousRule){
- if(!rule||!Number.isSafeInteger(rule.version)||rule.version<1||!/^([A-Z][A-Z0-9.]{0,7})$/.test(rule.symbol)||(!['scheduled','threshold'].includes(rule.kind)&&!rule.strategy)||!Number.isSafeInteger(rule.amountCents)||rule.amountCents<1||rule.amountCents>100000||!Number.isSafeInteger(rule.intervalMinutes)||rule.intervalMinutes<15||rule.intervalMinutes>1440||!Number.isSafeInteger(rule.thresholdCents)||rule.thresholdCents<1||rule.thresholdCents>100000000)throw Error('Use a supported trading rule, a $0.01–$10 amount and a 15-minute to 24-hour interval.');
+ if(!rule||!Number.isSafeInteger(rule.version)||rule.version<1||!/^([A-Z][A-Z0-9.]{0,7})$/.test(rule.symbol)||(!['scheduled','threshold'].includes(rule.kind)&&!rule.strategy)||!Number.isSafeInteger(rule.amountCents)||rule.amountCents<1||rule.amountCents>100000||!Number.isSafeInteger(rule.intervalMinutes)||rule.intervalMinutes<(FAST_KINDS.includes(rule.kind)?1:15)||rule.intervalMinutes>1440||!Number.isSafeInteger(rule.thresholdCents)||rule.thresholdCents<1||rule.thresholdCents>100000000)throw Error('Use a supported trading rule, a $0.01–$10 amount and a 15-minute to 24-hour interval.');
+ if(rule.trailBps!==undefined&&(rule.kind!=='sell_below'||!rule.strategy||!Number.isSafeInteger(rule.trailBps)||rule.trailBps<100||rule.trailBps>5000||typeof rule.trailSince!=='string'||!Number.isFinite(Date.parse(rule.trailSince))||Date.parse(rule.trailSince)>Date.now()+60_000))throw Error('Invalid trailing stop.');
  if(rule.strategy){validateStrategy(rule.strategy);if(rule.strategy.mode!=='automatic'||rule.strategy.kind!==rule.kind||rule.strategy.symbol!==rule.symbol||rule.strategy.amountCents!==rule.amountCents||rule.strategy.thresholdCents!==rule.thresholdCents)throw Error('Strategy and runner controls differ.');}
  return rule;
 }

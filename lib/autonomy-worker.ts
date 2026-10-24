@@ -65,3 +65,20 @@ export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch,stages
   }catch(error){summary.batchState='error';throw error;}
   finally{await finishWorker(db,token,summary);}
 }
+
+// Every-minute light pass: only rules that are due (fast stop-loss, take profit
+// and trailing rules, plus any rule whose time has come), with the same lock,
+// recovery and incident collection as the full tick. No wallet schedules.
+export async function fastRulesTick(db:D1Database,fetcher:typeof fetch=fetch,stages:ReturnType<typeof automaticStages>=automaticStages({})){
+  const token=await claimWorker(db);if(!token)return {busy:true,fast:true};
+  const summary:Record<string,unknown>={busy:false,fast:true,batchState:'completed'};
+  try{
+    if(stages.shadow){
+      if(stages.autoBuy){await recoverSessionBroadcasts(db);await settleSessionJournals(db);}
+      summary.autonomousShadow=await tickAutonomousShadow(db,fetcher,new Date(),stages);
+      if(stages.autoBuy)await collectAutonomousIncidents(db);
+    }
+    return summary;
+  }catch(error){summary.batchState='error';throw error;}
+  finally{await finishWorker(db,token,summary as never);}
+}

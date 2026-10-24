@@ -1,9 +1,9 @@
 import {chainTransport,chainHealth} from '@/lib/chain-transport';
 import {env} from 'cloudflare:workers';
-import {workerTick} from '@/lib/autonomy-worker';
+import {workerTick,fastRulesTick} from '@/lib/autonomy-worker';
 import {dispatchOperatorAlerts} from '@/lib/operator-alerts';
 import {checkBackgroundAlerts} from '@/lib/web-push';
-import {sampleScheduledMarkets} from '@/lib/market-chart';
+import {sampleScheduledMarkets,sampleFastRuleMarkets} from '@/lib/market-chart';
 import {automaticStages} from '@/lib/automatic-stages';
 import {sendAutomaticPush} from '@/lib/automatic-stage-push';
 import {sendPermissionExpiryReminders} from '@/lib/permission-expiry-reminder';
@@ -23,6 +23,16 @@ export async function POST(request:Request){
   if(new URL(request.url).searchParams.get('health')==='1'){
     const key=new URL(request.url).searchParams.get('provider')==='public'?undefined:env.ALCHEMY_API_KEY;
     return Response.json({health:await chainHealth(chainTransport(key)),provider:key?'alchemy':'public',spendingEnabled:false},{headers});
+  }
+  if(new URL(request.url).searchParams.get('fast')==='1'){
+    try{
+      const stages=automaticStages(env);let markets;
+      try{markets=await sampleFastRuleMarkets(env.DB);}catch{markets={unavailable:true};}
+      const summary=await fastRulesTick(env.DB,chainTransport(env.ALCHEMY_API_KEY),stages);
+      let automaticNotifications;
+      try{automaticNotifications=await sendAutomaticPush(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}catch{automaticNotifications={unavailable:true};}
+      return Response.json({summary,markets,automaticNotifications,spendingEnabled:stages.autoBuy},{headers});
+    }catch{return Response.json({error:'Fast rule check did not complete. No order was retried.'},{status:503,headers});}
   }
   try{
     let markets;

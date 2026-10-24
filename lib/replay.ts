@@ -1,7 +1,7 @@
 // Replay: run a Real-money rule over the real prices Stock Steward saved, and
 // see every trade it would have made before giving it money. Fees, slippage
 // and gaps between saved prices are not modelled; it is a guide, not a promise.
-export type ReplayRule={kind:'threshold'|'scheduled'|'sell_below'|'sell_threshold';symbol:string;amountCents:number;thresholdCents:number;intervalMinutes:number};
+export type ReplayRule={kind:'threshold'|'scheduled'|'sell_below'|'sell_threshold'|'sell_trailing';symbol:string;amountCents:number;thresholdCents:number;intervalMinutes:number;trailBps?:number};
 export type ReplaySample={observedAt:string;bidCents:number;askCents:number};
 export type ReplayTrade={at:string;side:'buy'|'sell';priceCents:number;cents:number};
 export type ReplayResult={symbol:string;from:string;to:string;checks:number;trades:ReplayTrade[];buys:number;sells:number;skippedDaily:number;
@@ -14,15 +14,17 @@ export const SELL_START_LOTS=10;
 export function replayRule(rule:ReplayRule,limits:{maxOrderCents:number;maxDailyBuyCents:number},samples:ReplaySample[]):ReplayResult{
  const usable=samples.filter(s=>Number.isSafeInteger(s.bidCents)&&Number.isSafeInteger(s.askCents)&&s.bidCents>0&&s.askCents>0&&Number.isFinite(Date.parse(s.observedAt))).sort((a,b)=>Date.parse(a.observedAt)-Date.parse(b.observedAt));
  if(usable.length<2)throw Error('Not enough saved prices for this stock yet. Try again after a few days of checks.');
- const sell=rule.kind==='sell_below'||rule.kind==='sell_threshold';
- const amount=Math.min(rule.amountCents,limits.maxOrderCents),gap=Math.max(15,rule.intervalMinutes)*60_000;
+ const sell=rule.kind==='sell_below'||rule.kind==='sell_threshold'||rule.kind==='sell_trailing';
+ if(rule.kind==='sell_trailing'&&(!rule.trailBps||rule.trailBps<100||rule.trailBps>5000))throw Error('Choose how far from the high to sell.');
+ let high=0;
+ const amount=Math.min(rule.amountCents,limits.maxOrderCents),gap=Math.max(1,rule.intervalMinutes)*60_000;
  const first=usable[0],last=usable[usable.length-1];
  // Sell rules start holding SELL_START_LOTS trades' worth, bought at the first bid.
  let units=sell?amount*SELL_START_LOTS/first.bidCents:0;
  const startUnits=units;
  let spent=0,received=0,lastTrade=-Infinity,skippedDaily=0;const perDay=new Map<string,number>();const trades:ReplayTrade[]=[];
  for(const s of usable){
-  const t=Date.parse(s.observedAt);if(t-lastTrade<gap)continue;
+  const t=Date.parse(s.observedAt);high=Math.max(high,s.bidCents);if(t-lastTrade<gap)continue;
   if(!sell){
    const trigger=rule.kind==='scheduled'||s.askCents<=rule.thresholdCents;if(!trigger)continue;
    const day=s.observedAt.slice(0,10),used=perDay.get(day)??0;
@@ -30,7 +32,8 @@ export function replayRule(rule:ReplayRule,limits:{maxOrderCents:number;maxDaily
    perDay.set(day,used+amount);units+=amount/s.askCents;spent+=amount;lastTrade=t;
    if(trades.length<200)trades.push({at:s.observedAt,side:'buy',priceCents:s.askCents,cents:amount});
   }else{
-   const trigger=rule.kind==='sell_below'?s.bidCents<=rule.thresholdCents:s.bidCents>=rule.thresholdCents;if(!trigger||units<=0)continue;
+   const stop=rule.kind==='sell_trailing'?Math.floor(high*(10000-rule.trailBps!)/10000):rule.thresholdCents;
+   const trigger=rule.kind==='sell_threshold'?s.bidCents>=stop:s.bidCents<=stop;if(!trigger||units<=0)continue;
    const cents=Math.min(amount,Math.floor(units*s.bidCents));if(cents<1)continue;
    units-=cents/s.bidCents;received+=cents;lastTrade=t;
    if(trades.length<200)trades.push({at:s.observedAt,side:'sell',priceCents:s.bidCents,cents});

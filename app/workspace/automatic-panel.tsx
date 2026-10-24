@@ -15,13 +15,20 @@ import AutoSetup from './auto-setup';
 import ReplayCard from './replay-card';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
 import {isSellKind} from '@/lib/session-sale-lot';
-const RULE_KINDS=['scheduled','threshold','sell_below','sell_threshold'] as const;
+const RULE_KINDS=['scheduled','threshold','sell_below','sell_threshold','sell_trailing'] as const;
 type RuleKind=typeof RULE_KINDS[number];
 const CHECK_OPTIONS=[15,30,60,240,1440];
+// Sell rules may be checked every minute; buys keep 15 minutes or more.
+const FAST_CHECK_OPTIONS=[1,2,5,15,30,60];
+const TRAILS=[300,500,800,1000,1500,2000];
+const isSellUi=(kind:string)=>kind==='sell_trailing'||isSellKind(kind);
 // Sell rules run through the strategy engine, which checks you hold the stock.
-function withStrategy(base:{version:number;symbol:string;amountCents:number;kind:RuleKind;intervalMinutes:number;thresholdCents:number}):AutonomousRule{
- if(!isSellKind(base.kind))return base;
- return {...base,strategy:{version:base.version,kind:base.kind,direction:base.kind==='sell_below'?'Stop-loss':'Take profit',symbol:base.symbol,amountCents:base.amountCents,reserveCents:0,intervalHours:1,thresholdCents:base.thresholdCents,targetBps:5000,driftBps:100,maxMovementBps:100,mode:'automatic'}};
+function withStrategy(input:{version:number;symbol:string;amountCents:number;kind:RuleKind;intervalMinutes:number;thresholdCents:number},trailBps:number,trailSince:string|undefined):AutonomousRule{
+ // A trailing stop is stored as a stop-loss that follows the high.
+ const trailing=input.kind==='sell_trailing';
+ const base={...input,kind:(trailing?'sell_below':input.kind) as Exclude<RuleKind,'sell_trailing'>,...(trailing?{thresholdCents:1,trailBps,trailSince:trailSince??new Date().toISOString()}:{})};
+ if(!isSellKind(base.kind))return base as AutonomousRule;
+ return {...base,strategy:{version:base.version,kind:base.kind,direction:trailing?'Trailing stop':base.kind==='sell_below'?'Stop-loss':'Take profit',symbol:base.symbol,amountCents:base.amountCents,reserveCents:0,intervalHours:1,thresholdCents:base.thresholdCents,targetBps:5000,driftBps:100,maxMovementBps:100,mode:'automatic'}};
 }
 type Event={id:string;kind:'proposal'|'auto_started'|'auto_action';status:string;symbol:string;amount_cents:number;detail:string;transaction_hash:string|null;created_at:string;expires_at:string};
 type Plan={ruleId:string;revision:number;rule:AutonomousRule;enabled:boolean;nextDueAt:string;failures:number};
@@ -33,6 +40,7 @@ const when=(value:string)=>formatWorkspaceDate(value,{dateStyle:'medium',timeSty
 const clock=(value:string)=>formatWorkspaceDate(value,{hour:'numeric',minute:'2-digit'});
 const kindName=(kind:string)=>{const text=kind.replaceAll('_',' ');return text.charAt(0).toUpperCase()+text.slice(1);};
 function ruleLine(rule:AutonomousRule){
+ if(rule.trailBps)return `Sell ${money(rule.amountCents)} of ${rule.symbol} if it falls ${rule.trailBps/100}% from its high`;
  if(rule.kind==='sell_below')return `Sell ${money(rule.amountCents)} of ${rule.symbol} if it drops to ${money(rule.thresholdCents)} or less`;
  if(rule.kind==='sell_threshold')return `Sell ${money(rule.amountCents)} of ${rule.symbol} when it rises to ${money(rule.thresholdCents)} or more`;
  if(rule.strategy)return `${kindName(rule.strategy.kind)} · ${rule.symbol} · ${money(rule.amountCents)}`;
@@ -45,21 +53,22 @@ const liveIdea=(event:Event,now:number)=>event.kind==='proposal'&&event.status==
 export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;onReviewBuy:(idea:BuyIdea)=>void}){
  const wallet=useWalletSession();
  const [status,setStatus]=useState<Status|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[editing,setEditing]=useState<string|null>(null);
+ const [trail,setTrail]=useState(800),[trailSince,setTrailSince]=useState<string|undefined>(undefined);
  const [symbol,setSymbol]=useState(mandate.allowedSymbols[0]??'AAPL'),[amount,setAmount]=useState('10'),[threshold,setThreshold]=useState('350'),[kind,setKind]=useState<RuleKind>('threshold'),[interval,setInterval]=useState('15');
  const ticket=useRef(0);useEffect(()=>()=>{ticket.current++;},[]);
  async function refresh(){const generation=++ticket.current;setBusy(true);setError('');try{const r=await fetch('/api/workspace/automatic',{cache:'no-store'}),body=await r.json() as Status&{error?:string};if(!r.ok)throw Error(body.error??'Status unavailable.');if(ticket.current===generation)setStatus(body);}catch(e){if(ticket.current===generation)setError(e instanceof Error?e.message:'Status unavailable.');}finally{if(ticket.current===generation)setBusy(false);}}
  useEffect(()=>{const timer=window.setTimeout(()=>void refresh(),0);return()=>window.clearTimeout(timer);},[]);
  function startEdit(plan:Plan|null){
-  if(plan){const saved=plan.rule;setSymbol(saved.symbol);setAmount((saved.amountCents/100).toFixed(2));setThreshold((saved.thresholdCents/100).toFixed(2));setKind((RULE_KINDS as readonly string[]).includes(saved.kind)?saved.kind as RuleKind:'scheduled');setInterval(String(saved.intervalMinutes));setEditing(plan.ruleId);}
-  else{setSymbol(mandate.allowedSymbols[0]??'AAPL');setAmount('10');setThreshold('350');setKind('threshold');setInterval('15');setEditing('new');}
+  if(plan){const saved=plan.rule;setSymbol(saved.symbol);setAmount((saved.amountCents/100).toFixed(2));setThreshold((saved.thresholdCents/100).toFixed(2));setKind(saved.trailBps?'sell_trailing':(RULE_KINDS as readonly string[]).includes(saved.kind)?saved.kind as RuleKind:'scheduled');setTrail(saved.trailBps??800);setTrailSince(saved.trailSince);setInterval(String(saved.intervalMinutes));setEditing(plan.ruleId);}
+  else{setTrail(800);setTrailSince(undefined);setSymbol(mandate.allowedSymbols[0]??'AAPL');setAmount('10');setThreshold('350');setKind('threshold');setInterval('15');setEditing('new');}
  }
  async function change(action:'save'|'use_strategy'|'pause'|'resume'|'check_now'|'delete',plan?:Plan|null){
   if(busy)return;const generation=++ticket.current;setBusy(true);setError('');
   try{const cents=(s:string)=>{if(!/^\d+(\.\d{1,2})?$/.test(s))throw Error('Use positive amounts with up to two decimal places.');return Math.round(Number(s)*100);};
    const target=action==='save'?(editing==='new'?null:plans.find(p=>p.ruleId===editing)??null):plan??null;
    const ruleId=target?.ruleId??(action==='save'||action==='use_strategy'?(plans.length?`r${crypto.randomUUID().slice(0,8)}`:'main'):'main');
-   const base=action!=='save'?undefined:{version:(target?.rule.version??0)+1,symbol,amountCents:cents(amount),kind,intervalMinutes:Number(interval),thresholdCents:kind==='scheduled'?cents(threshold||'1'):cents(threshold)};
-   const rule:AutonomousRule|undefined=base?withStrategy(base):undefined;
+   const base=action!=='save'?undefined:{version:(target?.rule.version??0)+1,symbol,amountCents:cents(amount),kind,intervalMinutes:Number(interval),thresholdCents:kind==='scheduled'||kind==='sell_trailing'?1:cents(threshold)};
+   const rule:AutonomousRule|undefined=base?withStrategy(base,trail,trailSince):undefined;
    const r=await fetch('/api/workspace/automatic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,ruleId,strategyVersion:status?.availableStrategy?.version,revision:target?.revision??0,...(action==='save'?{rule}:{})})}),body=await r.json() as {error?:string};if(!r.ok)throw Error(body.error??'Controls could not be saved.');
    if(ticket.current===generation){setBusy(false);if(action==='save'||action==='use_strategy')setEditing(null);await refresh();}
   }catch(e){if(ticket.current===generation){setError(e instanceof Error?e.message:'Controls unavailable.');setBusy(false);}}
@@ -113,14 +122,15 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
     {editing===null&&shadowOn&&plans.length<max&&<button type="button" className="ws-action-primary ws-add-rule" disabled={busy||!mandate.allowedSymbols.length} onClick={()=>startEdit(null)}>+ Add a rule</button>}
     {editing!==null&&<form className="ws-shadow-form" onSubmit={event=>{event.preventDefault();void change('save');}}>
      <strong className="ws-form-title">{editing==='new'?'New rule':'Change rule'}</strong>
-     <label>{isSellKind(kind)?'Stock to sell':'Stock to buy'}<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
-     <label>{isSellKind(kind)?'How much to sell · USD':'How much to spend · USD'}<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
-     <label>What to do<select value={kind} disabled={busy} onChange={e=>setKind(e.target.value as RuleKind)}><optgroup label="Buy"><option value="threshold">Buy when the price drops low enough</option><option value="scheduled">Buy regularly, whatever the price</option></optgroup><optgroup label="Sell"><option value="sell_below">Sell if the price drops to (stop-loss)</option><option value="sell_threshold">Sell when the price rises to (take profit)</option></optgroup></select></label>
-     {kind!=='scheduled'&&<label>{kind==='threshold'?'Buy at this price or lower · USD':kind==='sell_below'?'Sell at this price or lower · USD':'Sell at this price or higher · USD'}<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
-     <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{CHECK_OPTIONS.map(n=><option value={n} key={n}>{kindName(every(n))}</option>)}</select></label>
+     <label>{isSellUi(kind)?'Stock to sell':'Stock to buy'}<select value={symbol} disabled={busy} onChange={e=>setSymbol(e.target.value)}>{mandate.allowedSymbols.map(s=><option key={s}>{s}</option>)}</select></label>
+     <label>{isSellUi(kind)?'How much to sell · USD':'How much to spend · USD'}<input value={amount} inputMode="decimal" disabled={busy} onChange={e=>setAmount(e.target.value)}/></label>
+     <label>What to do<select value={kind} disabled={busy} onChange={e=>{const next=e.target.value as RuleKind;setKind(next);if(!isSellUi(next)&&Number(interval)<15)setInterval('15');}}><optgroup label="Buy"><option value="threshold">Buy when the price drops low enough</option><option value="scheduled">Buy regularly, whatever the price</option></optgroup><optgroup label="Sell"><option value="sell_below">Sell if the price drops to (stop-loss)</option><option value="sell_threshold">Sell when the price rises to (take profit)</option><option value="sell_trailing">Sell if it falls from its high (trailing stop)</option></optgroup></select></label>
+     {kind==='sell_trailing'&&<label>Sell if it falls this far from its high<select value={trail} disabled={busy} onChange={e=>setTrail(Number(e.target.value))}>{TRAILS.map(t=><option key={t} value={t}>{t/100}%</option>)}</select></label>}
+     {kind!=='scheduled'&&kind!=='sell_trailing'&&<label>{kind==='threshold'?'Buy at this price or lower · USD':kind==='sell_below'?'Sell at this price or lower · USD':'Sell at this price or higher · USD'}<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
+     <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{(isSellUi(kind)?FAST_CHECK_OPTIONS:CHECK_OPTIONS).map(n=><option value={n} key={n}>{n===1?'Every minute':kindName(every(n))}</option>)}</select></label>
      <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save rule</button><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
-     <ReplayCard rule={(()=>{const c=(v:string)=>/^\d+(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):NaN;const a=c(amount),t=kind==='scheduled'?1:c(threshold);return Number.isSafeInteger(a)&&a>0&&Number.isSafeInteger(t)&&t>0&&symbol?{kind,symbol,amountCents:a,thresholdCents:t,intervalMinutes:Number(interval)}:null;})()}/>
-     <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':isSellKind(kind)?'Sell rules act with automatic mode on. Set up (or renew) the permission after saving so it includes this stock.':'New rules start paused. Tap Start when you are ready.'}</small>
+     <ReplayCard rule={(()=>{const c=(v:string)=>/^\d+(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):NaN;const a=c(amount),t=kind==='scheduled'||kind==='sell_trailing'?1:c(threshold);return Number.isSafeInteger(a)&&a>0&&Number.isSafeInteger(t)&&t>0&&symbol?{kind,symbol,amountCents:a,thresholdCents:t,intervalMinutes:Number(interval),...(kind==='sell_trailing'?{trailBps:trail}:{})}:null;})()}/>
+     <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':isSellUi(kind)?'Sell rules act with automatic mode on. Set up (or renew) the permission after saving so it includes this stock.':'New rules start paused. Tap Start when you are ready.'}</small>
     </form>}
     {status&&!shadowOn&&!plans.length&&<p className="ws-muted">Watching a stock is not available yet.</p>}
     {status?.availableStrategy&&shadowOn&&plans.length<max&&editing===null&&<div className="ws-shadow-copy"><p>Or add the strategy you built in Practice: <strong>{kindName(status.availableStrategy.kind)} · {money(status.availableStrategy.amountCents)}</strong></p><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>void change('use_strategy')}>Add it as a rule</button></div>}

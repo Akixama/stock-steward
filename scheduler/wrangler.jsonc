@@ -4,7 +4,7 @@
   "compatibility_date": "2026-10-02",
   "workers_dev": false,
   "triggers": {
-    "crons": ["*/15 * * * *"]
+    "crons": ["* * * * *"]
   },
   "vars": {
     "STEWARD_TICK_URL": "https://stocksteward.app/api/internal/monitor/tick"

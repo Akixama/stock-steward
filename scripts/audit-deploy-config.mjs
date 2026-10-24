@@ -14,14 +14,16 @@ config.routes=[{pattern:'stocksteward.app',custom_domain:true},{pattern:'www.sto
 // scheduled wake-up that dispatches the already-authenticated monitor route.
 // This is required for background Shadow checks; no browser needs to stay open.
 config.main='scheduled-entry.js';
-config.triggers={crons:['*/15 * * * *']};
+// Every minute: a light rules pass; every 15th minute: the full monitor.
+config.triggers={crons:['* * * * *']};
 fs.writeFileSync('dist/server/scheduled-entry.js',`import site from './index.js';
 export default {
   fetch(request, env, ctx) { return site.fetch(request, env, ctx); },
-  scheduled(_event, env, ctx) {
+  scheduled(event, env, ctx) {
     ctx.waitUntil((async () => {
       if (!env.STEWARD_WORKER_KEY) throw Error('Background monitor key unavailable.');
-      const response = await site.fetch(new Request('https://stocksteward.app/api/internal/monitor/tick', {
+      const full = !event?.scheduledTime || new Date(event.scheduledTime).getUTCMinutes() % 15 === 0;
+      const response = await site.fetch(new Request('https://stocksteward.app/api/internal/monitor/tick' + (full ? '' : '?fast=1'), {
         method: 'POST', headers: { Authorization: 'Bearer ' + env.STEWARD_WORKER_KEY }
       }), env, ctx);
       if (!response.ok) throw Error('Background monitor failed with HTTP ' + response.status);

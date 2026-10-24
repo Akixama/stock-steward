@@ -19,6 +19,7 @@ import {getActivation,pauseActivation} from '../db/autonomous-controls.ts';
 import {loadGuard,saveGuardState} from '../db/panic-guard.ts';
 import {evaluateGuard,coolingUntil} from './panic-guard.ts';
 import {accountValueMicro} from './account-value.ts';
+import {resolveRule} from './trailing.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
 export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
@@ -28,7 +29,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
   const claim=await claimShadowPlan(db,plan,now);if(!claim)continue;
   summary.checked++;
   try{
-   const rule=JSON.parse(plan.rule_json) as AutonomousRule;
+   const rule=await resolveRule(db,JSON.parse(plan.rule_json) as AutonomousRule);
    const mandate=await ledger.getMandate(plan.owner_ref);
    let decision:AutonomousDecision;
    let buyDecision=true;

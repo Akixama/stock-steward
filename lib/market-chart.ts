@@ -36,7 +36,8 @@ export async function sampleScheduledMarkets(db:D1Database,now=Date.now(),fetche
  const catalog=await fetchMarketCatalog(fetcher);
  const supported=new Set(catalog.map(stock=>stock.symbol));
  const recent=(await db.prepare('SELECT DISTINCT symbol FROM market_price_samples WHERE observed_at>=? ORDER BY symbol LIMIT 50').bind(new Date(now-7*86400000).toISOString()).all<{symbol:string}>()).results??[];
- const symbols=[...new Set([...FEATURED_MARKETS,...recent.map(row=>row.symbol)])].filter(symbol=>supported.has(symbol));
+ const ruled=(await db.prepare("SELECT DISTINCT json_extract(rule_json,'$.symbol') AS symbol FROM autonomous_shadow_plans WHERE enabled=1 LIMIT 50").all<{symbol:string}>().catch(()=>({results:[]}))).results??[];
+ const symbols=[...new Set([...FEATURED_MARKETS,...ruled.map(row=>row.symbol),...recent.map(row=>row.symbol)])].filter(symbol=>supported.has(symbol));
  let recorded=0;
  for(let i=0;i<symbols.length;i+=8){
   const results=await Promise.allSettled(symbols.slice(i,i+8).map(symbol=>sampleMarket(db,symbol,now,fetcher)));
@@ -44,4 +45,12 @@ export async function sampleScheduledMarkets(db:D1Database,now=Date.now(),fetche
  }
  await db.prepare('DELETE FROM market_price_samples WHERE observed_at<?').bind(new Date(now-30*86400000).toISOString()).run();
  return {tracked:symbols.length,recorded};
+}
+
+// Every-minute sampling for stocks with an active fast rule (stop-loss,
+// take profit, trailing stop) so the trailing high and stop checks are current.
+export async function sampleFastRuleMarkets(db:D1Database,now=Date.now(),fetcher:typeof fetch=fetch){
+ const rows=(await db.prepare("SELECT DISTINCT json_extract(rule_json,'$.symbol') AS symbol FROM autonomous_shadow_plans WHERE enabled=1 AND json_extract(rule_json,'$.intervalMinutes')<15 LIMIT 20").all<{symbol:string}>()).results??[];
+ const results=await Promise.allSettled(rows.map(row=>sampleMarket(db,row.symbol,now,fetcher)));
+ return {tracked:rows.length,recorded:results.filter(r=>r.status==='fulfilled'&&r.value!==null).length};
 }

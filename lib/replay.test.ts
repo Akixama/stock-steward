@@ -29,3 +29,10 @@ test('a trigger never reached says so, and too little data is refused',()=>{
  assert.equal(r.sells,0);assert.match(r.summary,/never reached/);
  assert.throws(()=>replayRule({kind:'threshold',symbol:'AAPL',amountCents:1000,thresholdCents:9000,intervalMinutes:60},limits,samples.slice(0,1)),/Not enough/);
 });
+
+test('a trailing stop sells once the price falls the chosen percent from its running high',()=>{
+ // high bid $99.90; 10% under it is $89.91, first reached at $90 (bid $89.90)
+ const r=replayRule({kind:'sell_trailing',symbol:'AAPL',amountCents:1000,thresholdCents:1,intervalMinutes:60,trailBps:1000},limits,samples);
+ assert.equal(r.trades[0].priceCents,8990);
+ assert.throws(()=>replayRule({kind:'sell_trailing',symbol:'AAPL',amountCents:1000,thresholdCents:1,intervalMinutes:60},limits,samples));
+});
