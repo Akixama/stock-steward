@@ -17,6 +17,7 @@ import ChainPanel from "./chain-panel";
 import StrategyPanel from './strategy-panel';
 import AutomaticPanel from './automatic-panel';
 import GoalPanel from './goal-panel';
+import ReferralCard from './referral-card';
 import type {BuyIdea} from '@/lib/buy-idea';
 import WalletOrdersPanel from "./wallet-orders-panel";
 import { useWalletSession } from "./wallet-session";
@@ -224,6 +225,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode,
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
           {showCodeReminder&&<aside className="ws-code-reminder" role="note"><div><strong>Keep your workspace</strong><p>It lives in this browser. Save your sign-in code to open it on another device or after clearing your browser.</p></div><div className="ws-code-reminder-actions"><a href="/account#sign-in-code" className="ws-action-primary" onClick={()=>hideCodeReminder('done')}>Get my sign-in code</a><button type="button" className="ws-action-quiet" onClick={()=>hideCodeReminder(String(Date.now()+7*86400000))}>Later</button></div></aside>}
           <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} buyIdeaRequest={buyIdeaRequest} onBuyIdeaOpened={()=>setBuyIdeaRequest(null)} onPortfolioValue={setPortfolioCents} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
+          <ReferralCard />
           <details className="ws-strategy-goal ws-home-goal" id="ws-goal" open={goalOpen} onToggle={e=>setGoalOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>Savings goal</summary>{goalOpen&&<GoalPanel mandateVersion={mandate.version} portfolioCents={portfolioCents} onLimits={()=>navigate('mandate')} onPractice={()=>openStrategy('practice')}/>}</details>
           <details className="ws-v2-more"><summary>Help</summary><ChainPanel mandate={mandate} /></details>
         </div>}

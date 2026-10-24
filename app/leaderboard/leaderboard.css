@@ -1,0 +1,23 @@
+.lb-page{min-height:100vh;background:radial-gradient(ellipse at 12% 8%,#17231d 0,transparent 45%),#070806;color:#ecece4;font-family:Arial,Helvetica,sans-serif}
+.lb-shell{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+.lb-header{display:flex;justify-content:space-between;align-items:center;padding-bottom:20px;border-bottom:1px solid #24261e}
+.lb-brand{display:flex;align-items:center;gap:10px;color:#ecece4;text-decoration:none;font-weight:700}
+.lb-brand .brand-symbol{width:30px;height:30px}
+.lb-back{display:inline-flex;align-items:center;gap:6px;color:#abada1;text-decoration:none;font-size:14px}.lb-back:hover{color:#a5ce1f}
+.lb-kicker{display:block;margin-top:48px;font-family:ui-monospace,Consolas,monospace;font-size:12px;letter-spacing:.2em;color:#a5ce1f}
+.lb-page h1{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(36px,7vw,64px);line-height:1.02;margin:14px 0 18px}
+.lb-page h1 em{color:#a5ce1f}
+.lb-lead{color:#abada1;max-width:600px;line-height:1.6;margin:0 0 32px}
+.lb-empty{padding:28px;border:1px dashed #35392d;border-radius:14px;color:#abada1}
+.lb-table{list-style:none;margin:0;padding:0;border:1px solid #24261e;border-radius:16px;overflow:hidden}
+.lb-row{display:grid;grid-template-columns:44px 1fr 80px 70px 90px;gap:10px;align-items:center;padding:14px 18px;border-top:1px solid #1c1e17;font-size:15px}
+.lb-row:first-child{border-top:0}
+.lb-head{background:#10120d;color:#7f8275;font-family:ui-monospace,Consolas,monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.lb-row>span:nth-child(n+3){text-align:right}
+.lb-rank{color:#7f8275;font-variant-numeric:tabular-nums}
+.lb-row[data-top=true] .lb-rank{color:#a5ce1f;font-weight:700}
+.lb-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-name small{margin-left:8px;padding:2px 7px;border-radius:6px;background:#a5ce1f;color:#0b0c10;font-size:11px}
+.lb-row[data-you=true]{background:#a5ce1f12}
+.lb-points{font-weight:700;color:#cfee8a;font-variant-numeric:tabular-nums}
+@media(max-width:560px){.lb-row{grid-template-columns:30px 1fr 64px;font-size:14px;padding:12px 14px}.lb-row>span:nth-child(3),.lb-row>span:nth-child(4){display:none}}
