@@ -4,6 +4,8 @@ import {feeConsentMessage,verifyFeeConsent,type FeeConsent} from '@/lib/autonomo
 import {verifyReleaseProof,releaseProofChecks,type ReviewAuthorities,type ReleaseProof} from '@/lib/autonomous-release-proof';
 import {verifyFeeRecord,installationConsents,INSTALLED_START} from '@/lib/installation-consent';
 import {getSetupChoices} from '@/db/autonomous-controls';
+import {loadGuard} from '@/db/panic-guard';
+import {coolingUntil} from '@/lib/panic-guard';
 import {AUTONOMOUS_SOURCE_DIGEST} from '@/lib/autonomous-release-manifest';import type {PolicyLease} from '@/lib/policy-lease';import type {Hex} from 'viem';
 import {getActivation,saveActivation,pauseActivation} from '@/db/autonomous-controls';import {activationMessage,verifyActivation,controlDigest,type ActivationConsent} from '@/lib/autonomous-activation';import {automaticStages} from '@/lib/automatic-stages';import {getShadowPlan} from '@/db/autonomous-shadow';import {D1DecisionLedger} from '@/db/ledger';import {getOwnership} from '@/db/wallet-ownership';import {mandateDigest} from '@/lib/policy-lease';
 import {assertTradingEnabled,tradingAdmission} from '@/lib/trading-controls';
@@ -28,6 +30,8 @@ export async function POST(request:Request){const user=await getChatGPTUser();if
   // One-signature setups resume without another signature: the same verified
   // permission, fee limit and current Limits. Signed (older) setups use Start.
   const [choices,previous,ownership,mandate]=await Promise.all([getSetupChoices(env.DB,user.userId,grant.id),getActivation(env.DB,user.userId,grant.id),getOwnership(env.DB,user.userId),new D1DecisionLedger(env.DB).getMandate(user.userId)]);
+  const cooling=coolingUntil((await loadGuard(env.DB,user.userId,grant.id)).state,Date.now());
+  if(cooling)return Response.json({error:`Panic guard cool-off: you can resume after ${cooling.slice(0,16).replace('T',' ')} UTC.`},{status:409,headers});
   if(grant.state!=='verified'||!choices||!ownership?.verifiedAt||!mandate||(previous&&JSON.parse(previous.consent_json).schema!==INSTALLED_START))return Response.json({error:'Resume needs a verified one-signature permission.'},{status:409,headers});
   await assertTradingEnabled(env.DB,env);
   const digest=mandateDigest({owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)});

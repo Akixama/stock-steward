@@ -15,7 +15,10 @@ import {queueAutomaticPush} from './automatic-stage-push.ts';
 import {saveProposalInbox,saveAutoRenewalReminder} from '../db/notification-inbox.ts';
 import {RENEW_NOTICE_SECONDS} from './permission-window.ts';
 import {automaticStageIntent,automaticStages,stagesForWallet} from './automatic-stages.ts';
-import {getActivation} from '../db/autonomous-controls.ts';
+import {getActivation,pauseActivation} from '../db/autonomous-controls.ts';
+import {loadGuard,saveGuardState} from '../db/panic-guard.ts';
+import {evaluateGuard,coolingUntil} from './panic-guard.ts';
+import {accountValueMicro} from './account-value.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
 export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
@@ -62,6 +65,22 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
       // owner-signed session grant and activation, and the global kill switch.
       if(intent==='blocked'){await recordShadowExecution(db,claim,{state:'blocked',why:'Automatic per-order cap exceeded.'});continue;}
       const grant=await getSessionGrant(db,plan.owner_ref);
+      // Panic guard runs before any signer: a cool-off or a fresh trip stops the trade.
+      if(grant){
+       const guard=await loadGuard(db,plan.owner_ref,grant.id),until=coolingUntil(guard.state,now.getTime());
+       if(until){await recordShadowExecution(db,claim,{state:'blocked',why:`Panic guard cool-off until ${until.slice(0,16).replace('T',' ')} UTC. No order was sent.`});continue;}
+       let account:Hex|null=null;try{account=(JSON.parse(grant.policy_json) as {account:Hex}).account;}catch{account=null;}
+       const value=account?await accountValueMicro(account,fetcher,fetch):null;
+       if(value===null){await recordShadowExecution(db,claim,{state:'blocked',why:'Panic guard could not value your account right now, so no order was sent.'});continue;}
+       const checked=evaluateGuard(guard.settings,guard.state!,value,now);await saveGuardState(db,plan.owner_ref,checked.state);
+       if(checked.tripped){
+        await pauseActivation(db,plan.owner_ref,grant.id);
+        await recordShadowExecution(db,claim,{state:'blocked',why:checked.why!});
+        const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:checked.why!.slice(0,500),transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+        if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+        continue;
+       }
+      }
       let expiry=0;
       try{expiry=Number(JSON.parse(grant?.policy_json??'{}').expiresAt);}catch{}
       if(grant&&(!Number.isSafeInteger(expiry)||expiry*1000<=now.getTime()+RENEW_NOTICE_SECONDS*1000)){
