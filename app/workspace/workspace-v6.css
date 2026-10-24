@@ -178,6 +178,8 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
  .ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-practice-side{grid-column:2;grid-row:1 / span 12;position:sticky;top:82px;max-height:calc(100vh - 98px);overflow-y:auto;display:grid;gap:14px;align-content:start}
 }
 .ws-practice-side .ws-practice-preview{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* The practice side column is narrow: its cards stack instead of using their wide two-part layout. */
+.ws-practice-side .ws-price-source{grid-template-columns:1fr;gap:14px;padding:20px;margin:0}
 .ws-buy-limits li strong{white-space:nowrap}
 @media(max-width:380px){.ws-header .ws-brand>*:not(:first-child){display:none}}
 @media(max-width:700px){.ws-header-actions .ws-guide-link{display:inline-flex!important;align-items:center;gap:4px;width:auto!important;height:auto!important;min-height:40px;padding:0 12px!important;border-radius:999px!important;font-size:13px;white-space:nowrap}.ws-header-actions .ws-guide-link svg{display:none}.ws-header-actions{gap:6px}}
