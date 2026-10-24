@@ -181,6 +181,10 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 /* The practice side column is narrow: its cards stack instead of using their wide two-part layout. */
 .ws-practice-side .ws-price-source{grid-template-columns:1fr;gap:14px;padding:20px;margin:0}
 .ws-buy-limits li strong{white-space:nowrap}
+.ws-code-reminder{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:880px;margin:0 auto 16px;padding:16px 18px;border:1px solid #3a3f50;border-radius:14px;background:#1b1e28;color:#ececf2}
+.ws-code-reminder strong{font-size:15px;font-weight:600}.ws-code-reminder p{margin:4px 0 0;font-size:13px;line-height:1.45;color:#a8adba}
+.ws-code-reminder-actions{display:flex;flex:none;align-items:center;gap:8px}.ws-code-reminder-actions a{display:inline-flex;align-items:center;min-height:44px;text-decoration:none}
+@media(max-width:640px){.ws-code-reminder{flex-direction:column;align-items:stretch}.ws-code-reminder-actions a{flex:1;justify-content:center}}
 @media(max-width:380px){.ws-header .ws-brand>*:not(:first-child){display:none}}
 @media(max-width:700px){.ws-header-actions .ws-guide-link{display:inline-flex!important;align-items:center;gap:4px;width:auto!important;height:auto!important;min-height:40px;padding:0 12px!important;border-radius:999px!important;font-size:13px;white-space:nowrap}.ws-header-actions .ws-guide-link svg{display:none}.ws-header-actions{gap:6px}}
 @media(max-width:899px){.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel{display:flex;flex-direction:column}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>*{order:2}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-page-head{order:0}.ws-v6-strategy[data-mode=practice] .ws-strategy.ws-check-panel>.ws-practice-side{order:1;margin-bottom:18px}}

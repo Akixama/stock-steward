@@ -20,5 +20,5 @@ export default async function WorkspacePage({searchParams}:{searchParams?:Promis
     console.error('Workspace storage unavailable',error);
     storageError='Your saved workspace is temporarily unavailable. Please try again shortly.';
   }
-  return <WorkspaceClient initialMandate={mandate} storageError={storageError} publicMode={env.PUBLIC_MODE==='true'}/>;
+  return <WorkspaceClient initialMandate={mandate} storageError={storageError} publicMode={env.PUBLIC_MODE==='true'} codeReminder={user.email.endsWith('@demo.local')}/>;
 }

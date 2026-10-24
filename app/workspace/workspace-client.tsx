@@ -38,7 +38,7 @@ const oldDeviceStore = "stock-steward-brokerage-mandate-v1";
 const usd = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 2,
 }).format(cents / 100);
-export default function WorkspaceClient({initialMandate,storageError,publicMode}:{initialMandate:Mandate|null;storageError:string|null;publicMode:boolean}) {
+export default function WorkspaceClient({initialMandate,storageError,publicMode,codeReminder=false}:{initialMandate:Mandate|null;storageError:string|null;publicMode:boolean;codeReminder?:boolean}) {
   const walletSession = useWalletSession();
   const mainRef=useRef<HTMLElement|null>(null),navRef=useRef<HTMLElement|null>(null),motion=useRef<Animation|null>(null),navigation=useRef(0);
   const [indicator,setIndicator]=useState({left:5,width:0});
@@ -48,6 +48,11 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
   const [portfolioCents, setPortfolioCents] = useState<number|null>(null);
   const [buyIdeaRequest,setBuyIdeaRequest]=useState<(BuyIdea&{id:number})|null>(null);
   const [unreadAlerts, setUnreadAlerts] = useState<number | null>(null);
+  // Keep an active visitor signed in: renew the session when the workspace opens (at most daily).
+  useEffect(()=>{void fetch('/api/session/renew',{method:'POST'}).catch(()=>{});},[]);
+  const [showCodeReminder,setShowCodeReminder]=useState(false);
+  useEffect(()=>{if(!codeReminder)return;let hidden=false;try{const saved=localStorage.getItem('steward-code-reminder');hidden=saved==='done'||Number(saved)>Date.now();}catch{}if(hidden)return;const timer=setTimeout(()=>setShowCodeReminder(true),0);return()=>clearTimeout(timer);},[codeReminder]);
+  const hideCodeReminder=(value:string)=>{setShowCodeReminder(false);try{localStorage.setItem('steward-code-reminder',value);}catch{}};
   useEffect(()=>{const linked=LINKED_VIEWS[new URLSearchParams(window.location.search).get('view')??''];if(!linked)return;const timer=setTimeout(()=>{setView(linked[0]);if(linked[1])setStrategyMode(linked[1]);if(new URLSearchParams(window.location.search).get('view')==='goal')setGoalOpen(true);},0);return()=>clearTimeout(timer);},[]);
   useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.get('review')!=='buy')return;url.searchParams.delete('review');window.history.replaceState(null,'',url.pathname+url.search);const timer=window.setTimeout(()=>window.dispatchEvent(new Event('stock-steward:open-buy')),500);return()=>window.clearTimeout(timer);},[]);
   useEffect(()=>{let active=true;const refresh=async()=>{try{const response=await fetch('/api/workspace/notifications',{cache:'no-store'});const data=await response.json() as {unread?:number};if(active&&response.ok&&typeof data.unread==='number')setUnreadAlerts(data.unread);}catch{}};void refresh();const timer=window.setInterval(()=>void refresh(),60000);return()=>{active=false;window.clearInterval(timer);};},[]);
@@ -217,6 +222,7 @@ export default function WorkspaceClient({initialMandate,storageError,publicMode}
         </div>
         {view === 'alerts' && <div className="ws-view ws-v6-alerts" data-animate={animateView} key="alerts"><div className="ws-page-head"><div><span className="ws-eyebrow">ALERTS</span><h1>Watch prices.<br/><em>Stay informed.</em></h1><p>Price alerts and buy ideas in one place. Alerts never place orders.</p></div></div><AlertsPanel mandate={mandate} onCount={setUnreadAlerts} onReviewBuy={openBuyIdea}/></div>}
         {view === "overview" && <div className="ws-view ws-v2-overview" data-animate={animateView} key="overview">
+          {showCodeReminder&&<aside className="ws-code-reminder" role="note"><div><strong>Keep your workspace</strong><p>It lives in this browser. Save your sign-in code to open it on another device or after clearing your browser.</p></div><div className="ws-code-reminder-actions"><a href="/account#sign-in-code" className="ws-action-primary" onClick={()=>hideCodeReminder('done')}>Get my sign-in code</a><button type="button" className="ws-action-quiet" onClick={()=>hideCodeReminder(String(Date.now()+7*86400000))}>Later</button></div></aside>}
           <WalletOrdersPanel mandate={mandate} onOpenMandate={() => navigate("mandate")} publicMode={publicMode} buyIdeaRequest={buyIdeaRequest} onBuyIdeaOpened={()=>setBuyIdeaRequest(null)} onPortfolioValue={setPortfolioCents} progress={{done:completedSteps,total:3,complete:setupComplete,next:!limitsReady?'Set your buying limits':!overviewState.ownership?'Connect and verify your wallet':'Activate buying permission',action:!limitsReady?'limits':'setup'}} />
           <details className="ws-strategy-goal ws-home-goal" id="ws-goal" open={goalOpen} onToggle={e=>setGoalOpen((e.currentTarget as HTMLDetailsElement).open)}><summary>Savings goal</summary>{goalOpen&&<GoalPanel mandateVersion={mandate.version} portfolioCents={portfolioCents} onLimits={()=>navigate('mandate')} onPractice={()=>openStrategy('practice')}/>}</details>
           <details className="ws-v2-more"><summary>Help</summary><ChainPanel mandate={mandate} /></details>

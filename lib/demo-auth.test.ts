@@ -51,3 +51,14 @@ test('session cookie spans the production domain family only', () => {
  assert.ok(demoSessionClearedCookie('stocksteward.app').includes('; Domain=.stocksteward.app'));
  assert.ok(!demoSessionClearedCookie('').includes('Domain='));
 });
+
+test('active sessions renew at most once a day and expired ones never do', async () => {
+ const {shouldRenewSession,SESSION_LIFETIME_MS}=await import('./demo-auth.ts');
+ const now=1_000_000_000_000;
+ assert.equal(shouldRenewSession(now+SESSION_LIFETIME_MS,now),false);
+ assert.equal(shouldRenewSession(now+SESSION_LIFETIME_MS-3600000,now),false);
+ assert.equal(shouldRenewSession(now+SESSION_LIFETIME_MS-2*86400000,now),true);
+ assert.equal(shouldRenewSession(now+60000,now),true);
+ assert.equal(shouldRenewSession(now-1,now),false);
+ assert.equal(shouldRenewSession(Number.NaN,now),false);
+});

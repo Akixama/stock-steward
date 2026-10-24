@@ -48,7 +48,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   if(busy)return;setBusy(true);setError('');
   try{const response=await fetch('/api/workspace/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'review_proposal',id:`proposal:${event.id}`})});const data=await response.json() as {proposal?:unknown;error?:string};if(!response.ok)throw Error(data.error??'This idea could not open. No order was sent.');const idea=buyIdeaFromClaim(data.proposal);onReviewBuy(idea);}
   catch(cause){
-   // Reload first so the stale card moves to Past ideas, then show why it did not open.
+   // Reload first so the stale card moves to Earlier buy ideas, then show why it did not open.
    const message=cause instanceof Error?cause.message:'This idea could not open. No order was sent.';
    setBusy(false);await refresh();setError(message);return;
   }

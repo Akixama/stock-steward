@@ -55,11 +55,11 @@ export default function NotificationInbox({ onCount, onReviewBuy, aside, childre
   return <section className="ws-inbox ws-alerts-grid" aria-label="Notification inbox">
     {notice && <p className="ws-alert-notice ws-alerts-span" role="status">{notice}</p>}{error && <p className="ws-error ws-alerts-span" role="alert">{error}</p>}
     <div className="ws-alerts-col">
-    <article className="ws-alert-card" aria-label="Buy ideas">
-      <div className="ws-alert-card-head"><div><h3>Buy ideas</h3><small>Ideas spend nothing. Buy uses your saved per-buy amount and a fresh quote.</small></div>{!!ideas.length&&<span className="ws-count">{ideas.length}</span>}</div>
-      {!ideas.length&&<p className="ws-muted">No ideas right now.</p>}
-      {ideas.map(item=><div className="ws-idea" key={item.id}><div><strong>{item.symbol??'Stock'} <span>· {amount(item)}</span></strong><small>Expires {formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void open(item)}>Review in Buy</button></div>)}
-      {!!pastIdeas.length&&<details className="ws-past-ideas"><summary>Past ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(item=><div className="ws-past-idea" key={item.id}><strong>{item.symbol??'Stock'} · {amount(item)}</strong><small>{item.proposal_status==='proposed'?'Expired':'Opened'} · {formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>)}</details>}
+    <article className="ws-alert-card" aria-label="Ready to buy">
+      <div className="ws-alert-card-head"><div><h3>Ready to buy</h3><small>Nothing is spent until you approve in your wallet. Buy uses your saved per-buy amount and a fresh quote.</small></div>{!!ideas.length&&<span className="ws-count">{ideas.length}</span>}</div>
+      {!ideas.length&&<p className="ws-muted">Nothing to buy yet.</p>}
+      {ideas.map(item=><div className="ws-idea" key={item.id}><div><strong>{item.symbol??'Stock'} <span>· {amount(item)}</span></strong><small>Good until {formatWorkspaceDate(item.proposal_expires_at!,{hour:'numeric',minute:'2-digit'})}</small></div><button type="button" className="ws-action-primary" disabled={busy} onClick={()=>void open(item)}>Review and buy</button></div>)}
+      {!!pastIdeas.length&&<details className="ws-past-ideas"><summary>Earlier buy ideas <span>{pastIdeas.length}</span></summary>{pastIdeas.map(item=><div className="ws-past-idea" key={item.id}><strong>{item.symbol??'Stock'} · {amount(item)}</strong><small>{item.proposal_status==='proposed'?'Expired':'Opened'} · {formatWorkspaceDate(item.created_at,{dateStyle:'medium',timeStyle:'short'})}</small></div>)}</details>}
     </article>
     {aside}
     </div>

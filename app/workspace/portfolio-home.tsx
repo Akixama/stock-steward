@@ -143,7 +143,8 @@ export default function PortfolioHome({address,onAction,publicMode,onValue}:{add
   // Share only a complete value, never a partial one, with the savings goal.
   const shareCents=complete&&total!==null?Number(total/10_000n):null;
   useEffect(()=>{onValue?.(shareCents);},[onValue,shareCents]);
-  const points=matching.filter(item=>recent(item)&&item.valuationComplete).slice(-12).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
+  // The chart shows the last 30 complete value checks, however old; only the headline value needs a fresh check.
+  const points=matching.filter(item=>item.valuationComplete).slice(-30).map(item=>Number(BigInt(item.subtotalMicroUsd)+parseUnits(item.usdg??'0',6))/1_000_000).filter(Number.isFinite);
   const holdings=wallet?.holdings.filter(item=>item.tokens!==null&&Number(item.tokens)>0)??[];
   const unpriced=holdings.filter(item=>!priced?.holdings.some(held=>held.symbol===item.symbol&&typeof priced.prices[held.contract]?.valueMicroUsd==='string'));
   const stockValue=(symbol:string)=>{

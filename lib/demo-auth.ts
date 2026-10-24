@@ -54,3 +54,12 @@ export function demoSessionCookie(cookieValue:string,maxAgeSeconds=30*86400,host
 export function demoSessionClearedCookie(host=''):string{
  return `${DEMO_COOKIE_NAME}=; HttpOnly; Secure; SameSite=Lax; Path=/${cookieDomain(host)}; Max-Age=0`;
 }
+
+// Sessions slide: an active visitor's session is renewed to a fresh 30 days at most once a
+// day, so regular users are never signed out of their workspace. A saved sign-in code
+// lasts longer so a workspace can be reopened on another device months later.
+export const SESSION_LIFETIME_MS=30*86400000;
+export const SIGN_IN_CODE_LIFETIME_MS=180*86400000;
+export function shouldRenewSession(expiresAt:number,now=Date.now(),lifetimeMs=SESSION_LIFETIME_MS):boolean{
+ return Number.isSafeInteger(expiresAt)&&expiresAt>now&&expiresAt-now<lifetimeMs-86400000;
+}
