@@ -12,6 +12,7 @@ import SessionWalletActions from './session-wallet-actions';
 import AutonomyControls from './autonomy-controls';
 import AutonomyRehearsal from './autonomy-rehearsal';
 import AutoSetup from './auto-setup';
+import ReplayCard from './replay-card';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
 import {isSellKind} from '@/lib/session-sale-lot';
 type RuleKind='scheduled'|'threshold'|'sell_below'|'sell_threshold';
@@ -105,6 +106,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
      {kind!=='scheduled'&&<label>{kind==='threshold'?'Buy at this price or lower · USD':kind==='sell_below'?'Sell at this price or lower · USD':'Sell at this price or higher · USD'}<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
      <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{[15,30,60,240,1440].map(n=><option value={n} key={n}>{kindName(every(n))}</option>)}</select></label>
      <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save</button>{editing&&<button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(false)}>Cancel</button>}</div>
+     <ReplayCard rule={(()=>{const c=(v:string)=>/^\d+(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):NaN;const a=c(amount),t=kind==='scheduled'?1:c(threshold);return Number.isSafeInteger(a)&&a>0&&Number.isSafeInteger(t)&&t>0&&symbol?{kind,symbol,amountCents:a,thresholdCents:t,intervalMinutes:Number(interval)}:null;})()}/>
      <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':isSellKind(kind)?'Sell rules only act with automatic selling on: set up the permission below after saving, so it includes this stock.':'After saving, tap Start watching at the top.'}</small>
     </form>}
     {status&&!shadowOn&&!plan&&<p className="ws-muted">Watching a stock is not available yet.</p>}
