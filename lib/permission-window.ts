@@ -3,6 +3,11 @@
 export const PERMISSION_WINDOW_DAYS = 2;
 export const PERMISSION_WINDOW_SECONDS = PERMISSION_WINDOW_DAYS * 86_400;
 export const RENEW_NOTICE_SECONDS = 12 * 3_600;
+// Automatic (session) permissions: the owner picks how long it lasts.
+export const SESSION_WINDOW_DAYS = [2, 7, 14, 30] as const;
+export type SessionWindowDays = typeof SESSION_WINDOW_DAYS[number];
+export const MAX_SESSION_WINDOW_SECONDS = 30 * 86_400;
+export const isSessionWindowDays = (value: unknown): value is SessionWindowDays => SESSION_WINDOW_DAYS.includes(value as SessionWindowDays);
 
 export function permissionWindow(now = new Date()) {
   const startsAt = Math.floor(now.getTime() / 86_400_000) * 86_400;

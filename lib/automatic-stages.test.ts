@@ -36,11 +36,13 @@ test('a * allowlist opens a stage to every verified wallet, never to an unverifi
   assert.equal(stagesForWallet(all,null).autoBuy,false);
   assert.throws(()=>automaticStages({AUTO_BUY_WALLETS:'**'}));
 });
-test('automatic caps remain tiny and invalid configuration fails closed',()=>{
+test('automatic caps default tiny, stay under the platform ceiling and fail closed',()=>{
   assert.deepEqual([automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxOrderCents,automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxDailyCents],[50,150]);
-  assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'501'}));
-  assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'101'}));
-  assert.throws(()=>automaticStages({AUTO_BUY_MAX_DAILY_CENTS:'251'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'100001'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_MAX_DAILY_CENTS:'500001'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_HARD_CEILING_CENTS:'5000001'}));
+  assert.throws(()=>automaticStages({AUTO_BUY_MAX_DAILY_CENTS:'1000',AUTO_BUY_HARD_CEILING_CENTS:'500'}));
+  assert.equal(automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'10000',AUTO_BUY_MAX_DAILY_CENTS:'50000',AUTO_BUY_HARD_CEILING_CENTS:'1500000'}).maxOrderCents,10000);
   assert.throws(()=>automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'200',AUTO_BUY_MAX_DAILY_CENTS:'100'}));
 });
 test('shadow produces a receipt only; notifications never submit; auto is buy-only and capped',()=>{

@@ -13,7 +13,7 @@ test('configuration is narrow, membership is last and quotas round down',()=>{
  for(let i=1;i<plan.conditions.length;i++)assert.ok(plan.conditions[i].parent>=plan.conditions[i-1].parent);
 });
 test('reject invalid or broad policies and bind identity to grant/session/account',()=>{
- for(const change of [{session:p.account},{inputRaw:'0'},{dailyRaw:'999999'},{totalRaw:'999999'},{expiresAt:p.startsAt},{expiresAt:p.startsAt+172801},{startsAt:p.startsAt+1},{outputs:[]},{outputs:[...p.outputs,...p.outputs]},{outputs:[{...p.outputs[0],fee:123}]},{outputs:[{...p.outputs[0],token:VENUE.settlement}]},{routerCodeHash:('0x'+'0'.repeat(64)) as Hex}])assert.throws(()=>compileRolesPolicy({...p,...change}));
+ for(const change of [{session:p.account},{inputRaw:'0'},{dailyRaw:'999999'},{totalRaw:'999999'},{expiresAt:p.startsAt},{expiresAt:p.startsAt+30*86400+1},{startsAt:p.startsAt+1},{outputs:[]},{outputs:[...p.outputs,...p.outputs]},{outputs:[{...p.outputs[0],fee:123}]},{outputs:[{...p.outputs[0],token:VENUE.settlement}]},{routerCodeHash:('0x'+'0'.repeat(64)) as Hex}])assert.throws(()=>compileRolesPolicy({...p,...change}));
  const a=compileRolesPolicy(p),b=compileRolesPolicy({...p,grantId:('0x'+'c'.repeat(64)) as Hex});assert.notEqual(a.roleKey,b.roleKey);assert.notEqual(a.dailyKey,b.dailyKey);
 });
 test('deployment sets account as owner/avatar/target; approved call does not manufacture live quote evidence',()=>{

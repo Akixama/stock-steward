@@ -22,7 +22,7 @@ test('a take-profit lot floors 3% under the target; a scheduled lot 15% under th
 });
 test('bad inputs fail closed',()=>{
  assert.throws(()=>saleLot({...base,kind:'sell_below',thresholdCents:0}));
- assert.throws(()=>saleLot({...base,kind:'sell_below',thresholdCents:30000,amountCents:1001}));
+ assert.throws(()=>saleLot({...base,kind:'sell_below',thresholdCents:30000,amountCents:100001}));
  assert.throws(()=>saleLot({...base,kind:'sell_below',thresholdCents:30000,priceLowerMicroUsd:400_000_000n}));
  assert.throws(()=>saleLot({...base,kind:'sell_below',thresholdCents:30000,decimals:0,amountCents:1}));
  assert.equal(isSellKind('sell_below'),true);assert.equal(isSellKind('threshold'),false);

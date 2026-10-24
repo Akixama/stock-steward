@@ -4,13 +4,14 @@ import {encodeBatch} from './install-flow.ts';
 import {MULTISEND} from './safe-setup.ts';
 import {mandateDigest,bindPolicyLease,type MandateSnapshot,type SessionSignerRef} from './policy-lease.ts';
 import {AUTONOMOUS_RELEASE_ENABLED} from './autonomous-live.ts';
-import {PERMISSION_WINDOW_SECONDS} from './permission-window.ts';
+import {PERMISSION_WINDOW_DAYS,isSessionWindowDays} from './permission-window.ts';
+import {AUTO_ORDER_CEILING_CENTS,AUTO_DAILY_CEILING_CENTS} from './automatic-stages.ts';
 const abi=parseAbi(['function execTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,bytes signatures) returns (bool success)']);
 const ZERO='0x0000000000000000000000000000000000000000' as const;
 // Draft only, never submitted. First enrollment replaces the owner's bounded role
 // with a separately stored session role in the same atomic owner-signed batch.
 // The Safe remains owned by the owner; the session receives no administration rights.
-export function draftAutonomousGrant(snapshot:MandateSnapshot,signer:SessionSignerRef,previous:RolesPolicy,approvedOutputs:{symbol:string;token:string}[],now=new Date(),settlementUpperMicroUsd=1000000n,autoCaps?:{orderCents:number;dailyCents:number}){
+export function draftAutonomousGrant(snapshot:MandateSnapshot,signer:SessionSignerRef,previous:RolesPolicy,approvedOutputs:{symbol:string;token:string}[],now=new Date(),settlementUpperMicroUsd=1000000n,autoCaps?:{orderCents:number;dailyCents:number;days?:number;totalCents?:number}){
  mandateDigest(snapshot);const previousCompiled=compileRolesPolicy(previous);
  if(snapshot.owner.toLowerCase()!==previous.session.toLowerCase()||signer.address.toLowerCase()===snapshot.owner.toLowerCase()||signer.address.toLowerCase()===previous.account.toLowerCase())throw Error('First enrollment requires the owner role and a separate session key.');
  const mandate=JSON.parse(snapshot.policyJson) as {version?:number;allowedSymbols?:string[];maxOrderCents?:number;maxDailyBuyCents?:number};
@@ -24,11 +25,15 @@ export function draftAutonomousGrant(snapshot:MandateSnapshot,signer:SessionSign
  const bounded=(raw:string,cents:number)=>{const ceiling=BigInt(cents)*10000n*1000000n/settlementUpperMicroUsd;return (ceiling<BigInt(raw)?ceiling:BigInt(raw)).toString();};
  const orderCents=Math.min(mandate.maxOrderCents!,autoCaps?.orderCents??mandate.maxOrderCents!);
  const dailyCents=Math.min(mandate.maxDailyBuyCents!,autoCaps?.dailyCents??mandate.maxDailyBuyCents!);
- if(autoCaps&&(autoCaps.orderCents>100||autoCaps.dailyCents>250))throw Error('Automatic cap exceeds the hard two-day ceiling.');
- const inputRaw=bounded(previous.inputRaw,orderCents),dailyRaw=bounded(previous.dailyRaw,dailyCents),totalRaw=(BigInt(dailyRaw)*2n).toString();
+ if(autoCaps&&(autoCaps.orderCents>AUTO_ORDER_CEILING_CENTS||autoCaps.dailyCents>AUTO_DAILY_CEILING_CENTS))throw Error('Automatic cap exceeds the platform ceiling.');
+ const days=autoCaps?.days??PERMISSION_WINDOW_DAYS;if(!isSessionWindowDays(days))throw Error('Choose 2, 7, 14 or 30 days.');
+ const inputRaw=bounded(previous.inputRaw,orderCents),dailyRaw=bounded(previous.dailyRaw,dailyCents);
+ // The whole permission can never spend more than the total cap, even over 30 days.
+ const fullRaw=BigInt(dailyRaw)*BigInt(days),totalCap=autoCaps?.totalCents!==undefined?BigInt(bounded(fullRaw.toString(),autoCaps.totalCents)):fullRaw,totalRaw=(totalCap<fullRaw?totalCap:fullRaw).toString();
+ if(BigInt(totalRaw)<BigInt(inputRaw))throw Error('Total cap is below one trade.');
  if(BigInt(inputRaw)<=0n)throw Error('Purchase limit is too small for the settlement bound.');
  const outputs=previous.outputs.map(output=>({...output,minimumOutputRaw:((BigInt(output.minimumOutputRaw)*BigInt(inputRaw)+BigInt(previous.inputRaw)-1n)/BigInt(previous.inputRaw)).toString()}));
- const policy:RolesPolicy={...previous,sales:undefined,inputRaw,dailyRaw,totalRaw,outputs,session:signer.address as Address,startsAt,expiresAt:startsAt+PERMISSION_WINDOW_SECONDS,grantId:keccak256(toHex(JSON.stringify(['stock-steward-autonomous-grant-v1',snapshot.owner.toLowerCase(),snapshot.version,signer.address.toLowerCase(),startsAt])))};
+ const policy:RolesPolicy={...previous,sales:undefined,inputRaw,dailyRaw,totalRaw,outputs,session:signer.address as Address,startsAt,expiresAt:startsAt+days*86400,grantId:keccak256(toHex(JSON.stringify(['stock-steward-autonomous-grant-v1',snapshot.owner.toLowerCase(),snapshot.version,signer.address.toLowerCase(),startsAt])))};
  const compiled=compileRolesPolicy(policy),lease=bindPolicyLease(snapshot,signer,policy,now.toISOString());
  const calls=[previousCompiled.revocation,...compiled.calls] as {to:Address;data:Hex}[];
  const signatures=(pad(snapshot.owner as Address,{size:32})+'0'.repeat(64)+'01') as Hex;

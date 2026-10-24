@@ -13,7 +13,7 @@ export const SALE_FLOOR_BPS:Record<SellRuleKind,number>={sell_below:9000,sell_th
 export function saleLot(input:{output:{token:string;fee:number;tickSpacing:number};decimals:number;amountCents:number;kind:SellRuleKind;thresholdCents:number;priceUpperMicroUsd:bigint;priceLowerMicroUsd:bigint}):NonNullable<RolesPolicy['sales']>[number]{
  const {output,decimals,amountCents,kind,thresholdCents,priceUpperMicroUsd,priceLowerMicroUsd}=input;
  if(!Number.isSafeInteger(decimals)||decimals<0||decimals>36)throw Error('Unknown token decimals.');
- if(!Number.isSafeInteger(amountCents)||amountCents<1||amountCents>1000)throw Error('Sale amount must be $0.01 to $10.');
+ if(!Number.isSafeInteger(amountCents)||amountCents<1||amountCents>100000)throw Error('Sale amount must be $0.01 to $1,000.');
  if(priceUpperMicroUsd<=0n||priceLowerMicroUsd<=0n||priceLowerMicroUsd>priceUpperMicroUsd)throw Error('Fresh price bounds required.');
  if(kind!=='sell_scheduled'&&(!Number.isSafeInteger(thresholdCents)||thresholdCents<1))throw Error('Sale trigger price required.');
  const scale=10n**BigInt(decimals);

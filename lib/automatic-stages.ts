@@ -10,9 +10,15 @@ export type AutomaticStageConfig = {
   REQUIRE_INDEPENDENT_REVIEW?: string;
 };
 
+// Platform ceilings. Each owner's own Limits (per buy, per day) apply first;
+// the release config can only lower these.
+export const AUTO_ORDER_CEILING_CENTS = 100_000;   // $1,000 per trade
+export const AUTO_DAILY_CEILING_CENTS = 500_000;   // $5,000 per day
+export const AUTO_TOTAL_CEILING_CENTS = 5_000_000; // $50,000 per permission
+
 function lowCap(raw: string | undefined, fallback: number,ceiling: number): number {
   if (raw === undefined || raw === '') return fallback;
-  if (!/^[1-9]\d{0,4}$/.test(raw)) throw Error('Invalid automatic buying cap.');
+  if (!/^[1-9]\d{0,7}$/.test(raw)) throw Error('Invalid automatic buying cap.');
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value > ceiling) throw Error('Automatic buying cap exceeds the hard safety ceiling.');
   return value;
@@ -25,12 +31,12 @@ export function automaticStages(config: AutomaticStageConfig) {
   // v2: both stages may be on. Each run still takes exactly one path: an armed
   // automatic session buys, everyone else gets a proposal to approve.
   const conflicting = false;
-  const maxOrderCents = lowCap(config.AUTO_BUY_MAX_ORDER_CENTS, 100,100);
-  // The permission spans two UTC days. Each day's cap is at most $2.50,
-  // making the onchain two-day total at most $5.
-  const maxDailyCents = lowCap(config.AUTO_BUY_MAX_DAILY_CENTS, 200,250);
-  const hardCeilingCents=lowCap(config.AUTO_BUY_HARD_CEILING_CENTS,500,500);
-  if(maxDailyCents*2>hardCeilingCents)throw Error('Automatic two-day total exceeds the hard ceiling.');
+  // Defaults stay tiny when the release config says nothing.
+  const maxOrderCents = lowCap(config.AUTO_BUY_MAX_ORDER_CENTS, 100,AUTO_ORDER_CEILING_CENTS);
+  const maxDailyCents = lowCap(config.AUTO_BUY_MAX_DAILY_CENTS, 200,AUTO_DAILY_CEILING_CENTS);
+  // Total any one permission may spend over its whole life.
+  const hardCeilingCents=lowCap(config.AUTO_BUY_HARD_CEILING_CENTS,500,AUTO_TOTAL_CEILING_CENTS);
+  if(hardCeilingCents<maxDailyCents)throw Error('Automatic permission total is below one day.');
   if (maxDailyCents < maxOrderCents) throw Error('Automatic daily cap is below the order cap.');
   return {
     shadow,

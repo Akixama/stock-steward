@@ -8,8 +8,8 @@
   "autoBuyWallets": [
     "*"
   ],
-  "autoBuyMaxOrderCents": 100,
-  "autoBuyMaxDailyCents": 200,
-  "autoBuyHardCeilingCents": 500,
+  "autoBuyMaxOrderCents": 10000,
+  "autoBuyMaxDailyCents": 50000,
+  "autoBuyHardCeilingCents": 1500000,
   "requireIndependentReview": false
 }
