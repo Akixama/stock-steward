@@ -10,6 +10,7 @@ import {ownerAutomaticStages} from '@/lib/wallet-stage-access';
 import {executionAccountingSources} from '@/lib/execution-sources';
 import {CHAIN} from '@/lib/robinhood-chain';
 import {isSessionWindowDays} from '@/lib/permission-window';
+import {saveSetupChoices} from '@/db/autonomous-controls';
 import {getShadowPlan} from '@/db/autonomous-shadow';
 import {addReviewedSales} from '@/lib/session-sale-draft';
 import {saleLot,isSellKind} from '@/lib/session-sale-lot';
@@ -21,7 +22,7 @@ export async function POST(request:Request){
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});
  if(!env.DB||!await ownerAutomaticStages(env.DB,user.userId,env).then(s=>s.autoBuy).catch(()=>false))return Response.json({error:'Automatic session setup is off for this wallet. No key or grant was created.'},{status:403,headers});
  if(!env.DB||!env.STEWARD_SIGNER_ENCRYPTION_KEY)return Response.json({error:'Encrypted session storage is not configured. No key or grant was created.'},{status:503,headers});
- const text=await request.text();if(text.length>200)return Response.json({error:'Request too large.'},{status:413,headers});let days:number=2;try{const body=JSON.parse(text);days=body.days??2;if(!isSessionWindowDays(days))return Response.json({error:'Choose 2, 7, 14 or 30 days.'},{status:400,headers});if(body.action!=='draft')return Response.json({error:'Only a reviewable draft may be created.'},{status:400,headers});}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}
+ const text=await request.text();if(text.length>200)return Response.json({error:'Request too large.'},{status:413,headers});let days:number=2,maxFeeCents=50;try{const body=JSON.parse(text);days=body.days??2;maxFeeCents=body.maxFeeCents??50;if(!isSessionWindowDays(days))return Response.json({error:'Choose 2, 7, 14 or 30 days.'},{status:400,headers});if(!Number.isSafeInteger(maxFeeCents)||maxFeeCents<1||maxFeeCents>1000)return Response.json({error:'Fee limit must be $0.01 to $10.'},{status:400,headers});if(body.action!=='draft')return Response.json({error:'Only a reviewable draft may be created.'},{status:400,headers});}catch{return Response.json({error:'Invalid request.'},{status:400,headers});}
  let created:string|null=null;
  try{
   if(await getSessionGrant(env.DB,user.userId))return Response.json({error:'A session draft already exists. Review it instead of creating another.'},{status:409,headers});
@@ -56,6 +57,7 @@ export async function POST(request:Request){
   const id=await saveSessionGrantDraft(env.DB,user.userId,reviewed);
   if(!id){await removeSessionSigner(env.DB,user.userId,session);created=null;return Response.json({error:'Another enrollment request won. Load the existing draft.'},{status:409,headers});}
   created=null;
+  await saveSetupChoices(env.DB,user.userId,id,maxFeeCents,days);
   return Response.json({id,session,policy:reviewed.policy,transaction:{from:reviewed.from,to:reviewed.to,value:reviewed.value,data:reviewed.data},executionEnabled:false,activationEnabled:false,notice:reviewed.notice},{headers});
  }catch{if(created)await removeSessionSigner(env.DB,user.userId,created);return Response.json({error:'Session draft unavailable. No transaction was submitted.'},{status:503,headers});}
 }

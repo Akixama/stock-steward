@@ -2,6 +2,8 @@ import {env} from 'cloudflare:workers';import {getChatGPTUser} from '@/app/chatg
 import {getSessionGrant} from '@/db/autonomous-grants';import {getFeeConsent,saveFeeConsent,listReleaseEvidence,saveReleaseEvidence} from '@/db/autonomous-controls';
 import {feeConsentMessage,verifyFeeConsent,type FeeConsent} from '@/lib/autonomous-consent';
 import {verifyReleaseProof,releaseProofChecks,type ReviewAuthorities,type ReleaseProof} from '@/lib/autonomous-release-proof';
+import {verifyFeeRecord,installationConsents,INSTALLED_START} from '@/lib/installation-consent';
+import {getSetupChoices} from '@/db/autonomous-controls';
 import {AUTONOMOUS_SOURCE_DIGEST} from '@/lib/autonomous-release-manifest';import type {PolicyLease} from '@/lib/policy-lease';import type {Hex} from 'viem';
 import {getActivation,saveActivation,pauseActivation} from '@/db/autonomous-controls';import {activationMessage,verifyActivation,controlDigest,type ActivationConsent} from '@/lib/autonomous-activation';import {automaticStages} from '@/lib/automatic-stages';import {getShadowPlan} from '@/db/autonomous-shadow';import {D1DecisionLedger} from '@/db/ledger';import {getOwnership} from '@/db/wallet-ownership';import {mandateDigest} from '@/lib/policy-lease';
 import {assertTradingEnabled,tradingAdmission} from '@/lib/trading-controls';
@@ -14,7 +16,7 @@ export async function GET(){
  const grant=await getSessionGrant(env.DB,user.userId),stages=await ownerAutomaticStages(env.DB,user.userId,env);if(!grant)return Response.json({grant:null,releaseEnabled:stages.autoBuy,executionEnabled:false},{headers});
   const lease=JSON.parse(grant.lease_json) as PolicyLease,binding={owner:lease.owner,account:lease.account,grantId:grant.id,policyHash:lease.policyHash};
   const fee=await getFeeConsent(env.DB,user.userId,grant.id),consent=fee?JSON.parse(fee.consent_json) as FeeConsent:null;
-  const feeVerified=!!consent&&consent.grantId===grant.id&&consent.policyHash===lease.policyHash&&consent.owner===lease.owner&&await verifyFeeConsent(consent,fee!.signature);
+  const feeVerified=!!consent&&consent.grantId===grant.id&&consent.policyHash===lease.policyHash&&consent.owner===lease.owner&&await verifyFeeRecord(consent,fee!.signature,grant);
   const activation=await getActivation(env.DB,user.userId,grant.id);
   return Response.json({grant:grant.id,binding,expiresAt:new Date(JSON.parse(grant.policy_json).expiresAt*1000).toISOString(),sourceDigest:AUTONOMOUS_SOURCE_DIGEST,fee:feeVerified?consent:null,reviews:await releaseProofChecks(await listReleaseEvidence(env.DB,user.userId,grant.id),authorities(),binding),activationState:activation?.state??'not_started',releaseEnabled:stages.autoBuy,reviewRequired:automaticStages(env).requireReview,executionEnabled:false},{headers});
  }catch{return Response.json({error:'Release controls unavailable.'},{status:503,headers});}
@@ -22,6 +24,18 @@ export async function GET(){
 export async function POST(request:Request){const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});if(!env.DB)return Response.json({error:'Storage unavailable.'},{status:503,headers});const text=await request.text();if(text.length>10000)return Response.json({error:'Request too large.'},{status:413,headers});try{const body=JSON.parse(text),grant=await getSessionGrant(env.DB,user.userId);if(!grant||!['draft','verified'].includes(grant.state))return Response.json({error:'An available session draft is required.'},{status:409,headers});const lease=JSON.parse(grant.lease_json) as PolicyLease;
  if(body.action==='pause'){await pauseActivation(env.DB,user.userId,grant.id);return Response.json({paused:true,executionEnabled:false,notice:'Future submissions stopped. Pending transactions may still complete. Wallet revocation is separate.'},{headers});}
  if(!await ownerAutomaticStages(env.DB,user.userId,env).then(s=>s.autoBuy).catch(()=>false))return Response.json({error:'Automatic setup is off for this wallet; Pause remains available.'},{status:403,headers});
+ if(body.action==='resume'){
+  // One-signature setups resume without another signature: the same verified
+  // permission, fee limit and current Limits. Signed (older) setups use Start.
+  const [choices,previous,ownership,mandate]=await Promise.all([getSetupChoices(env.DB,user.userId,grant.id),getActivation(env.DB,user.userId,grant.id),getOwnership(env.DB,user.userId),new D1DecisionLedger(env.DB).getMandate(user.userId)]);
+  if(grant.state!=='verified'||!choices||!ownership?.verifiedAt||!mandate||(previous&&JSON.parse(previous.consent_json).schema!==INSTALLED_START))return Response.json({error:'Resume needs a verified one-signature permission.'},{status:409,headers});
+  await assertTradingEnabled(env.DB,env);
+  const digest=mandateDigest({owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)});
+  if(digest!==lease.mandateDigest)return Response.json({error:'Your Limits changed since you signed. Set up a new permission.'},{status:409,headers});
+  const c=installationConsents(grant,new URL(request.url).origin,choices.max_fee_cents,digest);
+  const ok=await saveFeeConsent(env.DB,user.userId,c.fee as unknown as FeeConsent,c.signature)&&!!await saveActivation(env.DB,user.userId,c.start as unknown as ActivationConsent,c.signature);
+  return Response.json({armed:ok,executionEnabled:ok},{status:ok?200:409,headers});
+ }
  if(body.action==='start_challenge'||body.action==='approve_start'){
   if(!automaticStages(env).autoBuy||grant.state!=='verified')return Response.json({error:'Automatic trading is not released. Your wallet approvals remain available.'},{status:409,headers});
   await assertTradingEnabled(env.DB,env);
@@ -29,7 +43,7 @@ export async function POST(request:Request){const user=await getChatGPTUser();if
   if(!plan?.enabled||!mandate||!ownership?.verifiedAt||!fee||!tradingAdmission(ownership.address,env).ok)return Response.json({error:'Current limits, enabled rule, verified owner and approved fees required.'},{status:409,headers});
   const consent=JSON.parse(fee.consent_json) as FeeConsent,digest=mandateDigest({owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)});
   const reviews=await releaseProofChecks(await listReleaseEvidence(env.DB,user.userId,grant.id),authorities(),{owner:lease.owner,account:lease.account,grantId:grant.id,policyHash:lease.policyHash});
-  if(digest!==lease.mandateDigest||consent.owner!==lease.owner||consent.grantId!==grant.id||consent.policyHash!==lease.policyHash||!await verifyFeeConsent(consent,fee.signature)||(automaticStages(env).requireReview&&!Object.values(reviews).every(Boolean)))return Response.json({error:'Current owner-approved controls required.'},{status:409,headers});
+  if(digest!==lease.mandateDigest||consent.owner!==lease.owner||consent.grantId!==grant.id||consent.policyHash!==lease.policyHash||!await verifyFeeRecord(consent,fee.signature,grant)||(automaticStages(env).requireReview&&!Object.values(reviews).every(Boolean)))return Response.json({error:'Current owner-approved controls required.'},{status:409,headers});
   const expected={schema:'stock-steward-activation-v2' as const,origin:new URL(request.url).origin,owner:lease.owner,grantId:grant.id,policyHash:lease.policyHash,mandateDigest:digest,ruleDigest:controlDigest(JSON.parse(plan.rule_json)),planRevision:plan.revision,feeDigest:controlDigest(consent),sourceDigest:AUTONOMOUS_SOURCE_DIGEST,expiresAt:new Date(JSON.parse(grant.policy_json).expiresAt*1000).toISOString()};
   if(body.action==='start_challenge'){const activation={...expected,issuedAt:new Date().toISOString()};return Response.json({activation,message:activationMessage(activation)},{headers});}
   const activation=body.activation as ActivationConsent;

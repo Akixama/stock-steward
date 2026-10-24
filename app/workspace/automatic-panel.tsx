@@ -11,6 +11,7 @@ import SessionReview from './session-review';
 import SessionWalletActions from './session-wallet-actions';
 import AutonomyControls from './autonomy-controls';
 import AutonomyRehearsal from './autonomy-rehearsal';
+import AutoSetup from './auto-setup';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
 import {isSellKind} from '@/lib/session-sale-lot';
 type RuleKind='scheduled'|'threshold'|'sell_below'|'sell_threshold';
@@ -124,7 +125,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
 
    {actions.length>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Automatic actions</h4><span className="ws-count">{actions.length}</span></summary>{actions.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status} · {when(event.created_at)}</small><p className="ws-muted">{event.detail}</p>{event.transaction_hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${event.transaction_hash}`} target="_blank" rel="noreferrer">View transaction</a>}</div>)}</details>}
 
-   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy and sell for you</h4><p>Off until you do three things in your wallet: sign a separate session permission, approve a network fee limit, and choose Start. After that, when your rule passes, Steward buys or sells on its own without asking. A sell rule (stop-loss or take profit) adds one fixed sale of that stock to the permission, with a minimum price written onchain. Each automatic trade follows your Limits (per buy and per day, up to $100 and $500 here), the permission lasts the 2 to 30 days you choose, and it can never spend more than $15,000 in total. Pause stops future buys right away; revoking removes the permission from your wallet.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
+   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy and sell for you</h4><p>When your rule passes, Steward buys or sells on its own, without asking each time. It can only act inside your Limits, and those limits are written into your wallet permission, so they hold even if Stock Steward itself went wrong. Pause stops new trades instantly; removing the permission ends it for good.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><AutoSetup provider={wallet?.provider??null} address={wallet?.address??''}/><details className="ws-auto-advanced"><summary>Advanced tools</summary><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></details></div>}
   </section>
  </>;
 }

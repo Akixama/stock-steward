@@ -17,7 +17,8 @@ import {compileRolesPolicy,type RolesPolicy} from './roles-permission.ts';
 import type {AutonomousRule} from './autonomous-live.ts';
 import type {Hex} from 'viem';
 import {getFeeConsent,listReleaseEvidence} from '../db/autonomous-controls.ts';
-import {verifyFeeConsent,type FeeConsent} from './autonomous-consent.ts';
+import {verifyFeeRecord} from './installation-consent.ts';
+import {type FeeConsent} from './autonomous-consent.ts';
 import {releaseProofChecks,type ReviewAuthorities} from './autonomous-release-proof.ts';
 // Production read-only rehearsal. No key loader, reservation, signing or sender.
 // Gaps are explicit; no external proof is replaced with a browser boolean.
@@ -37,7 +38,7 @@ export async function autonomousPreflight(db:D1Database,owner:string,rpc:typeof 
  if(rule.strategy){
   try{
    const record=await getFeeConsent(db,owner,grant.id);if(!record)throw Error('Approve a network fee limit first.');const fee=JSON.parse(record.consent_json) as FeeConsent;
-   if(fee.owner!==lease.owner||fee.grantId!==grant.id||fee.policyHash!==lease.policyHash||!await verifyFeeConsent(fee,record.signature))throw Error('Current fee consent required.');
+   if(fee.owner!==lease.owner||fee.grantId!==grant.id||fee.policyHash!==lease.policyHash||!await verifyFeeRecord(fee,record.signature,grant))throw Error('Current fee consent required.');
    const news=rule.kind==='news_buy'||rule.kind==='news_sell'?await configuredLiveNews():undefined;
    const trade=await prepareStrategyTrade(db,owner,rule.strategy,mandate,policy,(BigInt(fee.maxFeeCents)*10000n).toString(),rpc,web,news);
    add('Saved strategy and trade accounting',true,`A bounded ${trade.route.side??'buy'} passed the current strategy, inventory, budget and fee checks.`);
@@ -67,7 +68,7 @@ export async function autonomousPreflight(db:D1Database,owner:string,rpc:typeof 
  catch{add('Network fee estimate',false,'Fresh execution and posting gas, ETH/USD valuation and session funding could not all be verified.');}
  }catch{add('Block-bound dollar accounting',false,'Fresh canonical inventory and history evidence is unavailable. Refresh and try again.');}
  const feeRecord=await getFeeConsent(db,owner,grant.id);let feeApproved=false;
- if(feeRecord){try{const consent=JSON.parse(feeRecord.consent_json) as FeeConsent;feeApproved=consent.owner===lease.owner&&consent.grantId===grant.id&&consent.policyHash===lease.policyHash&&await verifyFeeConsent(consent,feeRecord.signature);}catch{}}
+ if(feeRecord){try{const consent=JSON.parse(feeRecord.consent_json) as FeeConsent;feeApproved=consent.owner===lease.owner&&consent.grantId===grant.id&&consent.policyHash===lease.policyHash&&await verifyFeeRecord(consent,feeRecord.signature,grant);}catch{}}
  add('Owner-reviewed fee ceiling',feeApproved,'Approve your per-purchase fee limit in Release checks. The executor also compares the live fee estimate against that signed limit.');
  add('Live fee within approved ceiling',feeApproved&&quotedMaximumMicroUsd!==null&&BigInt(quotedMaximumMicroUsd)<=BigInt((JSON.parse(feeRecord!.consent_json) as FeeConsent).maxFeeCents)*10000n,'The complete current fee estimate must fit the exact signed dollar ceiling.');
  const reviewed=await releaseProofChecks(await listReleaseEvidence(db,owner,grant.id),authorities,{owner:ownership.address,account:policy.account,grantId:grant.id,policyHash:lease.policyHash});

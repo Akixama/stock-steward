@@ -1,12 +1,12 @@
 import {prepareStrategyTrade} from './live-strategy-runtime.ts';
 import {configuredLiveNews} from './live-news.ts';
 import {getSessionGrant} from '../db/autonomous-grants.ts';import {getShadowPlan} from '../db/autonomous-shadow.ts';import {getOwnership} from '../db/wallet-ownership.ts';import {D1DecisionLedger} from '../db/ledger.ts';import {listSpendEvidence} from '../db/execution-attempts.ts';import {getFeeConsent,listReleaseEvidence} from '../db/autonomous-controls.ts';import {loadSessionSignerMaterial} from '../db/session-signers.ts';
-import {verifyFeeConsent,type FeeConsent} from './autonomous-consent.ts';import {releaseProofChecks,type ReviewAuthorities} from './autonomous-release-proof.ts';
+import {type FeeConsent} from './autonomous-consent.ts';import {verifyFeeRecord,verifyStartRecord,bindsRule} from './installation-consent.ts';import {releaseProofChecks,type ReviewAuthorities} from './autonomous-release-proof.ts';
 import {runAutonomousExecution} from './autonomous-executor.ts';
 import {automaticStages,type AutomaticStageConfig} from './automatic-stages.ts';
 import {assertTradingEnabled,tradingAdmission} from './trading-controls.ts';
 import {routePrerequisites} from './route-prerequisites.ts';
-import {getActivation} from '../db/autonomous-controls.ts';import {verifyActivation,controlDigest,type ActivationConsent} from './autonomous-activation.ts';
+import {getActivation} from '../db/autonomous-controls.ts';import {controlDigest,type ActivationConsent} from './autonomous-activation.ts';
 import {verifyManualSessionApproval} from './manual-session-approval.ts';
 export type ProductionMode={mode:'manual_prepare'}|{mode:'manual_execute';preparation:AutonomousPreparation;origin:string;signature:Hex};
 import {inspectRoute} from './chain-route.ts';import {selectStoredFloor} from './live-order.ts';import {rolesOperation} from './roles-operation.ts';import {inspectRolesInstallation} from './roles-installation.ts';import {routerCandidate} from './router-candidate.ts';import {compileRolesPolicy,type RolesPolicy} from './roles-permission.ts';import {mandateDigest,type PolicyLease} from './policy-lease.ts';import {executionAccountingSources} from './execution-sources.ts';import {buildAccountingEvidence} from './live-accounting.ts';import {executionAccounting} from './execution-accounting.ts';import {inspectExecutionFees} from './execution-fees.ts';import {readAutonomousSignal} from './autonomous-signal.ts';import {evaluateAutonomousSignal,type AutonomousRule} from './autonomous-live.ts';import type {AutonomousExecutionDependencies,AutonomousPreparation} from './autonomous-executor.ts';import {CHAIN} from './robinhood-chain.ts';import type {Hex} from 'viem';
@@ -28,13 +28,13 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   const lease=JSON.parse(grant.lease_json) as PolicyLease,policy=JSON.parse(grant.policy_json) as RolesPolicy,snapshot={owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)};
   if(lease.state!=='active'||lease.policyHash!==policyHash||lease.mandateDigest!==digest||mandateDigest(snapshot)!==digest||compileRolesPolicy(policy).policyHash!==policyHash||policy.expiresAt*1000<=Date.now())return false;
   const consent=await getFeeConsent(db,owner,grant.id);if(!consent)return false;const fee=JSON.parse(consent.consent_json) as FeeConsent;
-  if(fee.grantId!==grant.id||fee.policyHash!==policyHash||fee.owner!==lease.owner||!await verifyFeeConsent(fee,consent.signature))return false;
+  if(fee.grantId!==grant.id||fee.policyHash!==policyHash||fee.owner!==lease.owner||!await verifyFeeRecord(fee,consent.signature,grant))return false;
   if(approvedConsent&&consent.consent_json!==approvedConsent)return false;
   if(prepared?.feeConsentDigest&&prepared.feeConsentDigest!==controlDigest(fee))return false;
   const armed=await getActivation(db,owner,grant.id);if(armed?.state==='paused')return false;
   if(!manual){if(!armed||armed.state!=='armed')return false;
   const activation=JSON.parse(armed.consent_json) as ActivationConsent;
-  if(activation.owner!==lease.owner||activation.grantId!==grant.id||activation.policyHash!==policyHash||activation.mandateDigest!==digest||activation.planRevision!==revision||activation.ruleDigest!==controlDigest(JSON.parse(plan.rule_json))||activation.feeDigest!==controlDigest(fee)||!await verifyActivation(activation,armed.signature))return false;}
+  if(activation.owner!==lease.owner||activation.grantId!==grant.id||activation.policyHash!==policyHash||activation.mandateDigest!==digest||(bindsRule(activation)&&(activation.planRevision!==revision||activation.ruleDigest!==controlDigest(JSON.parse(plan.rule_json))))||activation.feeDigest!==controlDigest(fee)||!await verifyStartRecord(activation,armed.signature,grant))return false;}
   const reviews=await releaseProofChecks(await listReleaseEvidence(db,owner,grant.id),authorities,{owner:ownership.address,account:policy.account,grantId:grant.id,policyHash});if(stages.requireReview&&(!reviews.security||!reviews.eligibility||(!manual&&!reviews.rehearsal)))return false;
   if(prepared){const installed=await inspectRolesInstallation(policy,grant.creation_transaction as Hex,rpc);if(installed.state!=='verified_policy_state'||installed.walletOwners.length!==1||installed.walletOwners[0].toLowerCase()!==ownership.address.toLowerCase()||BigInt(installed.dailyRemainingCalls??'0')<1n||BigInt(installed.totalRemainingCalls??'0')<1n)return false;if(!manual&&!await autoFundingReady(prepared.evidence.route,mandate))return false;}
   return true;
@@ -54,7 +54,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   if(rule.strategy){
    if(!await current(compileRolesPolicy(policy).policyHash,mandateDigest(snapshot)))throw Error('Release evidence or strategy controls changed.');
    const consent=await getFeeConsent(db,owner,grant.id);if(!consent)throw Error('Fee approval missing.');const fee=JSON.parse(consent.consent_json) as FeeConsent;
-   if(!await verifyFeeConsent(fee,consent.signature)||fee.policyHash!==lease.policyHash||fee.grantId!==grant.id||fee.owner!==lease.owner)throw Error('Fee consent changed.');
+   if(!await verifyFeeRecord(fee,consent.signature,grant)||fee.policyHash!==lease.policyHash||fee.grantId!==grant.id||fee.owner!==lease.owner)throw Error('Fee consent changed.');
    const news=rule.kind==='news_buy'||rule.kind==='news_sell'?await configuredLiveNews():undefined;
    const trade=await prepareStrategyTrade(db,owner,rule.strategy,mandate,policy,(BigInt(fee.maxFeeCents)*10000n).toString(),rpc,web,news);
    const {route,quoted}=trade;
@@ -72,7 +72,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   const sources=await executionAccountingSources({number:route.block,hash:route.blockHash,timestamp:'0x'+BigInt(Math.floor(Date.parse(route.blockAt)/1000)).toString(16),observedAt:route.observedAt},rpc,web);
   const native=await sources.priceBound('ETH');if(!native)throw Error('Fresh ETH/USD price unavailable.');const quoted=await inspectExecutionFees(route,mandate.version,policy,native,rpc);
   const consent=await getFeeConsent(db,owner,grant.id);if(!consent)throw Error('Fee approval missing.');const fee=JSON.parse(consent.consent_json) as FeeConsent;
-  if(!await verifyFeeConsent(fee,consent.signature)||fee.policyHash!==lease.policyHash||fee.grantId!==grant.id||fee.owner!==lease.owner||BigInt(quoted.maximumMicroUsd)>BigInt(fee.maxFeeCents)*10000n||!quoted.sessionFunded)throw Error('Approved network fee ceiling or session funds unavailable.');
+  if(!await verifyFeeRecord(fee,consent.signature,grant)||fee.policyHash!==lease.policyHash||fee.grantId!==grant.id||fee.owner!==lease.owner||BigInt(quoted.maximumMicroUsd)>BigInt(fee.maxFeeCents)*10000n||!quoted.sessionFunded)throw Error('Approved network fee ceiling or session funds unavailable.');
   const spend=await listSpendEvidence(db,owner,policy.account);if(!spend)throw Error('Spend ledger unavailable.');
   const loss=BigInt(quoted.maximumMicroUsd)+(BigInt(rule.amountCents)*10000n*BigInt(route.slippageBps)+9999n)/10000n+1n;
   const assembly=await buildAccountingEvidence(policy.account,rule.symbol,loss.toString(),spend,sources);if(!assembly.evidence||!await sources.verifyCanonical())throw Error('Incomplete canonical accounting.');
