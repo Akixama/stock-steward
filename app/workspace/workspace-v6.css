@@ -243,3 +243,15 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-guard h4{margin:4px 0 0;color:#f1f0f6;font-size:16px}
 .ws-guard>p{color:#c9b89c;font-size:14px;line-height:1.5}
 .ws-guard-tripped{color:#ffcfcf!important}
+.ws-stress{margin-top:16px;padding:16px;border-radius:14px;border:1px solid #2a3348;background:#0f1320}
+.ws-stress header{display:flex;gap:10px;align-items:flex-start;color:#a9aed1}
+.ws-stress h4{margin:4px 0 0;color:#f1f0f6;font-size:16px}
+.ws-stress>p{color:#a8adba;font-size:14px;line-height:1.5}
+.ws-stress h5{margin:14px 0 6px;font-size:13px;color:#a9aed1;letter-spacing:.04em}
+.ws-stress-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ws-stress-list li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:#0b0e17;border:1px solid #1e2436}
+.ws-stress-list li div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ws-stress-list li strong{color:#f1f0f6;font-size:14px}.ws-stress-list li small{color:#8a8f9c;font-size:13px;overflow-wrap:anywhere}
+.ws-stress-list li[data-state=true] svg{color:#a5ce1f;flex:none;margin-top:2px}
+.ws-stress-list li[data-state=false]{border-color:#ff6b6b88;background:#2b1315}.ws-stress-list li[data-state=false] svg{color:#ff6b6b;flex:none}
+.ws-stress-good{color:#cfee8a!important;font-weight:700}.ws-stress-bad{color:#ffb3b3!important;font-weight:700}
