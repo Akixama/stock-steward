@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {automaticStages,automaticStageIntent,stagesForWallet} from './automatic-stages.ts';
 
 test('all automatic stages are off by default and a lone flag cannot spend',()=>{
-  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,hardCeilingCents:500,conflicting:false,notificationWallets:[],autoWallets:[]});
+  assert.deepEqual(automaticStages({}),{shadow:false,approveByNotification:false,autoBuy:false,maxOrderCents:100,maxDailyCents:200,hardCeilingCents:500,conflicting:false,requireReview:true,notificationWallets:[],autoWallets:[]});
+  assert.equal(automaticStages({REQUIRE_INDEPENDENT_REVIEW:'false'}).requireReview,false);
   assert.equal(automaticStages({AUTO_BUY:'true'}).autoBuy,false);
   assert.equal(automaticStages({APPROVE_BY_NOTIFICATION:'true'}).approveByNotification,false);
 });
@@ -16,12 +17,21 @@ test('stage flags are limited to verified owner wallet addresses',()=>{
   assert.equal(stagesForWallet(stages,owner).autoBuy,false);
   assert.throws(()=>automaticStages({APPROVE_NOTIFICATION_WALLETS:'bad'}));
 });
-test('shadow runs alone and conflicting spend stages fail closed',()=>{
+test('both stages can be on: armed owners auto-buy, everyone else gets a proposal',()=>{
   assert.equal(automaticStages({SHADOW_MODE:'true'}).shadow,true);
-  assert.equal(automaticStages({SHADOW_MODE:'true',APPROVE_BY_NOTIFICATION:'true'}).approveByNotification,true);
-  assert.equal(automaticStages({SHADOW_MODE:'true',AUTO_BUY:'true'}).autoBuy,true);
-  const conflict=automaticStages({SHADOW_MODE:'true',APPROVE_BY_NOTIFICATION:'true',AUTO_BUY:'true'});
-  assert.equal(conflict.approveByNotification,false);assert.equal(conflict.autoBuy,false);
+  const both=automaticStages({SHADOW_MODE:'true',APPROVE_BY_NOTIFICATION:'true',AUTO_BUY:'true'});
+  assert.equal(both.approveByNotification,true);assert.equal(both.autoBuy,true);
+  assert.equal(automaticStageIntent(both,true,true,100,true),'auto');
+  assert.equal(automaticStageIntent(both,true,true,100,false),'proposal');
+  assert.equal(automaticStageIntent(both,true,true,101,true),'blocked');
+  assert.equal(automaticStageIntent(both,true,false,100,true),'none');
+});
+test('a * allowlist opens a stage to every verified wallet, never to an unverified one',()=>{
+  const all=automaticStages({SHADOW_MODE:'true',AUTO_BUY:'true',AUTO_BUY_WALLETS:'*',APPROVE_BY_NOTIFICATION:'true',APPROVE_NOTIFICATION_WALLETS:'*'});
+  assert.equal(stagesForWallet(all,'0x'+'c'.repeat(40)).autoBuy,true);
+  assert.equal(stagesForWallet(all,'0x'+'c'.repeat(40)).approveByNotification,true);
+  assert.equal(stagesForWallet(all,null).autoBuy,false);
+  assert.throws(()=>automaticStages({AUTO_BUY_WALLETS:'**'}));
 });
 test('automatic caps remain tiny and invalid configuration fails closed',()=>{
   assert.deepEqual([automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxOrderCents,automaticStages({AUTO_BUY_MAX_ORDER_CENTS:'50',AUTO_BUY_MAX_DAILY_CENTS:'150'}).maxDailyCents],[50,150]);

@@ -3,8 +3,10 @@ import {keccak256, toHex, type Hex} from 'viem';
 import type {Mandate} from './decision.ts';
 import type {AutonomousRunExecution} from './autonomous-run-status.ts';
 
-// Release gate is deliberately compiled off. An environment variable cannot enable spending.
-export const AUTONOMOUS_RELEASE_ENABLED = false;
+// v2 release: automatic session buying is compiled on. It still needs the AUTO_BUY
+// release flag, an owner-signed session permission, fee limit and Start, the
+// $1/$2 caps and the kill switch before any key is loaded.
+export const AUTONOMOUS_RELEASE_ENABLED = true;
 export type AutonomousRule = {version:number;symbol:string;amountCents:number;kind:Strategy['kind'];strategy?:Strategy;intervalMinutes:number;thresholdCents:number};
 export type AutonomousSignal = {chainId:number;symbol:string;askCents:number;observedAt:string;halted:boolean;source:string};
 export type AutonomousDecision = {id:Hex;mode:'shadow';status:'blocked'|'would_trigger';symbol:string;amountCents:number;createdAt:string;checks:{name:string;passed:boolean;detail:string}[];executionEnabled:false;transactionsSent:0;execution?:AutonomousRunExecution};

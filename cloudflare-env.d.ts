@@ -19,6 +19,7 @@ declare namespace Cloudflare {
     AUTO_BUY?: string;
     AUTO_BUY_MAX_ORDER_CENTS?: string;
     AUTO_BUY_MAX_DAILY_CENTS?: string;
+    REQUIRE_INDEPENDENT_REVIEW?: string;
     STEWARD_LIVE_BUY_PILOT_WALLETS?: string;
     PUBLIC_MODE?: string;
     STEWARD_PUBLIC_MAX_ORDER_CENTS?: string;

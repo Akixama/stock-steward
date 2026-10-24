@@ -35,7 +35,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   if(!manual){if(!armed||armed.state!=='armed')return false;
   const activation=JSON.parse(armed.consent_json) as ActivationConsent;
   if(activation.owner!==lease.owner||activation.grantId!==grant.id||activation.policyHash!==policyHash||activation.mandateDigest!==digest||activation.planRevision!==revision||activation.ruleDigest!==controlDigest(JSON.parse(plan.rule_json))||activation.feeDigest!==controlDigest(fee)||!await verifyActivation(activation,armed.signature))return false;}
-  const reviews=await releaseProofChecks(await listReleaseEvidence(db,owner,grant.id),authorities,{owner:ownership.address,account:policy.account,grantId:grant.id,policyHash});if(!reviews.security||!reviews.eligibility||(!manual&&!reviews.rehearsal))return false;
+  const reviews=await releaseProofChecks(await listReleaseEvidence(db,owner,grant.id),authorities,{owner:ownership.address,account:policy.account,grantId:grant.id,policyHash});if(stages.requireReview&&(!reviews.security||!reviews.eligibility||(!manual&&!reviews.rehearsal)))return false;
   if(prepared){const installed=await inspectRolesInstallation(policy,grant.creation_transaction as Hex,rpc);if(installed.state!=='verified_policy_state'||installed.walletOwners.length!==1||installed.walletOwners[0].toLowerCase()!==ownership.address.toLowerCase()||BigInt(installed.dailyRemainingCalls??'0')<1n||BigInt(installed.totalRemainingCalls??'0')<1n)return false;if(!manual&&!await autoFundingReady(prepared.evidence.route,mandate))return false;}
   return true;
  }
@@ -94,8 +94,10 @@ export async function runTriggeredAutonomy(db:D1Database,owner:string,revision:n
  if(!runId||!/^0x[0-9a-f]{64}$/i.test(runId))return {state:'blocked' as const,why:'Saved automatic action alert required.',executionEnabled:false as const};
  const {env}=await import('cloudflare:workers');const stages=automaticStages(env);
  if(!stages.autoBuy||stages.maxOrderCents!==requested.maxOrderCents||stages.maxDailyCents!==requested.maxDailyCents)return {state:'blocked' as const,why:'Automatic buying controls changed.',executionEnabled:false as const};
- const alert=await db.prepare("SELECT COUNT(*) AS devices FROM automatic_stage_deliveries d JOIN automatic_stage_events e ON e.id=d.event_id WHERE e.id=? AND e.owner_ref=? AND e.run_id=? AND e.kind='auto_started' AND e.status='checking'").bind(`${runId}:auto_started`,owner,runId).first<{devices:number}>();
- if(!alert?.devices)return {state:'blocked' as const,why:'No saved device alert for this action.',executionEnabled:false as const};
+ // The saved "checking" event is the durable alert; it appears in the inbox even
+ // without a phone subscription. A run without it never reaches a signer.
+ const alert=await db.prepare("SELECT COUNT(*) AS events FROM automatic_stage_events e WHERE e.id=? AND e.owner_ref=? AND e.run_id=? AND e.kind='auto_started' AND e.status='checking'").bind(`${runId}:auto_started`,owner,runId).first<{events:number}>();
+ if(!alert?.events)return {state:'blocked' as const,why:'No saved alert for this action.',executionEnabled:false as const};
  try{await assertTradingEnabled(db,env);}catch{return {state:'blocked' as const,why:'Trading is paused.',executionEnabled:false as const};}
  let authorities:ReviewAuthorities={};try{authorities=JSON.parse(env.STEWARD_AUTONOMY_REVIEW_AUTHORITIES??'{}');}catch{}
  return runAutonomousExecution(productionExecutionDependencies(db,owner,revision,authorities,rpc,fetch,undefined,env),true);

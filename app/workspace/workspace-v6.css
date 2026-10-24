@@ -218,3 +218,5 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-referral-top li[data-you=true]{background:#a5ce1f14;color:#cfee8a}
 .ws-referral-board{display:inline-block;margin-top:12px;color:#a5ce1f;font-size:14px;text-decoration:none}
 @media(max-width:560px){.ws-referral-stats{grid-template-columns:repeat(2,1fr)}.ws-referral-link button{width:100%;justify-content:center}}
+.ws-auto-risk{margin-top:10px;padding:12px 14px;border-radius:12px;border:1px solid #ff6b6b55;background:#2b13151f;color:#ffcfcf;font-size:14px;line-height:1.5}
+.ws-auto-risk strong{color:#ffb3b3}

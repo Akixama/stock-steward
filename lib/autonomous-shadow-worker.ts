@@ -15,6 +15,7 @@ import {queueAutomaticPush} from './automatic-stage-push.ts';
 import {saveProposalInbox,saveAutoRenewalReminder} from '../db/notification-inbox.ts';
 import {RENEW_NOTICE_SECONDS} from './permission-window.ts';
 import {automaticStageIntent,automaticStages,stagesForWallet} from './automatic-stages.ts';
+import {getActivation} from '../db/autonomous-controls.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
 export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
@@ -46,7 +47,9 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      summary.triggered++;
      const ownership=await getOwnership(db,plan.owner_ref);
      const walletStages=stagesForWallet(stages,ownership?.verifiedAt?ownership.address:null);
-     const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents);
+     let armed=false;
+     if(walletStages.autoBuy){const grant=await getSessionGrant(db,plan.owner_ref);armed=!!grant&&grant.state==='verified'&&(await getActivation(db,plan.owner_ref,grant.id))?.state==='armed';}
+     const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents,armed);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
       if(await saveRuleProposal(db,event,plan.revision,now)){

@@ -10,7 +10,7 @@ const DURATION = 10_000;
 const stages = [
   { label: "Watch", title: "You set your price.", detail: "In this illustrative example: buy $10 of MSFT when it drops to $530 or less. Steward checks the price every 15 minutes." },
   { label: "Check", title: "Your limits are tested.", detail: "MSFT is in your limits, and $10 fits your $10 per buy and $50 per day." },
-  { label: "Ready", title: "A buy waits for you.", detail: "It shows under Ready to buy. Nothing is spent yet, and Steward never buys on its own." },
+  { label: "Ready", title: "A buy waits for you.", detail: "It shows under Ready to buy. Nothing is spent yet. You approve it, unless you've turned on automatic buying." },
   { label: "Approve", title: "You decide in your wallet.", detail: "Review the exact order and sign it, or let it go. Every buy is saved in Activity." },
 ];
 

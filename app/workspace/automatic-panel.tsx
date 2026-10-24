@@ -74,7 +74,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   </section>
 
   <section className="ws-shadow" aria-busy={busy}>
-   <header className="ws-shadow-head"><span className="ws-label">BUY A STOCK AT YOUR PRICE</span><h3>Tell Steward what you want to buy.</h3><p>Pick a stock, how much to spend and the price you want. Steward watches the price for you. When it is right, a buy appears under <strong>Ready to buy</strong> and you approve it in your wallet. Steward never buys on its own.</p></header>
+   <header className="ws-shadow-head"><span className="ws-label">BUY A STOCK AT YOUR PRICE</span><h3>Tell Steward what you want to buy.</h3><p>Pick a stock, how much to spend and the price you want. Steward watches the price for you. When it is right, a buy appears under <strong>Ready to buy</strong> and you approve it in your wallet. Unless you turn on automatic buying below, Steward never buys on its own.</p></header>
    {error&&<p className="ws-error" role="alert">{error}{!status&&<> <button type="button" className="ws-recheck" onClick={()=>void refresh()}>Retry</button></>}</p>}
 
    <article className="ws-shadow-card" id="ws-shadow-plan">
@@ -117,7 +117,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
 
    {actions.length>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Automatic actions</h4><span className="ws-count">{actions.length}</span></summary>{actions.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status} · {when(event.created_at)}</small><p className="ws-muted">{event.detail}</p>{event.transaction_hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${event.transaction_hash}`} target="_blank" rel="noreferrer">View transaction</a>}</div>)}</details>}
 
-   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Automatic buying setup</h4><p>Off for your wallet until you explicitly review and sign a separate session permission, approve a fee ceiling, pass independent reviews, and choose Start. Each automatic buy is limited to $1; the two-day permission cannot exceed $5. Pause stops future submissions.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
+   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy for you</h4><p>Off until you do three things in your wallet: sign a separate session permission, approve a network fee limit, and choose Start. After that, when your rule passes, Steward buys on its own without asking. Each automatic buy is at most $1, at most $2 a day, and the two-day permission can never spend more than $5. Pause stops future buys right away; revoking removes the permission from your wallet.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></div>}
   </section>
  </>;
 }
