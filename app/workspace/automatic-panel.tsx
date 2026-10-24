@@ -13,6 +13,8 @@ import AutonomyControls from './autonomy-controls';
 import AutonomyRehearsal from './autonomy-rehearsal';
 import AutoSetup from './auto-setup';
 import ReplayCard from './replay-card';
+import SuggestionsCard from './suggestions-card';
+import type {ReplayRule} from '@/lib/replay';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
 import {isSellKind} from '@/lib/session-sale-lot';
 const RULE_KINDS=['scheduled','threshold','sell_below','sell_threshold','sell_trailing'] as const;
@@ -73,6 +75,15 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
    if(ticket.current===generation){setBusy(false);if(action==='save'||action==='use_strategy')setEditing(null);await refresh();}
   }catch(e){if(ticket.current===generation){setError(e instanceof Error?e.message:'Controls unavailable.');setBusy(false);}}
  }
+ // A suggestion becomes a new PAUSED rule. Nothing starts until the owner taps Start.
+ async function addSuggestion(s:ReplayRule){
+  setError('');
+  const ruleId=plans.length?`r${crypto.randomUUID().slice(0,8)}`:'main';
+  const rule=withStrategy({version:1,symbol:s.symbol,amountCents:s.amountCents,kind:s.kind,intervalMinutes:s.intervalMinutes,thresholdCents:s.thresholdCents},s.trailBps??800,undefined);
+  const r=await fetch('/api/workspace/automatic',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'save',ruleId,revision:0,rule})});const body=await r.json() as {error?:string};
+  if(!r.ok){setError(body.error??'Could not add that rule.');throw Error(body.error);}
+  await refresh();
+ }
  async function openIdea(event:Event){
   if(busy)return;setBusy(true);setError('');
   try{const response=await fetch('/api/workspace/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'review_proposal',id:`proposal:${event.id}`})});const data=await response.json() as {proposal?:unknown;error?:string};if(!response.ok)throw Error(data.error??'This idea could not open. No order was sent.');const idea=buyIdeaFromClaim(data.proposal);onReviewBuy(idea);}
@@ -107,6 +118,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
    <header className="ws-shadow-head"><span className="ws-label">YOUR RULES</span><h3>Tell Steward what to buy and sell.</h3><p>Add up to {max} rules: buy dips, buy regularly, stop-losses and take-profits, on different stocks. Steward watches all of them. When one is right, a buy appears under <strong>Ready to buy</strong> for you to approve, or, with automatic mode on, Steward does it for you.</p></header>
    {error&&<p className="ws-error" role="alert">{error}{!status&&<> <button type="button" className="ws-recheck" onClick={()=>void refresh()}>Retry</button></>}</p>}
 
+   {shadowOn&&plans.length<max&&<SuggestionsCard onAdd={addSuggestion} disabled={busy||!mandate.allowedSymbols.length}/>}
    <article className="ws-shadow-card" id="ws-shadow-plan">
     <div className="ws-shadow-card-head"><h4>Rules {plans.length>0&&<span className="ws-count">{plans.length}</span>}</h4><button type="button" className="ws-icon-button" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh"><RefreshCw size={15} aria-hidden="true"/></button></div>
     {!status&&!error&&<p className="ws-muted" role="status">Loading…</p>}

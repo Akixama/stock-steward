@@ -282,3 +282,12 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-gas>div{flex:1;min-width:200px}.ws-gas strong{display:block;color:#f1f0f6;font-size:14px}.ws-gas small{font-size:13px}
 .ws-gas[data-state=low]{border-color:#f2b45c88;background:#1a150d}.ws-gas[data-state=low] svg{color:#f2b45c}
 .ws-gas[data-state=empty]{border-color:#ff6b6b88;background:#2b1315}.ws-gas[data-state=empty] svg{color:#ff6b6b}
+/* Steward suggests */
+.ws-suggest{margin:0 0 14px;padding:16px;border-radius:14px;border:1px solid #3a3462;background:linear-gradient(160deg,#a9aed114,transparent 60%),#11131a}
+.ws-suggest header{display:flex;gap:10px;align-items:flex-start;color:#c7cbf0}
+.ws-suggest header>div{flex:1}.ws-suggest h4{margin:4px 0 0;color:#f1f0f6;font-size:15px}
+.ws-suggest ul{list-style:none;margin:12px 0;padding:0;display:grid;gap:8px}
+.ws-suggest li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding:12px;border-radius:12px;background:#0f1117;border:1px solid #262a36}
+.ws-suggest li>div{flex:1;min-width:220px;display:flex;flex-direction:column;gap:4px}
+.ws-suggest li strong{color:#f1f0f6;font-size:14px}.ws-suggest li small{color:#a8adba;font-size:13px;line-height:1.45}
+.ws-suggest-replay{color:#8a8f9c!important}

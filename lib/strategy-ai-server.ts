@@ -30,3 +30,25 @@ export async function interpretOnServer(direction:string,config:AIConfig,fetcher
  const body=JSON.parse(await readBoundedText(response,32000));if(body.success!==true||body.result?.finish_reason&&body.result.finish_reason!=='stop')throw Error('AI_INVALID');
  const raw=body.result?.response;let decoded;try{decoded=typeof raw==='string'?JSON.parse(raw):raw;}catch{throw Error('AI_JSON');}const parsed=interpretationSchema.safeParse(decoded);if(!parsed.success)throw Error('AI_SCHEMA_'+parsed.error.issues.map(i=>i.path.join('_')||'ROOT').join('_').toUpperCase().replace(/[^A-Z_0-9]/g,'_'));return parsed.data;
 }
+
+// Generic JSON call for other server-side helpers (rule suggestions). Same
+// model, timeouts and payload limits as interpretation; the caller validates.
+export async function askModelJson(system:string,user:string,config:AIConfig,fetcher:typeof fetch=(...args)=>fetch(...args)):Promise<unknown>{
+ if(!aiConfigured(config))throw Error('AI_UNAVAILABLE');
+ const messages=[{role:'system',content:system},{role:'user',content:user}];
+ if(config.AI){
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{
+   const result=await Promise.race([config.AI.run(AI_MODEL,{messages,temperature:0.2,max_tokens:900,response_format:{type:'json_object'}}),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error('AI_TIMEOUT')),25000);})]);
+   const serialized=JSON.stringify(result);if(!serialized||serialized.length>32000)throw Error('AI_INVALID');
+   const body=JSON.parse(serialized);return typeof body.response==='string'?JSON.parse(body.response):body.response;
+  }finally{if(timer)clearTimeout(timer);}
+ }
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+ try{
+  const response=await fetcher('https://api.cloudflare.com/client/v4/accounts/'+config.CLOUDFLARE_AI_ACCOUNT_ID+'/ai/run/'+AI_MODEL,{method:'POST',redirect:'manual',signal:controller.signal,headers:{Authorization:'Bearer '+config.CLOUDFLARE_AI_API_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({messages,temperature:0.2,max_tokens:900,response_format:{type:'json_object'}})});
+  if(!response.ok)throw Error(response.status===429?'AI_LIMIT':'AI_UNAVAILABLE');
+  const body=JSON.parse(await readBoundedText(response,32000));if(body.success!==true)throw Error('AI_INVALID');
+  const raw=body.result?.response;return typeof raw==='string'?JSON.parse(raw):raw;
+ }finally{clearTimeout(timeout);}
+}
