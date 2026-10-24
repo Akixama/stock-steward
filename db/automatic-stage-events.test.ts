@@ -7,9 +7,9 @@ import {queueAutomaticPush} from '../lib/automatic-stage-push.ts';
 
 function database(){
  const sql=new DatabaseSync(':memory:');
- sql.exec('CREATE TABLE autonomous_shadow_plans(owner_ref TEXT PRIMARY KEY,revision INTEGER,enabled INTEGER,lease_token TEXT,lease_until TEXT)');
- sql.exec('CREATE TABLE autonomous_shadow_runs(id TEXT PRIMARY KEY,revision INTEGER)');
- sql.exec("INSERT INTO autonomous_shadow_plans VALUES('alice',3,1,'old-lease','2026-10-22T00:00:00Z')");
+ sql.exec('CREATE TABLE autonomous_shadow_plans(owner_ref TEXT,rule_id TEXT NOT NULL DEFAULT \'main\',revision INTEGER,enabled INTEGER,lease_token TEXT,lease_until TEXT,PRIMARY KEY(owner_ref,rule_id))');
+ sql.exec('CREATE TABLE autonomous_shadow_runs(id TEXT PRIMARY KEY,revision INTEGER,rule_id TEXT NOT NULL DEFAULT \'main\')');
+ sql.exec("INSERT INTO autonomous_shadow_plans(owner_ref,revision,enabled,lease_token,lease_until) VALUES('alice',3,1,'old-lease','2026-10-22T00:00:00Z')");
  sql.exec(readFileSync(new URL('../drizzle/0036_automatic_stage_events.sql',import.meta.url),'utf8'));
  sql.exec('CREATE TABLE push_subscriptions(id TEXT PRIMARY KEY,owner_ref TEXT,endpoint TEXT,p256dh TEXT,auth TEXT)');
  const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...values:unknown[]){args=values;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async first<T>(){return sql.prepare(query).get(...args as never[]) as T|null??null;},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
@@ -36,7 +36,7 @@ test('proposal is saved once and queued to the owner device only',async()=>{
 test('no idea is saved while the plan is paused or after it changed',async()=>{
  const {sql,db}=database();try{
   // The migration pauses the plan; a paused plan never gets an idea.
-  const proposal=event('proposal');sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(proposal.run_id,3);
+  const proposal=event('proposal');sql.prepare('INSERT INTO autonomous_shadow_runs(id,revision) VALUES(?,?)').run(proposal.run_id,3);
   assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),false);
   // Pause then resume bumps the revision: a check from the old revision saves nothing.
   sql.exec("UPDATE autonomous_shadow_plans SET enabled=1,revision=5");
@@ -54,8 +54,8 @@ test('a live idea is not duplicated for the same running rule',async()=>{
   sql.exec('UPDATE autonomous_shadow_plans SET enabled=1');
   const first=event('proposal'),secondId='0x'+'b'.repeat(64);
   const second={...first,id:`${secondId}:proposal`,run_id:secondId,created_at:'2026-10-21T00:02:00.000Z'};
-  sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(first.run_id,3);
-  sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(second.run_id,3);
+  sql.prepare('INSERT INTO autonomous_shadow_runs(id,revision) VALUES(?,?)').run(first.run_id,3);
+  sql.prepare('INSERT INTO autonomous_shadow_runs(id,revision) VALUES(?,?)').run(second.run_id,3);
   assert.equal(await saveRuleProposal(db,first,3,new Date('2026-10-21T00:00:00Z')),true);
   assert.equal(await saveRuleProposal(db,second,3,new Date('2026-10-21T00:02:00Z')),false);
   assert.equal(Number(sql.prepare('SELECT COUNT(*) AS n FROM automatic_stage_events').get()!.n),1);
@@ -89,7 +89,7 @@ test('idea to Buy: opens once, carries its amount, and flags a saved amount that
  const {buyIdeaFromClaim,buyIdeaAmount}=await import('../lib/buy-idea.ts');
  const {sql,db}=database();try{
   sql.exec('UPDATE autonomous_shadow_plans SET enabled=1');
-  const proposal={...event('proposal'),amount_cents:1000};sql.prepare('INSERT INTO autonomous_shadow_runs VALUES(?,?)').run(proposal.run_id,3);
+  const proposal={...event('proposal'),amount_cents:1000};sql.prepare('INSERT INTO autonomous_shadow_runs(id,revision) VALUES(?,?)').run(proposal.run_id,3);
   assert.equal(await saveRuleProposal(db,proposal,3,new Date('2026-10-21T00:00:00Z')),true);
   const idea=buyIdeaFromClaim(await claimProposalReview(db,'alice',proposal.id,new Date('2026-10-21T00:05:00Z')));
   assert.deepEqual(idea,{symbol:'AAPL',amountCents:1000});

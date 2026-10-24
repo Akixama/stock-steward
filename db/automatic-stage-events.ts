@@ -12,17 +12,17 @@ export async function saveAutomaticEvent(db:D1Database,event:AutomaticStageEvent
 // the duplicate check and write atomic even when two scheduled checks overlap.
 // It also requires the plan to still be running at the checked revision:
 // pausing bumps the revision, so a check that finishes after a pause saves nothing.
-export async function saveRuleProposal(db:D1Database,event:AutomaticStageEvent,revision:number,now=new Date()):Promise<boolean>{
+export async function saveRuleProposal(db:D1Database,event:AutomaticStageEvent,revision:number,now=new Date(),ruleId='main'):Promise<boolean>{
   if(event.kind!=='proposal'||!Number.isSafeInteger(revision)||revision<1)throw Error('Invalid rule proposal.');
-  if(!/^0x[0-9a-f]{64}:proposal$/i.test(event.id)||event.id!==`${event.run_id}:proposal`||!/^[A-Z][A-Z0-9.]{0,7}$/.test(event.symbol)||!Number.isSafeInteger(event.amount_cents)||event.amount_cents<1||event.amount_cents>1000)throw Error('Invalid rule proposal.');
+  if(!/^0x[0-9a-f]{64}:proposal$/i.test(event.id)||event.id!==`${event.run_id}:proposal`||!/^[A-Z][A-Z0-9.]{0,7}$/.test(event.symbol)||!Number.isSafeInteger(event.amount_cents)||event.amount_cents<1||event.amount_cents>100000)throw Error('Invalid rule proposal.');
   const result=await db.prepare(`INSERT OR IGNORE INTO automatic_stage_events(id,owner_ref,run_id,kind,status,symbol,amount_cents,detail,transaction_hash,created_at,expires_at)
     SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (
-      SELECT 1 FROM autonomous_shadow_plans plan WHERE plan.owner_ref=? AND plan.revision=? AND plan.enabled=1
+      SELECT 1 FROM autonomous_shadow_plans plan WHERE plan.owner_ref=? AND plan.rule_id=? AND plan.revision=? AND plan.enabled=1
     ) AND NOT EXISTS (
       SELECT 1 FROM automatic_stage_events old JOIN autonomous_shadow_runs run ON run.id=old.run_id
       WHERE old.owner_ref=? AND old.kind='proposal' AND old.status='proposed' AND old.expires_at>?
-        AND run.revision=? AND old.symbol=? AND old.amount_cents=?
-    )`).bind(event.id,event.owner_ref,event.run_id,event.kind,event.status,event.symbol,event.amount_cents,event.detail,event.transaction_hash,event.created_at,event.expires_at,event.owner_ref,revision,event.owner_ref,now.toISOString(),revision,event.symbol,event.amount_cents).run();
+        AND run.rule_id=? AND run.revision=? AND old.symbol=? AND old.amount_cents=?
+    )`).bind(event.id,event.owner_ref,event.run_id,event.kind,event.status,event.symbol,event.amount_cents,event.detail,event.transaction_hash,event.created_at,event.expires_at,event.owner_ref,ruleId,revision,event.owner_ref,now.toISOString(),ruleId,revision,event.symbol,event.amount_cents).run();
   return result.meta.changes===1;
 }
 

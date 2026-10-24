@@ -11,7 +11,7 @@ import {executionAccountingSources} from '@/lib/execution-sources';
 import {CHAIN} from '@/lib/robinhood-chain';
 import {isSessionWindowDays} from '@/lib/permission-window';
 import {saveSetupChoices} from '@/db/autonomous-controls';
-import {getShadowPlan} from '@/db/autonomous-shadow';
+import {listShadowPlans} from '@/db/autonomous-shadow';
 import {addReviewedSales} from '@/lib/session-sale-draft';
 import {saleLot,isSellKind} from '@/lib/session-sale-lot';
 import type {AutonomousRule} from '@/lib/autonomous-live';
@@ -45,15 +45,18 @@ export async function POST(request:Request){
   // quantity is worth at most the rule amount and the minimum USDG proceeds are
   // encoded onchain. Sales share the permission's trade-count limit.
   let reviewed=draft;
-  const plan=await getShadowPlan(env.DB,user.userId),rule=plan?JSON.parse(plan.rule_json) as AutonomousRule:null;
-  if(rule&&isSellKind(rule.kind)){
+  // One sale lot per stock with a sell rule (the permission allows six).
+  const sellRules=(await listShadowPlans(env.DB,user.userId)).map(p=>JSON.parse(p.rule_json) as AutonomousRule).filter(r=>isSellKind(r.kind));
+  const lots=[];const seen=new Set<string>();
+  for(const rule of sellRules){
+   if(seen.has(rule.symbol)||lots.length>=6||!isSellKind(rule.kind))continue;seen.add(rule.symbol);
    const token=live.plan.outputs.find(o=>o.symbol===rule.symbol)?.token,output=token?draft.policy.outputs.find(o=>o.token.toLowerCase()===token.toLowerCase()):undefined;
-   if(!output)throw Error('The sell rule stock is not in your limits.');
+   if(!output)throw Error('A sell rule stock is not in your limits.');
    const [decimals,price]=await Promise.all([sources.tokenDecimals(output.token),sources.priceBound(rule.symbol)]);
    if(decimals===null||!price)throw Error('Fresh token data required for a sale lot.');
-   const lot=saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)});
-   reviewed=addReviewedSales(draft as Parameters<typeof addReviewedSales>[0],[lot],snapshot,ref);
+   lots.push(saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)}));
   }
+  if(lots.length)reviewed=addReviewedSales(draft as Parameters<typeof addReviewedSales>[0],lots,snapshot,ref);
   const id=await saveSessionGrantDraft(env.DB,user.userId,reviewed);
   if(!id){await removeSessionSigner(env.DB,user.userId,session);created=null;return Response.json({error:'Another enrollment request won. Load the existing draft.'},{status:409,headers});}
   created=null;

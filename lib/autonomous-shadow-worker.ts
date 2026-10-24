@@ -6,7 +6,7 @@ import {configuredLiveNews} from './live-news.ts';
 import {autonomousRunId,type AutonomousDecision} from './autonomous-live.ts';
 import type {Hex} from 'viem';
 import {D1DecisionLedger} from '../db/ledger.ts';
-import {dueShadowPlans,claimShadowPlan,finishShadowPlan,recordShadowExecution} from '../db/autonomous-shadow.ts';
+import {dueShadowPlans,claimShadowPlan,finishShadowPlan,recordShadowExecution,ruleScope} from '../db/autonomous-shadow.ts';
 import {evaluateAutonomousSignal,type AutonomousRule} from './autonomous-live.ts';
 import {readAutonomousSignal} from './autonomous-signal.ts';
 import {runTriggeredAutonomy} from './autonomous-production.ts';
@@ -43,8 +43,8 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
     // loads signer material or submits a transaction.
     const run=await strategyAtBlock(db,plan.owner_ref,rule.strategy,mandate,account,await latestStrategyAnchor(fetcher),'500000',fetcher,fetch,news);
     buyDecision=run.decision.side==='buy';
-    decision={id:autonomousRunId(plan.owner_ref,plan.revision,plan.next_due_at),mode:'shadow',status:run.decision.state==='ready'?'would_trigger':'blocked',symbol:run.decision.symbol,amountCents:run.decision.amountCents,createdAt:new Date().toISOString(),checks:run.decision.checks,executionEnabled:false,transactionsSent:0};
-   }else{const signal=await readAutonomousSignal(rule.symbol,fetcher);decision=evaluateAutonomousSignal(plan.owner_ref,plan.revision,plan.next_due_at,rule,mandate,signal,new Date());}
+    decision={id:autonomousRunId(ruleScope(plan.owner_ref,plan.rule_id),plan.revision,plan.next_due_at),mode:'shadow',status:run.decision.state==='ready'?'would_trigger':'blocked',symbol:run.decision.symbol,amountCents:run.decision.amountCents,createdAt:new Date().toISOString(),checks:run.decision.checks,executionEnabled:false,transactionsSent:0};
+   }else{const signal=await readAutonomousSignal(rule.symbol,fetcher);decision=evaluateAutonomousSignal(ruleScope(plan.owner_ref,plan.rule_id),plan.revision,plan.next_due_at,rule,mandate,signal,new Date());}
    if(await finishShadowPlan(db,claim,decision)){
     if(decision.status==='would_trigger'){
      summary.triggered++;
@@ -55,7 +55,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents,armed,canSell);
      if(intent==='proposal'){
       const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
-      if(await saveRuleProposal(db,event,plan.revision,now)){
+      if(await saveRuleProposal(db,event,plan.revision,now,plan.rule_id)){
        await saveProposalInbox(db,event);
        await queueAutomaticPush(db,event);
       }
@@ -97,7 +97,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
        const started={id:`${decision.id}:auto_started`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_started' as const,status:'checking' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:buyDecision?'Checking capped automatic buy. No outcome confirmed yet.':'Checking capped automatic sale. No outcome confirmed yet.',transaction_hash:null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
        if(!await saveAutomaticEvent(db,started))continue;
        await queueAutomaticPush(db,started);
-       const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,walletStages,decision.id);
+       const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,walletStages,decision.id,plan.rule_id);
        await recordShadowExecution(db,claim,execution);
        if(execution.state==='submitted')summary.transactionsSent++;
        const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:execution.state==='submitted'?'submitted' as const:execution.state==='unknown'?'unknown' as const:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:execution.why.slice(0,500),transaction_hash:execution.hash??null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};

@@ -4,7 +4,7 @@ import {collectAutonomousIncidents,listAutonomousIncidents,acknowledgeAutonomous
 
 test('delayed and unknown purchase alerts are deduplicated, owner scoped and do not release funds',async()=>{
  const sql=new DatabaseSync(':memory:');
- for(const migration of ['0020_autonomous_shadow.sql','0021_autonomous_transaction_journal.sql','0023_autonomous_journal_settlement.sql','0024_autonomous_incidents.sql'])sql.exec(readFileSync(new URL('../drizzle/'+migration,import.meta.url),'utf8'));
+ for(const migration of ['0020_autonomous_shadow.sql','0043_multiple_rules.sql','0021_autonomous_transaction_journal.sql','0023_autonomous_journal_settlement.sql','0024_autonomous_incidents.sql'])sql.exec(readFileSync(new URL('../drizzle/'+migration,import.meta.url),'utf8'));
  const db={prepare(query:string){let args:unknown[]=[];const s={bind(...values:unknown[]){args=values;return s;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async all(){return {results:sql.prepare(query).all(...args as never[])};}};return s;},async batch(statements:{run():Promise<unknown>}[]){const result=[];for(const statement of statements)result.push(await statement.run());return result;}} as unknown as D1Database;
  const now=new Date('2026-10-12T12:00:00Z');
  sql.prepare("INSERT INTO autonomous_transaction_journal VALUES('intent','alice','session',0,'hash','raw','submitted','2026-10-12T11:54:00Z','2026-10-12T11:54:00Z',NULL)").run();

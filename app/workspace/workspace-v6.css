@@ -265,3 +265,16 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-replay-trades{list-style:none;margin:8px 0;padding:0;display:grid;gap:4px;max-height:240px;overflow:auto}
 .ws-replay-trades li{display:grid;grid-template-columns:1fr auto auto;gap:10px;font-size:13px;color:#a8adba;padding:6px 8px;border-radius:8px;background:#11131a}
 .ws-replay-trades li strong{color:#f1f0f6}
+/* Multiple rules */
+.ws-rule-list{list-style:none;margin:6px 0 12px;padding:0;display:grid;gap:8px}
+.ws-rule-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid #262a36;background:#0f1117}
+.ws-rule-list li[data-on=false]{opacity:.75}
+.ws-rule-main{display:flex;gap:10px;align-items:flex-start;min-width:0;flex:1}
+.ws-rule-main strong{display:block;color:#f1f0f6;font-size:14px}
+.ws-rule-main small{display:block;color:#8a8f9c;font-size:12px;margin-top:3px}
+.ws-rule-side{flex:none;font-size:11px;font-weight:800;letter-spacing:.08em;padding:3px 7px;border-radius:6px;margin-top:2px}
+.ws-rule-side[data-side=buy]{background:#a5ce1f22;color:#cfee8a}.ws-rule-side[data-side=sell]{background:#ff6b6b22;color:#ffb3b3}
+.ws-rule-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ws-rule-actions button{display:inline-flex;align-items:center;gap:4px}
+.ws-add-rule{margin:4px 0 8px}
+.ws-form-title{grid-column:1/-1;color:#f1f0f6}

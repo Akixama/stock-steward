@@ -7,9 +7,9 @@ import {publicRunExecution,runExecutionMessage} from '../lib/autonomous-run-stat
 
 test('execution receipts are owner/claim bound, durable before execution and cannot be overwritten',async()=>{
  const sql=new DatabaseSync(':memory:');
- sql.exec(readFileSync(new URL('../drizzle/0020_autonomous_shadow.sql',import.meta.url),'utf8'));
+ sql.exec(readFileSync(new URL('../drizzle/0020_autonomous_shadow.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../drizzle/0043_multiple_rules.sql',import.meta.url),'utf8'));
  const db={prepare(query:string){let args:unknown[]=[];const statement={bind(...values:unknown[]){args=values;return statement;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};}};return statement;}} as unknown as D1Database;
- const claim={id:'run',token:'claim',plan:{owner_ref:'alice',revision:1}} as ShadowClaim;
+ const claim={id:'run',token:'claim',plan:{owner_ref:'alice',rule_id:'main',revision:1}} as ShadowClaim;
  sql.prepare("INSERT INTO autonomous_shadow_runs(id,owner_ref,revision,due_at,claim_token,state,decision_json,created_at) VALUES('run','alice',1,'due','claim','completed',?,'now')").run(JSON.stringify({status:'would_trigger'}));
  try{
   const checking={state:'checking' as const,why:'Checking.'};

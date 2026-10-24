@@ -12,7 +12,7 @@ export type ProductionMode={mode:'manual_prepare'}|{mode:'manual_execute';prepar
 import {inspectRoute} from './chain-route.ts';import {selectStoredFloor} from './live-order.ts';import {rolesOperation} from './roles-operation.ts';import {inspectRolesInstallation} from './roles-installation.ts';import {routerCandidate} from './router-candidate.ts';import {compileRolesPolicy,type RolesPolicy} from './roles-permission.ts';import {mandateDigest,type PolicyLease} from './policy-lease.ts';import {executionAccountingSources} from './execution-sources.ts';import {buildAccountingEvidence} from './live-accounting.ts';import {executionAccounting} from './execution-accounting.ts';import {inspectExecutionFees} from './execution-fees.ts';import {readAutonomousSignal} from './autonomous-signal.ts';import {evaluateAutonomousSignal,type AutonomousRule} from './autonomous-live.ts';import type {AutonomousExecutionDependencies,AutonomousPreparation} from './autonomous-executor.ts';import {CHAIN} from './robinhood-chain.ts';import type {Hex} from 'viem';
 // The production adapter is callable only through the compiled execution gate.
 // Preparing is read-only; it never invents eligibility, reviewer or owner consent.
-export function productionExecutionDependencies(db:D1Database,owner:string,revision:number,authorities:ReviewAuthorities,rpc:typeof fetch=fetch,web:typeof fetch=fetch,manual?:ProductionMode,autoConfig?:AutomaticStageConfig):AutonomousExecutionDependencies{
+export function productionExecutionDependencies(db:D1Database,owner:string,revision:number,authorities:ReviewAuthorities,rpc:typeof fetch=fetch,web:typeof fetch=fetch,manual?:ProductionMode,autoConfig?:AutomaticStageConfig,ruleId='main'):AutonomousExecutionDependencies{
  let prepared:AutonomousPreparation|null=null,approvedConsent:string|null=null;
  const stages=automaticStages(autoConfig??{});
  async function autoFundingReady(route:AutonomousPreparation['evidence']['route'],mandate:import('./decision.ts').Mandate){
@@ -20,7 +20,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   return !!prerequisites&&['Token allowance to Permit2','Permit2 allowance to router'].every(name=>prerequisites.checks.find(check=>check.name===name)?.state==='pass');
  }
  async function current(policyHash:string,digest:string){
-  const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
+  const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner,ruleId),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
   // The saved mandate remains in owner-approval mode. Autonomous authority is
   // a distinct, narrow session grant plus a fresh owner-signed start message.
   if(!grant||grant.state!=='verified'||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='approval')return false;
@@ -45,7 +45,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
    prepared=manual.preparation;prepared.evidence.approval={mode:'approval',intentDigest:prepared.evidence.intentDigest,routeId:prepared.evidence.route.id,mandateVersion:prepared.evidence.mandateVersion,expiresAt:prepared.evidence.route.expiresAt};
    if(!await current(prepared.lease.policyHash,prepared.lease.mandateDigest))throw Error('Reviewed permission or controls changed.');return prepared;
   }
-  const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
+  const [grant,plan,ownership,mandate]=await Promise.all([getSessionGrant(db,owner),getShadowPlan(db,owner,ruleId),getOwnership(db,owner),new D1DecisionLedger(db).getMandate(owner)]);
   if(!grant||grant.state!=='verified'||!grant.creation_transaction||!plan?.enabled||plan.revision!==revision||!ownership?.verifiedAt||!mandate||mandate.executionPreference!=='approval')throw Error('Current owner-approved mandate and verified session grant required.');
   const policy=JSON.parse(grant.policy_json) as RolesPolicy,lease=JSON.parse(grant.lease_json) as PolicyLease,rule=JSON.parse(plan.rule_json) as AutonomousRule,snapshot={owner:ownership.address,version:mandate.version,policyJson:JSON.stringify(mandate)};
   if(!manual&&!['scheduled','threshold','allocation','accumulate','news_buy','sell_below','sell_threshold','sell_scheduled'].includes(rule.kind))throw Error('This rule type cannot run automatically.');
@@ -90,7 +90,7 @@ export function productionExecutionDependencies(db:D1Database,owner:string,revis
   const r=await rpc(CHAIN.rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_sendRawTransaction',params:[raw]}),signal:AbortSignal.timeout(15000),cache:'no-store'});const body=await r.json() as {id:number;result:Hex;error?:unknown};if(!r.ok||body.id!==1||body.error||!/^0x[0-9a-f]{64}$/i.test(body.result))throw Error('Submission response uncertain.');return body.result;
  }};
 }
-export async function runTriggeredAutonomy(db:D1Database,owner:string,revision:number,rpc:typeof fetch=fetch,requested?:ReturnType<typeof automaticStages>,runId?:Hex){
+export async function runTriggeredAutonomy(db:D1Database,owner:string,revision:number,rpc:typeof fetch=fetch,requested?:ReturnType<typeof automaticStages>,runId?:Hex,ruleId='main'){
  if(!requested?.autoBuy)return {state:'blocked' as const,why:'Automatic buying is off.',executionEnabled:false as const};
  if(!runId||!/^0x[0-9a-f]{64}$/i.test(runId))return {state:'blocked' as const,why:'Saved automatic action alert required.',executionEnabled:false as const};
  const {env}=await import('cloudflare:workers');const stages=automaticStages(env);
@@ -101,5 +101,5 @@ export async function runTriggeredAutonomy(db:D1Database,owner:string,revision:n
  if(!alert?.events)return {state:'blocked' as const,why:'No saved alert for this action.',executionEnabled:false as const};
  try{await assertTradingEnabled(db,env);}catch{return {state:'blocked' as const,why:'Trading is paused.',executionEnabled:false as const};}
  let authorities:ReviewAuthorities={};try{authorities=JSON.parse(env.STEWARD_AUTONOMY_REVIEW_AUTHORITIES??'{}');}catch{}
- return runAutonomousExecution(productionExecutionDependencies(db,owner,revision,authorities,rpc,fetch,undefined,env),true);
+ return runAutonomousExecution(productionExecutionDependencies(db,owner,revision,authorities,rpc,fetch,undefined,env,ruleId),true);
 }
