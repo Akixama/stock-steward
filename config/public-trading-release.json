@@ -1,7 +1,7 @@
 {
-  "enabled": false,
-  "maxOrderCents": 100000000,
-  "maxDailyCents": 100000000,
+  "enabled": true,
+  "maxOrderCents": 1000000,
+  "maxDailyCents": 3000000,
   "maxEditableLimitCents": 1000000,
   "usIpBlockEnabled": true
 }
