@@ -11,6 +11,7 @@ import { PERMIT2 } from "@/lib/install-flow";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { assertTradingEnabled, publicDailySpend, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
 import { assertTradeAgreement } from '@/lib/trade-agreement';
+import { checkPositionLimit } from '@/lib/position-limit-check';
 import { assembleActivePolicyFor, rpcCall, spendTodayCents } from "../_shared";
 
 const ercAllowanceAbi = parseAbi(["function allowance(address owner,address spender) view returns (uint256)"]);
@@ -45,6 +46,10 @@ export async function POST(request: Request) {
     const spent = limits.publicMode ? await publicDailySpend(env.DB,user.userId,live.safe,buySpent) : buySpent;
     const amount = validateLiveAmount(amountCents, live.mandate, spent, limits);
     if (!amount.ok) return Response.json({ error: amount.error }, { status: 422 });
+    // "Max in one stock": checked here, before any quote, simulation or reservation. A stale or
+    // incomplete wallet value refuses the buy rather than passing it.
+    const position = await checkPositionLimit(env.DB, user.userId, live.safe, symbol, amountCents, live.mandate.maxPositionBps);
+    if (!position.ok) return Response.json({ error: position.error, positionLimit: position.reason }, { status: 422 });
 
     // Orders carry the prices locked at activation: the onchain conditions pin
     // the install-time bytes, so a fresh quote could be signed and then reverted

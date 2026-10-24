@@ -20,7 +20,7 @@ export const activityStateLabel = (state: string) => STATE_LABELS[state] ?? stat
 
 export async function ownerActivity(db: D1Database, owner: string, limit = 50): Promise<ActivityItem[]> {
   const [buys, actions, ideas] = await Promise.all([
-    db.prepare(`SELECT id, COALESCE(json_extract(plan_json,'$.symbol'), json_extract(plan_json,'$.candidate.symbol')) AS symbol,
+    db.prepare(`SELECT id, COALESCE(json_extract(plan_json,'$.route.symbol'), json_extract(plan_json,'$.symbol')) AS symbol,
         amount_cents, state, transaction_hash, created_at FROM execution_attempts WHERE owner_ref=? ORDER BY created_at DESC LIMIT ?`)
       .bind(owner, limit).all<{ id: string; symbol: string | null; amount_cents: number; state: string; transaction_hash: string | null; created_at: string }>(),
     db.prepare(`SELECT id, kind, symbol, amount_cents, state, transaction_hash, created_at FROM wallet_action_attempts WHERE owner_ref=? ORDER BY created_at DESC LIMIT ?`)

@@ -13,7 +13,7 @@ function database(){
 }
 test('activity lists only this owner, newest first, across buys, sells, sends and ideas',async()=>{
  const {sql,db}=database();try{
-  sql.prepare('INSERT INTO execution_attempts VALUES(?,?,?,?,?,?,?)').run('b1','alice',1000,'confirmed',JSON.stringify({symbol:'AAPL'}),'0xabc','2026-10-20T10:00:00Z');
+  sql.prepare('INSERT INTO execution_attempts VALUES(?,?,?,?,?,?,?)').run('b1','alice',1000,'confirmed',JSON.stringify({route:{symbol:'AAPL'}}),'0xabc','2026-10-20T10:00:00Z');
   sql.prepare('INSERT INTO execution_attempts VALUES(?,?,?,?,?,?,?)').run('b2','bob',900,'confirmed','{}',null,'2026-10-22T10:00:00Z');
   sql.prepare('INSERT INTO wallet_action_attempts VALUES(?,?,?,?,?,?,?,?)').run('s1','alice','sell','MSFT',1200,'submitted','0xdef','2026-10-21T10:00:00Z');
   sql.prepare('INSERT INTO wallet_action_attempts VALUES(?,?,?,?,?,?,?,?)').run('t1','alice','transfer','AAPL',0,'confirmed','0x123','2026-10-21T12:00:00Z');
