@@ -278,3 +278,7 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-rule-actions button{display:inline-flex;align-items:center;gap:4px}
 .ws-add-rule{margin:4px 0 8px}
 .ws-form-title{grid-column:1/-1;color:#f1f0f6}
+.ws-gas{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid #262a36;background:#0f1117;color:#a8adba}
+.ws-gas>div{flex:1;min-width:200px}.ws-gas strong{display:block;color:#f1f0f6;font-size:14px}.ws-gas small{font-size:13px}
+.ws-gas[data-state=low]{border-color:#f2b45c88;background:#1a150d}.ws-gas[data-state=low] svg{color:#f2b45c}
+.ws-gas[data-state=empty]{border-color:#ff6b6b88;background:#2b1315}.ws-gas[data-state=empty] svg{color:#ff6b6b}

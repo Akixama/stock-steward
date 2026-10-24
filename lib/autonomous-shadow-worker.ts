@@ -20,6 +20,8 @@ import {loadGuard,saveGuardState} from '../db/panic-guard.ts';
 import {evaluateGuard,coolingUntil} from './panic-guard.ts';
 import {accountValueMicro} from './account-value.ts';
 import {resolveRule} from './trailing.ts';
+import {gasStatus,sessionBalanceWei,ethUsdMicro} from './session-gas.ts';
+import {getFeeConsent} from '../db/autonomous-controls.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
 export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
@@ -66,6 +68,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
       // owner-signed session grant and activation, and the global kill switch.
       if(intent==='blocked'){await recordShadowExecution(db,claim,{state:'blocked',why:'Automatic per-order cap exceeded.'});continue;}
       const grant=await getSessionGrant(db,plan.owner_ref);
+      let gas:ReturnType<typeof gasStatus>|null=null;
       // Panic guard runs before any signer: a cool-off or a fresh trip stops the trade.
       if(grant){
        const guard=await loadGuard(db,plan.owner_ref,grant.id),until=coolingUntil(guard.state,now.getTime());
@@ -74,6 +77,19 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
        const value=account?await accountValueMicro(account,fetcher,fetch):null;
        if(value===null){await recordShadowExecution(db,claim,{state:'blocked',why:'Panic guard could not value your account right now, so no order was sent.'});continue;}
        const checked=evaluateGuard(guard.settings,guard.state!,value,now);await saveGuardState(db,plan.owner_ref,checked.state);
+       if(!checked.tripped){
+        // Gas: an empty session key cannot pay for the trade, so stop early and say so.
+        const fee=await getFeeConsent(db,plan.owner_ref,grant.id);let maxFee=0;try{maxFee=fee?Number(JSON.parse(fee.consent_json).maxFeeCents):0;}catch{maxFee=0;}
+        const balance=await sessionBalanceWei(grant.session_address,fetcher);
+        gas=balance===null?null:gasStatus(balance,await ethUsdMicro(),maxFee||1);
+        if(gas?.state==='empty'){
+         const why='Your gas for automatic trades is empty, so no order was sent. Top it up on the Automatic mode card.';
+         await recordShadowExecution(db,claim,{state:'blocked',why});
+         const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:why,transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+         if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
+         continue;
+        }
+       }
        if(checked.tripped){
         await pauseActivation(db,plan.owner_ref,grant.id);
         await recordShadowExecution(db,claim,{state:'blocked',why:checked.why!});
@@ -101,7 +117,7 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
        const execution=await runTriggeredAutonomy(db,plan.owner_ref,plan.revision,fetcher,walletStages,decision.id,plan.rule_id);
        await recordShadowExecution(db,claim,execution);
        if(execution.state==='submitted')summary.transactionsSent++;
-       const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:execution.state==='submitted'?'submitted' as const:execution.state==='unknown'?'unknown' as const:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:execution.why.slice(0,500),transaction_hash:execution.hash??null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
+       const event={id:`${decision.id}:auto_action`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'auto_action' as const,status:execution.state==='submitted'?'submitted' as const:execution.state==='unknown'?'unknown' as const:'blocked' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:(execution.why+(gas?.state==='low'?` Gas is running low: about ${gas.tradesLeft} trade${gas.tradesLeft===1?'':'s'} left. Top it up on the Automatic mode card.`:'')).slice(0,500),transaction_hash:execution.hash??null,created_at:new Date().toISOString(),expires_at:new Date(now.getTime()+24*60*60_000).toISOString()};
        if(await saveAutomaticEvent(db,event))await queueAutomaticPush(db,event);
       }
      }

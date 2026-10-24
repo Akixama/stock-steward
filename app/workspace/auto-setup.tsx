@@ -5,6 +5,7 @@ import {matchingWallet,type WalletProvider} from '@/lib/browser-wallet';
 import {formatWorkspaceDate} from '@/lib/workspace-date';
 import PanicGuardCard from './panic-guard-card';
 import StressTestCard from './stress-test-card';
+import GasCard from './gas-card';
 
 type Grant={id:string;state:string;policy:{inputRaw:string;dailyRaw:string;totalRaw:string;expiresAt:number;outputs:{token:string}[];sales?:{token:string}[]};transaction:{from:string;to:string;data:string;value:string}};
 type Status={grant:Grant|null;signerStorageConfigured:boolean};
@@ -89,6 +90,7 @@ export default function AutoSetup({provider,address}:{provider:WalletProvider|nu
    <button type="button" className="ws-action-quiet" disabled={busy||!provider} onClick={revoke}><Ban size={15} aria-hidden="true"/> Remove permission</button>
   </div>}
   {g&&['paused','revoked','retired'].includes(g.state)&&<p className="ws-muted">This permission is {g.state}. Remove it, then set up a new one.</p>}
+  {g?.state==='verified'&&<GasCard provider={provider} address={address}/>}
   <PanicGuardCard/>
   <StressTestCard/>
   {step&&<p role="status" className="ws-auto-step">{step}</p>}
