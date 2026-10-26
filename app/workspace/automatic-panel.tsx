@@ -13,6 +13,7 @@ import AutonomyControls from './autonomy-controls';
 import AutonomyRehearsal from './autonomy-rehearsal';
 import AutoSetup from './auto-setup';
 import ReplayCard from './replay-card';
+import AgentCard from './agent-card';
 import SuggestionsCard from './suggestions-card';
 import type {ReplayRule} from '@/lib/replay';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
@@ -96,7 +97,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
  }
  function download(){const url=URL.createObjectURL(new Blob([JSON.stringify({stages:status?.stages,runs:status?.runs??[],events:status?.events??[]},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='stock-steward-strategy-receipts.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 
- const plans=status?.plans??(status?.plan?[{...status.plan,ruleId:'main'}]:[]),shadowOn=!!status?.stages.shadow,now=Date.now();
+ const plans=(status?.plans??(status?.plan?[{...status.plan,ruleId:'main'}]:[])).filter(p=>p.ruleId!=='agent'),shadowOn=!!status?.stages.shadow,now=Date.now();
  const ideas=status?.events.filter(event=>liveIdea(event,now))??[];
  const pastIdeas=status?.events.filter(event=>event.kind==='proposal'&&!liveIdea(event,now))??[];
  const actions=status?.events.filter(event=>event.kind!=='proposal')??[];
@@ -108,6 +109,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
  const max=status?.maxRules??6;
 
  return <>
+  <AgentCard/>
   <section className="ws-checks-bar" data-state={state} aria-label="Background checks status" aria-live="polite">
    <span className="ws-checks-dot" aria-hidden="true"/>
    <div className="ws-checks-text"><strong>{headline}</strong>{detail&&<small>{detail}</small>}{state==='stopped'&&<small>A rule could not check prices 3 times in a row. Start it again below.</small>}</div>
@@ -115,7 +117,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   </section>
 
   <section className="ws-shadow" aria-busy={busy}>
-   <header className="ws-shadow-head"><span className="ws-label">YOUR RULES</span><h3>Tell Steward what to buy and sell.</h3><p>Add up to {max} rules: buy dips, buy regularly, stop-losses and take-profits, on different stocks. Steward watches all of them. When one is right, a buy appears under <strong>Ready to buy</strong> for you to approve, or, with automatic mode on, Steward does it for you.</p></header>
+   <header className="ws-shadow-head"><span className="ws-label">YOUR OWN RULES</span><h3>Prefer to set exact rules? Add them here.</h3><p>Add up to {max} rules: buy dips, buy regularly, stop-losses and take-profits, on different stocks. Steward watches all of them. When one is right, a buy appears under <strong>Ready to buy</strong> for you to approve, or, with automatic mode on, Steward does it for you.</p></header>
    {error&&<p className="ws-error" role="alert">{error}{!status&&<> <button type="button" className="ws-recheck" onClick={()=>void refresh()}>Retry</button></>}</p>}
 
    {shadowOn&&plans.length<max&&<SuggestionsCard onAdd={addSuggestion} disabled={busy||!mandate.allowedSymbols.length}/>}
@@ -162,7 +164,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
 
    {actions.length>0&&<details className="ws-shadow-card ws-shadow-history"><summary><h4>Automatic actions</h4><span className="ws-count">{actions.length}</span></summary>{actions.map(event=><div className="ws-past-idea" key={event.id}><strong>{event.symbol} · {money(event.amount_cents)}</strong><small>{event.status} · {when(event.created_at)}</small><p className="ws-muted">{event.detail}</p>{event.transaction_hash&&<a href={`https://robinhoodchain.blockscout.com/tx/${event.transaction_hash}`} target="_blank" rel="noreferrer">View transaction</a>}</div>)}</details>}
 
-   {status?.stages.autoBuy&&<div className="ws-auto-setup"><h4>Let Steward buy and sell for you</h4><p>When your rule passes, Steward buys or sells on its own, without asking each time. It can only act inside your Limits, and those limits are written into your wallet permission, so they hold even if Stock Steward itself went wrong. Pause stops new trades instantly; removing the permission ends it for good.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><AutoSetup provider={wallet?.provider??null} address={wallet?.address??''}/><details className="ws-auto-advanced"><summary>Advanced tools</summary><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></details></div>}
+   {status?.stages.autoBuy&&<div className="ws-auto-setup" id="ws-auto-setup"><h4>Let Steward buy and sell for you</h4><p>When your agent or a rule picks a trade, Steward buys or sells on its own, without asking each time. It can only act inside your Limits, and those limits are written into your wallet permission, so they hold even if Stock Steward itself went wrong. Pause stops new trades instantly; removing the permission ends it for good.</p><p className="ws-auto-risk"><strong>Real money, no signature per buy.</strong> Stock Steward has not had an outside security review. Only turn this on with money you can afford to lose.</p><AutoSetup provider={wallet?.provider??null} address={wallet?.address??''}/><details className="ws-auto-advanced"><summary>Advanced tools</summary><SessionReview/><AutonomyControls provider={wallet?.provider??null} address={wallet?.address??''}/><SessionWalletActions provider={wallet?.provider??null} address={wallet?.address??''}/><AutonomyRehearsal/></details></div>}
   </section>
  </>;
 }

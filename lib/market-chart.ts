@@ -37,7 +37,9 @@ export async function sampleScheduledMarkets(db:D1Database,now=Date.now(),fetche
  const supported=new Set(catalog.map(stock=>stock.symbol));
  const recent=(await db.prepare('SELECT DISTINCT symbol FROM market_price_samples WHERE observed_at>=? ORDER BY symbol LIMIT 50').bind(new Date(now-7*86400000).toISOString()).all<{symbol:string}>()).results??[];
  const ruled=(await db.prepare("SELECT DISTINCT json_extract(rule_json,'$.symbol') AS symbol FROM autonomous_shadow_plans WHERE enabled=1 LIMIT 50").all<{symbol:string}>().catch(()=>({results:[]}))).results??[];
- const symbols=[...new Set([...FEATURED_MARKETS,...ruled.map(row=>row.symbol),...recent.map(row=>row.symbol)])].filter(symbol=>supported.has(symbol));
+ const agents=(await db.prepare("SELECT settings_json FROM ai_agents WHERE enabled=1 LIMIT 50").all<{settings_json:string}>().catch(()=>({results:[]}))).results??[];
+ const agentSymbols=agents.flatMap(row=>{try{return (JSON.parse(row.settings_json) as {symbols:string[]}).symbols;}catch{return [];}});
+ const symbols=[...new Set([...FEATURED_MARKETS,...ruled.map(row=>row.symbol),...agentSymbols,...recent.map(row=>row.symbol)])].filter(symbol=>supported.has(symbol));
  let recorded=0;
  for(let i=0;i<symbols.length;i+=8){
   const results=await Promise.allSettled(symbols.slice(i,i+8).map(symbol=>sampleMarket(db,symbol,now,fetcher)));

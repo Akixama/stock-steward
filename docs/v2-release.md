@@ -1,7 +1,7 @@
 # Stock Steward v2 (branch `v2`)
 
 Not deployed. Merge to `main` only after the owner checks below pass on a funded wallet.
-Migrations to apply: `0040_referrals`, `0041_autonomous_setup_choices`, `0042_panic_guard`, `0043_multiple_rules`.
+Migrations to apply: `0040_referrals`, `0041_autonomous_setup_choices`, `0042_panic_guard`, `0043_multiple_rules`, `0044_ai_agent`.
 The scheduler cron is now every minute (`* * * * *`): sell rules check each minute, the full monitor still runs every 15.
 
 ## What v2 adds
@@ -9,7 +9,10 @@ The scheduler cron is now every minute (`* * * * *`): sell rules check each minu
 **Growth**
 1. **Referrals and points.** Invite links `/r/CODE` give 10 points per signup and 90 more when the friend verifies a wallet. Home has an Invite card, and there is a public `/leaderboard` (chosen name or "Steward XXXX", never email or wallet).
 
-**Automatic mode: a guardrail you set for yourself**
+**Steward agent (the headline)**
+0. **An AI agent that trades for you.** The owner picks up to 6 stocks from their Limits, a style (careful, balanced, bold), how often it checks (15 min to 4 hours) and an optional note. Each check, the AI sees prices, 1-day and 7-day moves, holdings and cash (never addresses) and chooses buy, sell or hold with a one-line reason. Fixed code then checks it: listed stock, fresh price, enough USDG, a sale lot in the permission, and no chasing (careful won't buy after a 5% day, balanced after 15%). An approved decision becomes a one-shot rule and goes through the same execution path as every automatic trade: Panic guard, gas, daily caps, the on-chain permission. A hold, a bad answer or an AI outage parks it. Every decision is logged on the card with its reason. One trade = the owner's per-buy Limit. The permission adds one sale per agent stock (85% floor of the day's low price).
+
+**Automatic mode: the guardrail around it**
 2. **Your Limits are the agent's limits.** Automatic trades use the owner's saved per-buy and per-day Limits, inside platform ceilings set in `config/automatic-stages-release.json`: $100 a trade, $500 a day and $15,000 per permission. The code allows at most $1,000, $5,000 and $50,000. The owner picks a permission length of 2, 7, 14 or 30 days. Owners who haven't turned it on keep getting "Ready to buy" proposals.
 3. **One signature.** On the Automatic mode card, the owner chooses a length and a network fee limit, reads the permission in plain English, and signs one wallet transaction. Once that installation is verified on-chain (exact calldata, sender, success, factory provenance, found automatically), it counts as the fee and start approval. Pause, one-tap Resume and Remove permission all live on the same card. The older tools are under Advanced.
 4. **Automatic selling.** The rule form adds *Sell if the price drops to (stop-loss)* and *Sell when it rises to (take profit)*. The permission then includes one fixed sale for that stock, with minimum proceeds written on-chain: 90% of the stop price, or 97% of the target.
@@ -34,7 +37,8 @@ The scheduler cron is now every minute (`* * * * *`): sell rules check each minu
 8. **Several rules + trailing stop:** add a second rule with a trailing stop, check both run, and pause one alone.
 9. **Gas:** check the Gas card shows the session balance, and that top-up works.
 10. **Suggestions:** press Suggest, add one, and confirm it lands paused inside your Limits.
-11. Remove the permission and confirm in the wallet.
+11. **Steward agent:** pick 2 stocks, Balanced, every 15 min, turn it on, then set up Automatic mode (the summary should list sales for the agent's stocks). Within a few checks the log should show decisions with reasons; confirm any buy or sell lands in Activity. Turn it off and confirm nothing new happens.
+12. Remove the permission and confirm in the wallet.
 
 ## Known limits
 
@@ -44,3 +48,5 @@ The scheduler cron is now every minute (`* * * * *`): sell rules check each minu
 - Sale floors are fixed at signing. A stock that falls more than 10% past the stop won't sell automatically.
 - Replay ignores fees, slippage, and moves between saved prices.
 - Suggestions come from a small model (llama-3.1-8b). They are ideas, not advice, and always start paused.
+- The agent uses a small model (llama-3.1-8b). It can be wrong; the guardrail limits how wrong. Each agent check is one AI call per owner.
+- After changing the agent's stocks, set up Automatic mode again so the permission can sell them.

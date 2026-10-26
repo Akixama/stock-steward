@@ -1,3 +1,4 @@
+import {getAgent} from '@/db/ai-agent';
 import {env} from 'cloudflare:workers';
 import {generatePrivateKey,privateKeyToAccount} from 'viem/accounts';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
@@ -56,6 +57,20 @@ export async function POST(request:Request){
    const [decimals,price]=await Promise.all([sources.tokenDecimals(output.token),sources.priceBound(rule.symbol)]);
    if(decimals===null||!price)throw Error('Fresh token data required for a sale lot.');
    lots.push(saleLot({output,decimals,amountCents:Math.min(rule.amountCents,caps.orderCents),kind:rule.kind,thresholdCents:rule.trailBps?trailingStop(Number(BigInt(price.lowerMicroUsd)/10_000n),rule.trailBps):rule.thresholdCents,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)}));
+  }
+  // Steward agent: one market sale per agent stock (85% floor of today's low
+  // price, written on chain), so the agent can take profit or cut losses.
+  const agent=await getAgent(env.DB,user.userId);
+  if(agent?.enabled===1){
+   let agentSymbols:string[]=[];try{agentSymbols=(JSON.parse(agent.settings_json) as {symbols:string[]}).symbols;}catch{agentSymbols=[];}
+   for(const symbol of agentSymbols){
+    if(seen.has(symbol)||lots.length>=6)continue;seen.add(symbol);
+    const token=live.plan.outputs.find(o=>o.symbol===symbol)?.token,output=token?draft.policy.outputs.find(o=>o.token.toLowerCase()===token.toLowerCase()):undefined;
+    if(!output)continue;
+    const [decimals,price]=await Promise.all([sources.tokenDecimals(output.token),sources.priceBound(symbol)]);
+    if(decimals===null||!price)throw Error('Fresh token data required for a sale lot.');
+    lots.push(saleLot({output,decimals,amountCents:caps.orderCents,kind:'sell_scheduled',thresholdCents:1,priceUpperMicroUsd:BigInt(price.upperMicroUsd),priceLowerMicroUsd:BigInt(price.lowerMicroUsd)}));
+   }
   }
   if(lots.length)reviewed=addReviewedSales(draft as Parameters<typeof addReviewedSales>[0],lots,snapshot,ref);
   const id=await saveSessionGrantDraft(env.DB,user.userId,reviewed);

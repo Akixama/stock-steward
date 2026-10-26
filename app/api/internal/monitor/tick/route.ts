@@ -5,10 +5,19 @@ import {dispatchOperatorAlerts} from '@/lib/operator-alerts';
 import {checkBackgroundAlerts} from '@/lib/web-push';
 import {sampleScheduledMarkets,sampleFastRuleMarkets} from '@/lib/market-chart';
 import {automaticStages} from '@/lib/automatic-stages';
+import {tickAgents,chainHoldings} from '@/lib/ai-agent-worker';
+import {aiConfigured,askModelJson} from '@/lib/strategy-ai-server';
 import {sendAutomaticPush} from '@/lib/automatic-stage-push';
 import {sendPermissionExpiryReminders} from '@/lib/permission-expiry-reminder';
 
 const headers={'Cache-Control':'no-store'};
+// Steward agent decisions run first, so an approved trade is executed by the
+// rule check in this same tick. An AI or data failure only ever means "hold".
+async function runAgents(stages:ReturnType<typeof automaticStages>){
+  if(!stages.autoBuy||!aiConfigured(env)||!env.DB)return {off:true};
+  try{const transport=chainTransport(env.ALCHEMY_API_KEY);return await tickAgents(env.DB,{ask:(system,user)=>askModelJson(system,user,env),holdings:account=>chainHoldings(account,transport),maxOrderCents:stages.maxOrderCents});}
+  catch{return {unavailable:true};}
+}
 
 export async function POST(request:Request){
   const expected=env.STEWARD_WORKER_KEY;
@@ -28,16 +37,18 @@ export async function POST(request:Request){
     try{
       const stages=automaticStages(env);let markets;
       try{markets=await sampleFastRuleMarkets(env.DB);}catch{markets={unavailable:true};}
+      const agents=await runAgents(stages);
       const summary=await fastRulesTick(env.DB,chainTransport(env.ALCHEMY_API_KEY),stages);
       let automaticNotifications;
       try{automaticNotifications=await sendAutomaticPush(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}catch{automaticNotifications={unavailable:true};}
-      return Response.json({summary,markets,automaticNotifications,spendingEnabled:stages.autoBuy},{headers});
+      return Response.json({summary,agents,markets,automaticNotifications,spendingEnabled:stages.autoBuy},{headers});
     }catch{return Response.json({error:'Fast rule check did not complete. No order was retried.'},{status:503,headers});}
   }
   try{
     let markets;
     try{markets=await sampleScheduledMarkets(env.DB);}catch{markets={unavailable:true};}
     const stages=automaticStages(env);
+    const agents=await runAgents(stages);
     const summary=await workerTick(env.DB,chainTransport(env.ALCHEMY_API_KEY),stages);
     let automaticNotifications;
     try{automaticNotifications=await sendAutomaticPush(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}
@@ -51,7 +62,7 @@ export async function POST(request:Request){
     let priceAlerts;
     try{priceAlerts=await checkBackgroundAlerts(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}
     catch{priceAlerts={unavailable:true};}
-    return Response.json({summary,alerts,priceAlerts,markets,automaticNotifications,permissionReminders,spendingEnabled:stages.autoBuy},{headers});
+    return Response.json({summary,agents,alerts,priceAlerts,markets,automaticNotifications,permissionReminders,spendingEnabled:stages.autoBuy},{headers});
   }catch{
     return Response.json({error:'Monitoring did not complete. Check purchase receipts before taking action; no order was retried.'},{status:503,headers});
   }

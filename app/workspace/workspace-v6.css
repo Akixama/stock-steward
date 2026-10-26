@@ -291,3 +291,26 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-suggest li>div{flex:1;min-width:220px;display:flex;flex-direction:column;gap:4px}
 .ws-suggest li strong{color:#f1f0f6;font-size:14px}.ws-suggest li small{color:#a8adba;font-size:13px;line-height:1.45}
 .ws-suggest-replay{color:#8a8f9c!important}
+/* Steward agent */
+.ws-agent{margin:0 0 16px;padding:18px;border-radius:16px;border:1px solid #3a4a3c;background:linear-gradient(160deg,#7fd49a1a,transparent 55%),#10141a}
+.ws-agent header{display:flex;gap:12px;align-items:flex-start;color:#9fe0b4}
+.ws-agent header>div{flex:1;min-width:0}.ws-agent h3{margin:4px 0 6px;color:#f1f0f6;font-size:18px}
+.ws-agent header p{margin:0;color:#aeb3c2;font-size:14px;line-height:1.5}
+.ws-agent-dot{width:10px;height:10px;border-radius:50%;background:#e2b54a;margin-top:8px;flex:none}.ws-agent-dot[data-on="true"]{background:#5fd38a;box-shadow:0 0 0 4px #5fd38a26}
+.ws-agent fieldset{border:0;padding:0;margin:14px 0 0}.ws-agent legend{color:#aeb3c2;font-size:13px;margin-bottom:6px}
+.ws-agent-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ws-agent-chips button,.ws-agent-styles button{border:1px solid #2c3140;background:#0f1117;color:#d6d8e2;border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.ws-agent-chips button[aria-pressed="true"],.ws-agent-styles button[aria-pressed="true"]{border-color:#5fd38a;background:#5fd38a1f;color:#f1f0f6}
+.ws-agent-styles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ws-agent-styles button{border-radius:12px;text-align:left;display:grid;gap:2px;padding:10px}.ws-agent-styles small{color:#8d93a5;font-size:12px}
+@media (max-width:560px){.ws-agent-styles{grid-template-columns:1fr}}
+.ws-agent-note{display:grid;gap:6px;margin-top:14px;color:#aeb3c2;font-size:13px}
+.ws-agent-note textarea{width:100%;box-sizing:border-box;background:#0f1117;border:1px solid #2c3140;border-radius:10px;color:#f1f0f6;padding:10px;font:inherit;font-size:14px;resize:vertical}
+.ws-agent-actions{display:flex;gap:8px;margin:14px 0 4px}
+.ws-agent-hint{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#e2b54a14;color:#e9d7a6;font-size:13px}.ws-agent-hint a{color:#f1f0f6}
+.ws-agent-log{margin:14px 0 10px}.ws-agent-log summary{cursor:pointer;color:#d6d8e2;font-size:14px}
+.ws-agent-log ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}
+.ws-agent-log li{padding:10px 12px;border-radius:10px;background:#0f1117;border:1px solid #262a36;border-left:3px solid #4a5060}
+.ws-agent-log li[data-action="buy"]{border-left-color:#5fd38a}.ws-agent-log li[data-action="sell"]{border-left-color:#e28a4a}.ws-agent-log li[data-action="blocked"]{border-left-color:#e2b54a}
+.ws-agent-log li strong{color:#f1f0f6;font-size:14px}.ws-agent-log li small{color:#8d93a5;margin-left:8px;font-size:12px}
+.ws-agent-log li p{margin:4px 0 0;color:#aeb3c2;font-size:13px}.ws-agent-blocked{color:#e9d7a6!important}
