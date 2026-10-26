@@ -4,7 +4,13 @@ Not deployed. Merge to `main` only after the owner checks below pass on a funded
 Migrations to apply: `0040_referrals`, `0041_autonomous_setup_choices`, `0042_panic_guard`, `0043_multiple_rules`, `0044_ai_agent`.
 The scheduler cron is now every minute (`* * * * *`): sell rules check each minute, the full monitor still runs every 15.
 
-## What v2 adds
+## v2 scope
+
+Shown in v2: the Steward agent (two modes, report card), auto-sell (stop-loss, take-profit, trailing stop; one rule), one-signature setup, Panic guard, gas handling.
+
+Hidden for v3 behind `V3_EXTRAS` in `lib/product-flags.ts` (screens and APIs off, code and tests kept): several rules, Replay, Stress test, Steward suggests, referrals and the leaderboard. Owner checks for those are skipped in v2.
+
+## What the branch contains
 
 **Growth**
 1. **Referrals and points.** Invite links `/r/CODE` give 10 points per signup and 90 more when the friend verifies a wallet. Home has an Invite card, and there is a public `/leaderboard` (chosen name or "Steward XXXX", never email or wallet).

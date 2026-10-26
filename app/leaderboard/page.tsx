@@ -7,9 +7,12 @@ import {leaderboard,type LeaderboardRow} from '@/db/referrals';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {SIGNUP_POINTS,VERIFIED_POINTS} from '@/lib/referral';
 import './leaderboard.css';
+import {notFound} from 'next/navigation';
+import {V3_EXTRAS} from '@/lib/product-flags';
 export const dynamic='force-dynamic';
 export const metadata:Metadata={title:'Leaderboard · Stock Steward'};
 export default async function LeaderboardPage(){
+ if(!V3_EXTRAS)notFound();
  let rows:LeaderboardRow[]=[];let failed=false;
  try{const user=await getChatGPTUser().catch(()=>null);if(env.DB)rows=await leaderboard(env.DB,50,user?.userId);else failed=true;}catch{failed=true;}
  return <div className="lb-page"><div className="lb-shell">

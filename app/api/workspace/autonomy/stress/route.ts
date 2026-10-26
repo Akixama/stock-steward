@@ -1,3 +1,4 @@
+import {V3_EXTRAS} from '@/lib/product-flags';
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {getSessionGrant} from '@/db/autonomous-grants';
@@ -11,6 +12,7 @@ import type {Address} from 'viem';
 const headers={'Cache-Control':'no-store'};
 // Read-only: every attack is an eth_call. Nothing is signed or sent.
 export async function POST(request:Request){
+ if(!V3_EXTRAS)return Response.json({error:'Not available.'},{status:404,headers:{'Cache-Control':'no-store'}});
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});
  if(!env.DB)return Response.json({error:'Unavailable.'},{status:503,headers});

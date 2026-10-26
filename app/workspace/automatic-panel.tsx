@@ -14,6 +14,7 @@ import AutonomyRehearsal from './autonomy-rehearsal';
 import AutoSetup from './auto-setup';
 import ReplayCard from './replay-card';
 import AgentCard from './agent-card';
+import {V3_EXTRAS} from '@/lib/product-flags';
 import SuggestionsCard from './suggestions-card';
 import type {ReplayRule} from '@/lib/replay';
 import {buyIdeaFromClaim,type BuyIdea} from '@/lib/buy-idea';
@@ -106,7 +107,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
  const headline={loading:error?'Could not load':'Loading…',off:'Watching is not available yet',none:'You are not watching a stock yet',running:watching===1?'Watching 1 rule for you':`Watching ${watching} rules for you`,paused:'Watching is paused',stopped:'Watching stopped'}[state];
  const detail=state==='running'?`${plans.length-watching?`${plans.length-watching} paused · `:''}${plans.filter(p=>p.enabled).map(p=>p.rule.symbol).filter((v,i,a)=>a.indexOf(v)===i).join(', ')}`:state==='none'?'Add a rule below to get started.':state==='off'?'You can still buy from Home and practice with fake money.':'';
  const own=(plan:Plan)=>!plan.rule.strategy||isSellKind(plan.rule.kind);
- const max=status?.maxRules??6;
+ const max=V3_EXTRAS?status?.maxRules??6:1;
 
  return <>
   <AgentCard/>
@@ -117,10 +118,10 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
   </section>
 
   <section className="ws-shadow" aria-busy={busy}>
-   <header className="ws-shadow-head"><span className="ws-label">YOUR OWN RULES</span><h3>Prefer to set exact rules? Add them here.</h3><p>Add up to {max} rules: buy dips, buy regularly, stop-losses and take-profits, on different stocks. Steward watches all of them. When one is right, a buy appears under <strong>Ready to buy</strong> for you to approve, or, with automatic mode on, Steward does it for you.</p></header>
+   <header className="ws-shadow-head"><span className="ws-label">YOUR OWN RULES</span><h3>Prefer to set exact rules? Add them here.</h3><p>{max>1?`Add up to ${max} rules: buy dips, buy regularly, stop-losses and take-profits, on different stocks. Steward watches all of them.`:'Add one rule: a stop-loss, take-profit, trailing stop, or a buy on a dip. Steward watches it for you.'} When one is right, a buy appears under <strong>Ready to buy</strong> for you to approve, or, with automatic mode on, Steward does it for you.</p></header>
    {error&&<p className="ws-error" role="alert">{error}{!status&&<> <button type="button" className="ws-recheck" onClick={()=>void refresh()}>Retry</button></>}</p>}
 
-   {shadowOn&&plans.length<max&&<SuggestionsCard onAdd={addSuggestion} disabled={busy||!mandate.allowedSymbols.length}/>}
+   {V3_EXTRAS&&shadowOn&&plans.length<max&&<SuggestionsCard onAdd={addSuggestion} disabled={busy||!mandate.allowedSymbols.length}/>}
    <article className="ws-shadow-card" id="ws-shadow-plan">
     <div className="ws-shadow-card-head"><h4>Rules {plans.length>0&&<span className="ws-count">{plans.length}</span>}</h4><button type="button" className="ws-icon-button" disabled={busy} onClick={()=>void refresh()} aria-label="Refresh"><RefreshCw size={15} aria-hidden="true"/></button></div>
     {!status&&!error&&<p className="ws-muted" role="status">Loading…</p>}
@@ -143,7 +144,7 @@ export default function AutomaticPanel({mandate,onReviewBuy}:{mandate:Mandate;on
      {kind!=='scheduled'&&kind!=='sell_trailing'&&<label>{kind==='threshold'?'Buy at this price or lower · USD':kind==='sell_below'?'Sell at this price or lower · USD':'Sell at this price or higher · USD'}<input value={threshold} inputMode="decimal" disabled={busy} onChange={e=>setThreshold(e.target.value)}/></label>}
      <label>How often to check the price<select value={interval} disabled={busy} onChange={e=>setInterval(e.target.value)}>{(isSellUi(kind)?FAST_CHECK_OPTIONS:CHECK_OPTIONS).map(n=><option value={n} key={n}>{n===1?'Every minute':kindName(every(n))}</option>)}</select></label>
      <div className="ws-shadow-actions"><button type="submit" className="ws-action-primary" disabled={busy||!mandate.allowedSymbols.length}>Save rule</button><button type="button" className="ws-action-quiet" disabled={busy} onClick={()=>setEditing(null)}>Cancel</button></div>
-     <ReplayCard rule={(()=>{const c=(v:string)=>/^\d+(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):NaN;const a=c(amount),t=kind==='scheduled'||kind==='sell_trailing'?1:c(threshold);return Number.isSafeInteger(a)&&a>0&&Number.isSafeInteger(t)&&t>0&&symbol?{kind,symbol,amountCents:a,thresholdCents:t,intervalMinutes:Number(interval),...(kind==='sell_trailing'?{trailBps:trail}:{})}:null;})()}/>
+     {V3_EXTRAS&&<ReplayCard rule={(()=>{const c=(v:string)=>/^\d+(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):NaN;const a=c(amount),t=kind==='scheduled'||kind==='sell_trailing'?1:c(threshold);return Number.isSafeInteger(a)&&a>0&&Number.isSafeInteger(t)&&t>0&&symbol?{kind,symbol,amountCents:a,thresholdCents:t,intervalMinutes:Number(interval),...(kind==='sell_trailing'?{trailBps:trail}:{})}:null;})()}/>}
      <small className="ws-muted">{!mandate.allowedSymbols.length?'Set your limits first.':isSellUi(kind)?'Sell rules act with automatic mode on. Set up (or renew) the permission after saving so it includes this stock.':'New rules start paused. Tap Start when you are ready.'}</small>
     </form>}
     {status&&!shadowOn&&!plans.length&&<p className="ws-muted">Watching a stock is not available yet.</p>}

@@ -1,3 +1,4 @@
+import {V3_EXTRAS} from '@/lib/product-flags';
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {D1DecisionLedger} from '@/db/ledger';
@@ -9,9 +10,10 @@ import {contextFor,reviewSuggestions,suggestionInput,SUGGESTION_PROMPT,type Mark
 import type {AutonomousRule} from '@/lib/autonomous-live';
 import type {ReplayRule} from '@/lib/replay';
 const headers={'Cache-Control':'no-store'};
-export async function GET(){const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});return Response.json({available:aiConfigured(env)&&!!env.DB},{headers});}
+export async function GET(){const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});return Response.json({available:V3_EXTRAS&&aiConfigured(env)&&!!env.DB},{headers});}
 // Proposes rules only. Nothing is saved, started or traded here.
 export async function POST(request:Request){
+ if(!V3_EXTRAS)return Response.json({error:'Not available.'},{status:404,headers:{'Cache-Control':'no-store'}});
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});
  if(!env.DB||!aiConfigured(env))return Response.json({error:'Suggestions are not available yet.'},{status:503,headers});

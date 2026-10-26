@@ -1,15 +1,18 @@
+import {V3_EXTRAS} from '@/lib/product-flags';
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {leaderboard,referralSummary,setReferralName} from '@/db/referrals';
 import {readBoundedText} from '@/lib/strategy-ai-server';
 const headers={'Cache-Control':'no-store'};
 export async function GET(request:Request){
+ if(!V3_EXTRAS)return Response.json({error:'Not available.'},{status:404,headers:{'Cache-Control':'no-store'}});
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(!env.DB)return Response.json({error:'Referrals are unavailable.'},{status:503,headers});
  try{const summary=await referralSummary(env.DB,user.userId);const link=new URL(`/r/${summary.code}`,request.url).toString();return Response.json({...summary,link,top:await leaderboard(env.DB,5,user.userId)},{headers});}
  catch{return Response.json({error:'Referrals are temporarily unavailable. Try again.'},{status:503,headers});}
 }
 export async function PUT(request:Request){
+ if(!V3_EXTRAS)return Response.json({error:'Not available.'},{status:404,headers:{'Cache-Control':'no-store'}});
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(!env.DB)return Response.json({error:'Referrals are unavailable.'},{status:503,headers});
  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});

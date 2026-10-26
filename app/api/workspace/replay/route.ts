@@ -1,3 +1,4 @@
+import {V3_EXTRAS} from '@/lib/product-flags';
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {D1DecisionLedger} from '@/db/ledger';
@@ -9,6 +10,7 @@ const headers={'Cache-Control':'no-store'};
 const input=z.object({days:z.union([z.literal(7),z.literal(30)]),rule:z.object({kind:z.enum(['threshold','scheduled','sell_below','sell_threshold','sell_trailing']),symbol:z.string().regex(/^[A-Z][A-Z0-9.]{0,7}$/),amountCents:z.number().int().min(1).max(100000),thresholdCents:z.number().int().min(1).max(100000000),intervalMinutes:z.number().int().min(1).max(10080),trailBps:z.number().int().min(100).max(5000).optional()}).strict()}).strict();
 // Read-only: replays a rule over prices Stock Steward already saved.
 export async function POST(request:Request){
+ if(!V3_EXTRAS)return Response.json({error:'Not available.'},{status:404,headers:{'Cache-Control':'no-store'}});
  const user=await getChatGPTUser();if(!user)return Response.json({error:'Sign in first.'},{status:401,headers});
  if(request.headers.get('origin')!==new URL(request.url).origin)return Response.json({error:'Invalid origin.'},{status:403,headers});
  if(!env.DB)return Response.json({error:'Unavailable.'},{status:503,headers});
