@@ -94,7 +94,7 @@ test('saved Markets data: one refresh per gap, full copy kept over a backup one,
  const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../drizzle/0045_memecoin_market_cache.sql',import.meta.url),'utf8'));
  const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...v:unknown[]){args=v;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async first<T>(){return (sql.prepare(query).get(...args as never[]) as T)??null;},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
  // Before any data: pool price only.
- let view=await memecoinMarketView(db,async s=>s==='PONS'?0.24:null);
+ let view=await memecoinMarketView(db,{liveMid:async(s:string)=>s==='PONS'?0.24:null});
  assert.equal(view.source,'none');assert.equal(view.coins[0].priceUsd,0.24);assert.equal(view.coins[0].livePrice,true);assert.equal(view.coins[1].priceUsd,null);
  let calls=0;
  const busy=(async()=>{calls++;return new Response('busy',{status:429});}) as unknown as typeof fetch;
@@ -107,7 +107,42 @@ test('saved Markets data: one refresh per gap, full copy kept over a backup one,
  const good=(async(url:string)=>{if(url.includes('/tokens/multi/'))return Response.json({data:[{attributes:{address:PONS,price_usd:'0.2376',total_reserve_in_usd:'6316068',volume_usd:{h24:'1'},market_cap_usd:'159729128'}}]});return Response.json({data:{attributes:{ohlcv_list:[[1792000000,1,1,1,0.25,1],[1792090000,1,1,1,0.24,1]]}}});}) as unknown as typeof fetch;
  assert.deepEqual(await refreshMemecoinMarket(db,good,new Date(t0.getTime()+3*60_000)),{saved:'full'});
  assert.deepEqual(await refreshMemecoinMarket(db,good,new Date(t0.getTime()+6*60_000)),{skipped:'fresh'});
- view=await memecoinMarketView(db,async()=>null,new Date(t0.getTime()+7*60_000));
+ view=await memecoinMarketView(db,{liveMid:async()=>null},new Date(t0.getTime()+7*60_000));
  assert.equal(view.complete,true);assert.equal(view.coins[0].liquidityUsd,6316068);assert.equal(view.coins[0].points.length,2);assert.equal(view.coins[0].livePrice,false);
+ sql.close();
+});
+
+test('pool spot price: PONS against USDG and MOW against ETH, in micro-USD',async()=>{
+ const {spotMicro}=await import('./memecoin-spot.ts');
+ const {MEMECOINS}=await import('./memecoin-list.ts');
+ const pons=MEMECOINS.find(m=>m.symbol==='PONS')!,mow=MEMECOINS.find(m=>m.symbol==='MOW')!;
+ // sqrtPriceX96 for PONS at $0.2362 and MOW at $0.0999 with ETH at $2,298.72.
+ const ponsSqrt=38505213022373139396962n,mowSqrt=12017896397852335359226645331597n;
+ const p=Number(spotMicro(ponsSqrt,pons.spot,1_000_000n));assert.ok(p>200_000&&p<300_000,String(p));
+ const m=Number(spotMicro(mowSqrt,mow.spot,2_298_720_000n));assert.ok(m>50_000&&m<150_000,String(m));
+ assert.equal(spotMicro(0n,pons.spot,1_000_000n),null);assert.equal(spotMicro(ponsSqrt,pons.spot,0n),null);
+});
+
+test('price history: one saved price per coin per 5 minutes, merged after any saved candles',async()=>{
+ const {DatabaseSync}=await import('node:sqlite');const {readFileSync}=await import('node:fs');
+ const {sampleMemecoins,memecoinHistory,slotOf}=await import('./memecoin-spot.ts');
+ const {mergePoints}=await import('./memecoin-feed.ts');
+ const {encodeAbiParameters}=await import('viem');
+ const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../drizzle/0046_memecoin_price_samples.sql',import.meta.url),'utf8'));
+ const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...v:unknown[]){args=v;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
+ let reads=0;
+ const call=async(_to:string,data:string)=>{reads++;const sqrt=data.includes('5291cfd042d8a771')?12017896397852335359226645331597n:38505213022373139396962n;return encodeAbiParameters([{type:'uint160'},{type:'int24'},{type:'uint24'},{type:'uint24'}],[sqrt,0,0,3000]);};
+ const web=(async()=>Response.json({price:'2298.72'})) as unknown as typeof fetch;
+ const t=Date.parse('2026-10-26T12:01:00Z');
+ assert.deepEqual(await sampleMemecoins(db,call,web,t),{saved:2,skipped:0});
+ // Same 5-minute slot: nothing read, nothing saved.
+ const before=reads;assert.deepEqual(await sampleMemecoins(db,call,web,t+3*60_000),{saved:0,skipped:2});assert.equal(reads,before);
+ await sampleMemecoins(db,call,web,t+5*60_000);
+ const history=await memecoinHistory(db,'PONS',t+6*60_000);
+ assert.equal(history.length,2);assert.equal(history[0].t,Date.parse(slotOf(t)));
+ // No ETH price: MOW is skipped, PONS still saved.
+ assert.deepEqual(await sampleMemecoins(db,call,(async()=>new Response('no',{status:503})) as unknown as typeof fetch,t+10*60_000),{saved:1,skipped:0});
+ const merged=mergePoints([{t:t-3600_000,c:0.2},{t:t+60_000,c:0.9}],history);
+ assert.deepEqual(merged.map(p=>p.t),[t-3600_000,...history.map(p=>p.t)]);
  sql.close();
 });

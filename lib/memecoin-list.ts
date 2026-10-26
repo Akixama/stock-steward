@@ -12,15 +12,20 @@ export type Memecoin={
  pool?:{fee:number;tickSpacing:number};
  // GeckoTerminal pool used for the Markets chart (display only).
  chartPool:string;
+ // The Uniswap v4 pool read for Steward's own saved price history (display
+ // only): which side of the pool the coin is on, and what it is priced in.
+ spot:{poolId:string;coinIs:0|1;quote:'USDG'|'ETH';quoteDecimals:number;coinDecimals:number};
  note:string;
 };
 
 export const MEMECOINS:readonly Memecoin[]=[
  {symbol:'PONS',name:'Pons',contract:'0x39dbed3a2bd333467115de45665cc57f813c4571',tradable:true,pool:{fee:3000,tickSpacing:60},
   chartPool:'0x4be9657ec9002e528f4f17a5c43edc525a07f888f7b180c2afbf75e096c4f38a',
+  spot:{poolId:'0x4be9657ec9002e528f4f17a5c43edc525a07f888f7b180c2afbf75e096c4f38a',coinIs:0,quote:'USDG',quoteDecimals:6,coinDecimals:18},
   note:'Direct USDG pool on Uniswap v4 (0.3%), the one Steward trades.'},
  {symbol:'MOW',name:'MowCat',contract:'0x0b7c6c138dc75622f4200d157b13fb93e6bd94fa',tradable:false,
   chartPool:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',
+  spot:{poolId:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',coinIs:1,quote:'ETH',quoteDecimals:18,coinDecimals:18},
   note:'Trades against WETH, so Steward cannot buy it yet.'},
 ];
 

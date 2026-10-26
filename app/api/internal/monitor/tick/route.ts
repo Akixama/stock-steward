@@ -11,6 +11,15 @@ import {readLiveNews,configuredLiveNews} from '@/lib/live-news';
 import {sendAutomaticPush} from '@/lib/automatic-stage-push';
 import {sendPermissionExpiryReminders} from '@/lib/permission-expiry-reminder';
 import {refreshMemecoinMarket} from '@/lib/memecoin-feed';
+import {sampleMemecoins} from '@/lib/memecoin-spot';
+import {rpcEthCall} from '@/lib/memecoin-price';
+
+// Markets chart history for memecoins (display only): one pool price per coin
+// per 5-minute slot. Runs in the every-minute check; saved slots cost no reads.
+async function sampleMemecoinPrices(){
+  if(!env.DB)return {unavailable:true};
+  try{return await sampleMemecoins(env.DB,rpcEthCall(chainTransport(env.ALCHEMY_API_KEY)),fetch);}catch{return {unavailable:true};}
+}
 
 const headers={'Cache-Control':'no-store'};
 // Steward agent decisions run first, so an approved trade is executed by the
@@ -42,11 +51,12 @@ export async function POST(request:Request){
     try{
       const stages=automaticStages(env);let markets;
       try{markets=await sampleFastRuleMarkets(env.DB);}catch{markets={unavailable:true};}
+      const memecoinPrices=await sampleMemecoinPrices();
       const agents=await runAgents(stages);
       const summary=await fastRulesTick(env.DB,chainTransport(env.ALCHEMY_API_KEY),stages);
       let automaticNotifications;
       try{automaticNotifications=await sendAutomaticPush(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}catch{automaticNotifications={unavailable:true};}
-      return Response.json({summary,agents,markets,automaticNotifications,spendingEnabled:stages.autoBuy},{headers});
+      return Response.json({summary,agents,markets,memecoinPrices,automaticNotifications,spendingEnabled:stages.autoBuy},{headers});
     }catch{return Response.json({error:'Fast rule check did not complete. No order was retried.'},{status:503,headers});}
   }
   try{
@@ -66,7 +76,7 @@ export async function POST(request:Request){
     catch{alerts={configured:true,unavailable:true};}
     // Markets memecoin data (display only): saved here so pages never wait on throttled price APIs.
     let memecoins;
-    try{memecoins=await refreshMemecoinMarket(env.DB);}catch{memecoins={unavailable:true};}
+    try{memecoins={market:await refreshMemecoinMarket(env.DB),prices:await sampleMemecoinPrices()};}catch{memecoins={unavailable:true};}
     let priceAlerts;
     try{priceAlerts=await checkBackgroundAlerts(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}
     catch{priceAlerts={unavailable:true};}

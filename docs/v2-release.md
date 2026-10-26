@@ -1,7 +1,7 @@
 # Stock Steward v2 (branch `v2`)
 
 Not deployed. Merge to `main` only after the owner checks below pass on a funded wallet.
-Migrations to apply: `0040_referrals`, `0041_autonomous_setup_choices`, `0042_panic_guard`, `0043_multiple_rules`, `0044_ai_agent`, `0045_memecoin_market_cache`.
+Migrations to apply: `0040_referrals`, `0041_autonomous_setup_choices`, `0042_panic_guard`, `0043_multiple_rules`, `0044_ai_agent`, `0045_memecoin_market_cache`, `0046_memecoin_price_samples`.
 The scheduler cron is now every minute (`* * * * *`): sell rules check each minute, the full monitor still runs every 15.
 
 ## v2 scope
