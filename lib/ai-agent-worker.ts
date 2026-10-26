@@ -8,6 +8,7 @@ import {marketHistory} from './market-chart.ts';
 import {readChain} from './robinhood-chain.ts';
 import {AGENT_PROMPT,agentInput,agentRule,priceChanges,reviewAgentDecision,validateAgentSettings,type AgentDecision,type AgentMarket,type AgentSettings} from './ai-agent.ts';
 import type {RolesPolicy} from './roles-permission.ts';
+import {saveInboxItem} from '../db/notification-inbox.ts';
 
 export const AGENT_RULE_ID='agent';
 const FRESH_MS=30*60_000;
@@ -27,15 +28,17 @@ async function park(db:D1Database,owner:string,now:Date){
 
 export async function runAgent(db:D1Database,row:AgentRow,settings:AgentSettings,deps:AgentDeps):Promise<AgentDecision|null>{
  const now=deps.now??new Date(),owner=row.owner_ref;
- // Off unless automatic mode is armed: no AI call, nothing logged, rule parked.
+ // Auto mode needs armed automatic mode; Ask-me mode only a verified wallet.
+ // Otherwise: no AI call, nothing logged, rule parked.
+ const mode=settings.mode??'auto';
  const ownership=await getOwnership(db,owner),grant=await getSessionGrant(db,owner);
  const armed=!!ownership?.verifiedAt&&grant?.state==='verified'&&(await getActivation(db,owner,grant.id))?.state==='armed';
- if(!armed){await park(db,owner,now);return null;}
+ if(!ownership?.verifiedAt||(mode==='auto'&&!armed)){await park(db,owner,now);return null;}
  const mandate=await new D1DecisionLedger(db).getMandate(owner);if(!mandate){await park(db,owner,now);return null;}
  const live=validateAgentSettings({...settings,symbols:settings.symbols.filter(s=>mandate.allowedSymbols.includes(s))},mandate.allowedSymbols);
- const policy=JSON.parse(grant!.policy_json) as RolesPolicy;
- const holdings=await deps.holdings(policy.account);
- const saleTokens=new Set((policy.sales??[]).map(s=>s.token.toLowerCase()));
+ let policy:RolesPolicy|null=null;try{policy=grant?.state==='verified'?JSON.parse(grant.policy_json) as RolesPolicy:null;}catch{policy=null;}
+ const holdings=await deps.holdings(policy?.account??ownership.address);
+ const saleTokens=new Set((policy?.sales??[]).map(s=>s.token.toLowerCase()));
  const market:AgentMarket[]=[];
  for(const symbol of live.symbols){
   const samples=await marketHistory(db,symbol,8),last=samples[samples.length-1];
@@ -43,12 +46,19 @@ export async function runAgent(db:D1Database,row:AgentRow,settings:AgentSettings
   const h=holdings.held[symbol];
   market.push({symbol,bidCents:fresh?last.bidCents:0,askCents:fresh?last.askCents:0,...priceChanges(samples),heldCents:fresh&&h?Math.floor(h.quantity*last.bidCents):0});
  }
- const sellable=live.symbols.filter(s=>holdings.held[s]&&saleTokens.has(holdings.held[s].token));
- const ctx={cashCents:holdings.cashCents,lotCents:Math.min(mandate.maxOrderCents,deps.maxOrderCents),sellable};
+ // Ask-me: you sign each sale yourself, so anything held is sellable.
+ const sellable=live.symbols.filter(s=>holdings.held[s]&&(mode==='ask'||saleTokens.has(holdings.held[s].token)));
+ const ctx={cashCents:holdings.cashCents,lotCents:mode==='ask'?Math.min(mandate.maxOrderCents,100000):Math.min(mandate.maxOrderCents,deps.maxOrderCents),sellable};
  let decision:AgentDecision;
  try{decision=reviewAgentDecision(await deps.ask(AGENT_PROMPT,agentInput(live,market,ctx)),live,market,ctx,now);}
  catch{decision={action:'hold',symbol:null,amountCents:0,reason:'The AI could not be reached, so the agent held.',at:now.toISOString(),blocked:'AI unavailable'};}
+ decision={...decision,mode};
  if(decision.action==='hold')await park(db,owner,now);
+ else if(mode==='ask'&&decision.action==='sell'){
+  // Sells in Ask-me mode go to your inbox; you sell from Home with your wallet.
+  await park(db,owner,now);
+  await saveInboxItem(db,owner,{id:`agent:${decision.at}`,kind:'price',title:`Steward agent: sell idea for ${decision.symbol}`,body:`Sell about $${(decision.amountCents/100).toFixed(2)} of ${decision.symbol}. ${decision.reason} Open Sell on Home to review it; only your wallet signature can place it.`.slice(0,500),symbol:decision.symbol,created_at:decision.at});
+ }
  else{
   const plan=await getShadowPlan(db,owner,AGENT_RULE_ID);
   try{if(!await saveShadowPlan(db,owner,plan?.revision??0,agentRule(decision),true,now,AGENT_RULE_ID))throw Error('changed');}

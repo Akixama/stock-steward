@@ -49,3 +49,15 @@ test('without armed automatic mode the agent never calls the AI',async()=>{
  const r=await tickAgents(db,{ask:async()=>{throw Error('must not be called');},holdings,maxOrderCents:10000,now});
  assert.equal(r.skipped,1);assert.equal((await agentLog(db,'alice')).length,0);
 });
+test('Ask-me mode works without a permission: buys queue as ideas, sells go to the inbox',async()=>{
+ const {db,now}=fixture(false);await saveAgent(db,'alice',{...settings,mode:'ask',intervalMinutes:15},true,now);
+ const r=await tickAgents(db,{ask:async()=>({action:'buy',symbol:'NVDA',reason:'Down 3% today.'}),holdings,maxOrderCents:1000,now});
+ assert.equal(r.buys,1);
+ const plan=await getShadowPlan(db,'alice',AGENT_RULE_ID);assert.equal(JSON.parse(plan!.rule_json).amountCents,2500,'your own Limit; you sign it');
+ assert.equal((await agentLog(db,'alice'))[0].mode,'ask');
+ const later=new Date(now.getTime()+15*60_000);
+ await tickAgents(db,{ask:async()=>({action:'sell',symbol:'TSLA',reason:'Up 5% this week.'}),holdings,maxOrderCents:1000,now:later});
+ assert.equal((await getShadowPlan(db,'alice',AGENT_RULE_ID))!.enabled,0,'a sell idea is never queued to trade');
+ const inbox=await db.prepare('SELECT title FROM notification_inbox WHERE owner_ref=?').bind('alice').all<{title:string}>();
+ assert.match(inbox.results[0].title,/sell idea for TSLA/);
+});

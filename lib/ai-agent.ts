@@ -8,18 +8,21 @@ import type {AutonomousRule} from './autonomous-live.ts';
 // on-chain permission). The AI never sees addresses and never builds a transaction.
 export type AgentStyle='careful'|'balanced'|'bold';
 export const AGENT_INTERVALS=[15,30,60,240] as const;
-export type AgentSettings={version:1;symbols:string[];style:AgentStyle;intervalMinutes:(typeof AGENT_INTERVALS)[number];note:string};
+// mode: 'auto' = the agent trades through the signed permission; 'ask' = it proposes
+// and the owner approves each trade with a wallet signature (no permission needed).
+export type AgentMode='auto'|'ask';
+export type AgentSettings={version:1;symbols:string[];style:AgentStyle;intervalMinutes:(typeof AGENT_INTERVALS)[number];note:string;mode?:AgentMode};
 export type AgentMarket={symbol:string;bidCents:number;askCents:number;change1dBps:number|null;change7dBps:number|null;heldCents:number};
-export type AgentDecision={action:'buy'|'sell'|'hold';symbol:string|null;amountCents:number;reason:string;at:string;blocked?:string};
+export type AgentDecision={action:'buy'|'sell'|'hold';symbol:string|null;amountCents:number;reason:string;at:string;blocked?:string;mode?:AgentMode;priceCents?:number};
 export const MAX_AGENT_SYMBOLS=6;
 // The biggest one-day rise each style will still buy into. Careful never chases.
 export const CHASE_LIMIT_BPS:Record<AgentStyle,number|null>={careful:500,balanced:1500,bold:null};
 
 export function validateAgentSettings(s:AgentSettings,allowed:string[]):AgentSettings{
- if(!s||s.version!==1||!['careful','balanced','bold'].includes(s.style)||!(AGENT_INTERVALS as readonly number[]).includes(s.intervalMinutes)||typeof s.note!=='string'||s.note.length>280||!Array.isArray(s.symbols)||s.symbols.length<1||s.symbols.length>MAX_AGENT_SYMBOLS)throw Error('Choose 1 to 6 stocks, a style and how often the agent checks.');
+ if(!s||s.version!==1||(s.mode!==undefined&&!['auto','ask'].includes(s.mode))||!['careful','balanced','bold'].includes(s.style)||!(AGENT_INTERVALS as readonly number[]).includes(s.intervalMinutes)||typeof s.note!=='string'||s.note.length>280||!Array.isArray(s.symbols)||s.symbols.length<1||s.symbols.length>MAX_AGENT_SYMBOLS)throw Error('Choose 1 to 6 stocks, a style and how often the agent checks.');
  const symbols=[...new Set(s.symbols.map(x=>String(x).toUpperCase()))];
  if(symbols.length!==s.symbols.length||symbols.some(x=>!/^[A-Z][A-Z0-9.]{0,7}$/.test(x)||!allowed.includes(x)))throw Error('The agent can only trade stocks in your Limits.');
- return {version:1,symbols,style:s.style,intervalMinutes:s.intervalMinutes,note:s.note.replace(/[\u0000-\u001f]/g,' ').trim()};
+ return {version:1,symbols,style:s.style,intervalMinutes:s.intervalMinutes,note:s.note.replace(/[\u0000-\u001f]/g,' ').trim(),mode:s.mode??'auto'};
 }
 
 export const AGENT_PROMPT=`You are Steward, an autonomous trading agent for one investor on Robinhood Chain stock tokens.
@@ -51,11 +54,11 @@ export function reviewAgentDecision(output:unknown,settings:AgentSettings,market
   if(ctx.lotCents<1||ctx.cashCents<ctx.lotCents)return hold(reason,'Not enough USDG for one buy',symbol);
   const chase=CHASE_LIMIT_BPS[settings.style];
   if(chase!==null&&m.change1dBps!==null&&m.change1dBps>chase)return hold(reason,`Up ${(m.change1dBps/100).toFixed(1)}% today; ${settings.style} style does not chase`,symbol);
-  return {action:'buy',symbol,amountCents:ctx.lotCents,reason:reason.slice(0,300),at};
+  return {action:'buy',symbol,amountCents:ctx.lotCents,reason:reason.slice(0,300),at,priceCents:m.askCents};
  }
  if(!ctx.sellable.includes(symbol))return hold(reason,'Your permission has no sale for this stock',symbol);
  if(m.heldCents<=0)return hold(reason,'You do not hold this stock',symbol);
- return {action:'sell',symbol,amountCents:Math.min(ctx.lotCents,m.heldCents),reason:reason.slice(0,300),at};
+ return {action:'sell',symbol,amountCents:Math.min(ctx.lotCents,m.heldCents),reason:reason.slice(0,300),at,priceCents:m.bidCents};
 }
 
 // Changes from saved prices: last vs the first sample at least 1 / 7 days old.
@@ -73,4 +76,17 @@ export function agentRule(d:AgentDecision):AutonomousRule{
  const kind=d.action==='buy'?'scheduled' as const:'sell_scheduled' as const;
  return {version:1,symbol:d.symbol,amountCents:d.amountCents,kind,intervalMinutes:1440,thresholdCents:1,
   strategy:{version:1,kind,direction:`Steward agent: ${d.reason}`.slice(0,1500),symbol:d.symbol,amountCents:d.amountCents,reserveCents:0,intervalHours:1,thresholdCents:1,targetBps:5000,driftBps:100,maxMovementBps:100,mode:'automatic'}};
+}
+
+// Report card: was each buy or sell call right so far? A buy is right if the
+// price is higher now, a sell if it is lower. Calls under an hour old are not scored.
+export function agentScore(log:AgentDecision[],latestCents:Record<string,number>,now=Date.now()){
+ let calls=0,right=0,moveBps=0;
+ for(const d of log){
+  if(d.action==='hold'||!d.symbol||!d.priceCents||now-Date.parse(d.at)<3600_000)continue;
+  const p=latestCents[d.symbol];if(!p)continue;
+  const move=Math.round((p-d.priceCents)*10000/d.priceCents),signed=d.action==='buy'?move:-move;
+  calls++;if(signed>0)right++;moveBps+=signed;
+ }
+ return {calls,right,averageEdgeBps:calls?Math.round(moveBps/calls):null};
 }

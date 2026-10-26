@@ -22,6 +22,8 @@ import {accountValueMicro} from './account-value.ts';
 import {resolveRule} from './trailing.ts';
 import {gasStatus,sessionBalanceWei,ethUsdMicro} from './session-gas.ts';
 import {getFeeConsent} from '../db/autonomous-controls.ts';
+import {getAgent} from '../db/ai-agent.ts';
+import {AGENT_RULE_ID} from './ai-agent-worker.ts';
 // Separate from broker paper execution. A completed preview can enter the live
 // adapter only through its compiled release gate and explicit owner activation.
 export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),stages:ReturnType<typeof automaticStages>=automaticStages({}),owner?:string){
@@ -55,9 +57,16 @@ export async function tickAutonomousShadow(db:D1Database,fetcher:typeof fetch=fe
      const walletStages=stagesForWallet(stages,ownership?.verifiedAt?ownership.address:null);
      let armed=false,canSell=false;
      if(walletStages.autoBuy){const grant=await getSessionGrant(db,plan.owner_ref);armed=!!grant&&grant.state==='verified'&&(await getActivation(db,plan.owner_ref,grant.id))?.state==='armed';try{canSell=armed&&!!(JSON.parse(grant!.policy_json) as {sales?:unknown[]}).sales?.length;}catch{canSell=false;}}
+     // Steward agent in Ask-me mode: never trade on its own, always propose.
+     let agentReason:string|null=null;
+     if(plan.rule_id===AGENT_RULE_ID){
+      const agent=await getAgent(db,plan.owner_ref);let mode='auto';try{mode=(JSON.parse(agent?.settings_json??'{}') as {mode?:string}).mode??'auto';}catch{mode='ask';}
+      if(mode!=='auto'){armed=false;canSell=false;}
+      try{agentReason=(JSON.parse(plan.rule_json) as AutonomousRule).strategy?.direction??null;}catch{agentReason=null;}
+     }
      const intent=automaticStageIntent(walletStages,true,buyDecision,decision.amountCents,armed,canSell);
      if(intent==='proposal'){
-      const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
+      const event={id:`${decision.id}:proposal`,owner_ref:plan.owner_ref,run_id:decision.id,kind:'proposal' as const,status:'proposed' as const,symbol:decision.symbol,amount_cents:decision.amountCents,detail:agentReason?`${agentReason} Review a fresh exact quote in your wallet before buying.`.slice(0,500):'Strategy checks passed. Review a fresh exact quote in your wallet before buying.',transaction_hash:null,created_at:now.toISOString(),expires_at:new Date(now.getTime()+15*60_000).toISOString()};
       if(await saveRuleProposal(db,event,plan.revision,now,plan.rule_id)){
        await saveProposalInbox(db,event);
        await queueAutomaticPush(db,event);

@@ -37,3 +37,15 @@ test('price changes come from saved samples; the prompt input carries no address
  assert.equal(c.change1dBps,-1000);assert.equal(c.change7dBps,-100);
  assert.doesNotMatch(agentInput(settings,market,ctx),/0x[0-9a-f]{6}/i);
 });
+test('report card scores buys and sells against the price now, ignoring fresh calls and holds',async()=>{
+ const {agentScore}=await import('./ai-agent.ts');const t=Date.UTC(2026,9,26,12),h=3600_000;
+ const log=[{action:'buy' as const,symbol:'NVDA',amountCents:2500,reason:'',at:new Date(t-5*h).toISOString(),priceCents:10000},
+  {action:'sell' as const,symbol:'TSLA',amountCents:2500,reason:'',at:new Date(t-5*h).toISOString(),priceCents:20000},
+  {action:'buy' as const,symbol:'TSLA',amountCents:2500,reason:'',at:new Date(t-10*60_000).toISOString(),priceCents:20000},
+  {action:'hold' as const,symbol:null,amountCents:0,reason:'',at:new Date(t-5*h).toISOString()}];
+ assert.deepEqual(agentScore(log,{NVDA:11000,TSLA:21000},t),{calls:2,right:1,averageEdgeBps:250});
+});
+test('old saved settings default to Auto mode; unknown modes are refused',()=>{
+ assert.equal(validateAgentSettings(settings,['NVDA','TSLA']).mode,'auto');
+ assert.throws(()=>validateAgentSettings({...settings,mode:'yolo' as never},['NVDA','TSLA']));
+});

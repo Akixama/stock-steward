@@ -7,7 +7,8 @@ import {getSessionGrant} from '@/db/autonomous-grants';
 import {getActivation} from '@/db/autonomous-controls';
 import {aiConfigured} from '@/lib/strategy-ai-server';
 import {automaticStages} from '@/lib/automatic-stages';
-import {validateAgentSettings,type AgentSettings} from '@/lib/ai-agent';
+import {validateAgentSettings,agentScore,type AgentSettings} from '@/lib/ai-agent';
+import {latestMarketSamples} from '@/lib/market-chart';
 import {AGENT_RULE_ID} from '@/lib/ai-agent-worker';
 import type {RolesPolicy} from '@/lib/roles-permission';
 const headers={'Cache-Control':'no-store'};
@@ -21,7 +22,10 @@ export async function GET(){
  // Sales are fixed when the permission is signed; set it up again after changing the agent's stocks.
  let saleCount=0;try{saleCount=grant?(JSON.parse(grant.policy_json) as RolesPolicy).sales?.length??0:0;}catch{saleCount=0;}
  const stages=automaticStages(env);
- return Response.json({available:aiConfigured(env)&&stages.autoBuy,settings,enabled:row?.enabled===1,nextRunAt:row?.next_run_at??null,armed,allowed:mandate?.allowedSymbols??[],lotCents:mandate?Math.min(mandate.maxOrderCents,stages.maxOrderCents):0,dailyCents:mandate?Math.min(mandate.maxDailyBuyCents,stages.maxDailyCents):0,saleCount,log},{headers});
+ const symbols=[...new Set(log.flatMap(d=>d.symbol?[d.symbol]:[]))];
+ const latest=await latestMarketSamples(env.DB,symbols).catch(()=>({}) as Awaited<ReturnType<typeof latestMarketSamples>>);
+ const score=agentScore(log,Object.fromEntries(Object.entries(latest).map(([k,v])=>[k,v.bidCents])));
+ return Response.json({score,available:aiConfigured(env)&&stages.autoBuy,settings,enabled:row?.enabled===1,nextRunAt:row?.next_run_at??null,armed,allowed:mandate?.allowedSymbols??[],lotCents:mandate?Math.min(mandate.maxOrderCents,stages.maxOrderCents):0,dailyCents:mandate?Math.min(mandate.maxDailyBuyCents,stages.maxDailyCents):0,saleCount,log},{headers});
 }
 
 export async function POST(request:Request){

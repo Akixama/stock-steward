@@ -20,8 +20,8 @@ export async function savePriceInbox(db: D1Database, owner: string, alerts: Pric
 
 export async function saveProposalInbox(db: D1Database, event: AutomaticStageEvent): Promise<void> {
   if (event.kind !== 'proposal') return;
-  await saveInboxItem(db, event.owner_ref, { id: `proposal:${event.id}`, kind: 'proposal', title: `${event.symbol} buy idea to review`,
-    body: `Your rule suggests about $${(event.amount_cents / 100).toFixed(2)}. Open Buy for a fresh quote; only your wallet signature can place it.`,
+  await saveInboxItem(db, event.owner_ref, { id: `proposal:${event.id}`, kind: 'proposal', title: event.detail.startsWith('Steward agent') ? `Steward agent wants to buy ${event.symbol}` : `${event.symbol} buy idea to review`,
+    body: event.detail.startsWith('Steward agent') ? `About $${(event.amount_cents / 100).toFixed(2)}. ${event.detail.replace(/^Steward agent: /, '')}`.slice(0, 500) : `Your rule suggests about $${(event.amount_cents / 100).toFixed(2)}. Open Buy for a fresh quote; only your wallet signature can place it.`,
     symbol: event.symbol, created_at: event.created_at });
 }
 

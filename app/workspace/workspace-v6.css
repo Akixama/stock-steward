@@ -314,3 +314,6 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-agent-log li[data-action="buy"]{border-left-color:#5fd38a}.ws-agent-log li[data-action="sell"]{border-left-color:#e28a4a}.ws-agent-log li[data-action="blocked"]{border-left-color:#e2b54a}
 .ws-agent-log li strong{color:#f1f0f6;font-size:14px}.ws-agent-log li small{color:#8d93a5;margin-left:8px;font-size:12px}
 .ws-agent-log li p{margin:4px 0 0;color:#aeb3c2;font-size:13px}.ws-agent-blocked{color:#e9d7a6!important}
+.ws-agent-mode{grid-template-columns:repeat(2,minmax(0,1fr))}@media (max-width:560px){.ws-agent-mode{grid-template-columns:1fr}}
+.ws-agent-score{margin:14px 0 0;padding:12px 14px;border-radius:12px;background:#0f1117;border:1px solid #2c3a30;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.ws-agent-score strong{color:#9fe0b4;font-size:20px}.ws-agent-score span{color:#d6d8e2;font-size:14px}.ws-agent-score small{flex-basis:100%;color:#8d93a5;font-size:12px}
