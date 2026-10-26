@@ -10,6 +10,7 @@ import {aiConfigured,askAgentModel} from '@/lib/strategy-ai-server';
 import {readLiveNews,configuredLiveNews} from '@/lib/live-news';
 import {sendAutomaticPush} from '@/lib/automatic-stage-push';
 import {sendPermissionExpiryReminders} from '@/lib/permission-expiry-reminder';
+import {refreshMemecoinMarket} from '@/lib/memecoin-feed';
 
 const headers={'Cache-Control':'no-store'};
 // Steward agent decisions run first, so an approved trade is executed by the
@@ -63,10 +64,13 @@ export async function POST(request:Request){
     let alerts;
     try{alerts=await dispatchOperatorAlerts(env.DB,{enabled:env.STEWARD_OPERATOR_ALERTS_ENABLED==='true',url:env.STEWARD_OPERATOR_ALERT_URL??'',secret:env.STEWARD_OPERATOR_ALERT_SECRET??''});}
     catch{alerts={configured:true,unavailable:true};}
+    // Markets memecoin data (display only): saved here so pages never wait on throttled price APIs.
+    let memecoins;
+    try{memecoins=await refreshMemecoinMarket(env.DB);}catch{memecoins={unavailable:true};}
     let priceAlerts;
     try{priceAlerts=await checkBackgroundAlerts(env.DB,{publicKey:env.STEWARD_VAPID_PUBLIC_KEY??'',privateKey:env.STEWARD_VAPID_PRIVATE_KEY??''});}
     catch{priceAlerts={unavailable:true};}
-    return Response.json({summary,agents,alerts,priceAlerts,markets,automaticNotifications,permissionReminders,spendingEnabled:stages.autoBuy},{headers});
+    return Response.json({summary,agents,alerts,priceAlerts,memecoins,markets,automaticNotifications,permissionReminders,spendingEnabled:stages.autoBuy},{headers});
   }catch{
     return Response.json({error:'Monitoring did not complete. Check purchase receipts before taking action; no order was retried.'},{status:503,headers});
   }

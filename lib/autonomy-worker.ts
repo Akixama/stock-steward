@@ -29,7 +29,7 @@ export async function workerTick(db:D1Database,fetcher:typeof fetch=fetch,stages
         if(!await claimCurrent(db,claim)){await finishSchedule(db,claim,null,null);continue;}
         const ledger=new D1DecisionLedger(db);
         const mandate=await ledger.getMandate(schedule.owner_ref);
-        observation=await enrichObservation(await readChain(schedule.address,fetcher),mandate);
+        observation=await enrichObservation(await readChain(schedule.address,fetcher),mandate,fetch,fetcher);
         let infrastructure=null;try{infrastructure=await readInfrastructure(fetcher);}catch{/* Account evidence remains visible when infrastructure fails. */}
         receipt=autonomyReadiness(schedule.address,mandate,infrastructure);
         attachHistoricalControl(receipt,await getOwnership(db,schedule.owner_ref));

@@ -4,7 +4,7 @@ import {ArrowUpRight,TriangleAlert} from 'lucide-react';
 import {RouteLink} from '@/components/route-transition';
 import type {MemecoinRow} from '@/lib/memecoin-market';
 
-type Payload={coins:MemecoinRow[];updatedAt:string;maxBuyCents:number};
+type Payload={coins:(MemecoinRow&{livePrice?:boolean})[];updatedAt:string|null;maxBuyCents:number;complete?:boolean;source?:string};
 const EXPLORER='https://robinhoodchain.blockscout.com/token/';
 function usd(value:number|null){if(value===null)return '—';if(value>=1)return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(value);return `$${value.toPrecision(4)}`;}
 function compact(value:number|null){return value===null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1}).format(value);}
@@ -33,6 +33,6 @@ export default function MemecoinPanel(){
    <p className="market-meme-note">{coin.tradable?`Up to $${(data.maxBuyCents/100).toFixed(0)} a buy, by hand only. Add it in Limits first.`:coin.note}</p>
    <div className="market-meme-links">{coin.tradable&&<RouteLink href="/workspace?view=mandate">Add to Limits <ArrowUpRight size={13}/></RouteLink>}<a href={EXPLORER+coin.contract} target="_blank" rel="noreferrer">Contract {coin.contract.slice(0,6)}…{coin.contract.slice(-4)} ↗</a></div>
   </article>;})}</div>}
-  <p className="market-meme-foot">{data?`Prices from GeckoTerminal, updated ${new Date(data.updatedAt).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}. Display only; your buy is priced on chain when you review it.`:'Prices from GeckoTerminal. Display only.'}</p>
+  <p className="market-meme-foot">{data?`${data.updatedAt&&data.source!=='none'?`Market data from ${data.source}, saved ${new Date(data.updatedAt).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}.`:'Market data is still loading.'}${data.coins.some(c=>c.livePrice)?` ${data.coins.filter(c=>c.livePrice).map(c=>c.symbol).join(', ')} price is live from its pool on chain.`:''} Display only; your buy is priced on chain when you review it.`:'Display only.'}</p>
  </section>;
 }

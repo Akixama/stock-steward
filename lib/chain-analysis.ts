@@ -54,14 +54,14 @@ export function priceEvidence(holding: ChainHolding, body: unknown, now = Date.n
 }
 
 export async function enrichObservation(observation: ChainObservation, mandate: Mandate | null,
-  fetcher: typeof fetch = fetch): Promise<PricedObservation> {
+  fetcher: typeof fetch = fetch, rpc: typeof fetch = fetcher): Promise<PricedObservation> {
   const prices: Record<string, TokenPrice> = {};
   // Bound provider load. Beyond this limit balances remain visible, explicitly unpriced.
   for (let start = 0; start < Math.min(observation.holdings.length, 20); start += 4) {
     await Promise.all(observation.holdings.slice(start, Math.min(start + 4, 20)).map(async holding => {
       // Memecoins have no stock quote: price them from their own USDG pool.
       if (isMemecoin(holding.symbol)) {
-        prices[holding.contract] = memecoinTokenPrice(holding.raw, holding.decimals, await memecoinQuote(holding.symbol, rpcEthCall(fetcher)));
+        prices[holding.contract] = memecoinTokenPrice(holding.raw, holding.decimals, await memecoinQuote(holding.symbol, rpcEthCall(rpc)));
         return;
       }
       let body: unknown = null;

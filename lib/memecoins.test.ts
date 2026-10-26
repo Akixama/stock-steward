@@ -71,3 +71,43 @@ test('Markets data: candles sort oldest first and 24h change uses a day-old clos
  const t=parseTokens({data:[{attributes:{address:PONS.toUpperCase(),price_usd:'0.2376',total_reserve_in_usd:'6316068.1',volume_usd:{h24:'11029433.8'},market_cap_usd:null,fdv_usd:'159729128.5'}}]});
  assert.deepEqual(t.get(PONS),{priceUsd:0.2376,liquidityUsd:6316068.1,volume24hUsd:11029433.8,marketCapUsd:159729128.5});
 });
+
+test('Markets data falls back to DexScreener price when GeckoTerminal is busy',async()=>{
+ const {readMemecoinMarket}=await import('./memecoin-market.ts');
+ const seen:string[]=[];
+ const fetcher=(async(url:string)=>{seen.push(url);if(url.includes('geckoterminal'))return new Response('busy',{status:429});
+  return Response.json([{chainId:'robinhood',baseToken:{address:PONS},priceUsd:'0.2367',priceChange:{h24:-0.8},liquidity:{usd:2237722}},{chainId:'robinhood',baseToken:{address:'0x0b7c6c138dc75622f4200d157b13fb93e6bd94fa'},priceUsd:'0.1011',priceChange:{h24:0.81},liquidity:{usd:10119362}}]);}) as unknown as typeof fetch;
+ const r=await readMemecoinMarket(fetcher,undefined,async()=>{});
+ assert.equal(r.complete,false);
+ // One retry on 429, then DexScreener; no chart calls once GeckoTerminal is busy.
+ assert.equal(seen.filter(u=>u.includes('geckoterminal')).length,2);
+ const pons=r.rows.find(x=>x.symbol==='PONS')!;
+ assert.equal(pons.priceUsd,0.2367);assert.equal(pons.change24hPct,-0.8);
+ // DexScreener liquidity is never shown: it can count hooked pools at face value.
+ assert.equal(pons.liquidityUsd,null);assert.deepEqual(pons.points,[]);
+ await assert.rejects(readMemecoinMarket((async()=>new Response('down',{status:500})) as unknown as typeof fetch,undefined,async()=>{}));
+});
+
+test('saved Markets data: one refresh per gap, full copy kept over a backup one, live pool price on top',async()=>{
+ const {DatabaseSync}=await import('node:sqlite');const {readFileSync}=await import('node:fs');
+ const {refreshMemecoinMarket,memecoinMarketView}=await import('./memecoin-feed.ts');
+ const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../drizzle/0045_memecoin_market_cache.sql',import.meta.url),'utf8'));
+ const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...v:unknown[]){args=v;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async first<T>(){return (sql.prepare(query).get(...args as never[]) as T)??null;},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
+ // Before any data: pool price only.
+ let view=await memecoinMarketView(db,async s=>s==='PONS'?0.24:null);
+ assert.equal(view.source,'none');assert.equal(view.coins[0].priceUsd,0.24);assert.equal(view.coins[0].livePrice,true);assert.equal(view.coins[1].priceUsd,null);
+ let calls=0;
+ const busy=(async()=>{calls++;return new Response('busy',{status:429});}) as unknown as typeof fetch;
+ const t0=new Date('2026-10-26T12:00:00Z');
+ assert.match(String((await refreshMemecoinMarket(db,busy,t0)).failed),/429/);
+ const before=calls;
+ // Within the 2-minute gap nobody calls the APIs again.
+ assert.deepEqual(await refreshMemecoinMarket(db,busy,new Date(t0.getTime()+60_000)),{skipped:'recent'});
+ assert.equal(calls,before);
+ const good=(async(url:string)=>{if(url.includes('/tokens/multi/'))return Response.json({data:[{attributes:{address:PONS,price_usd:'0.2376',total_reserve_in_usd:'6316068',volume_usd:{h24:'1'},market_cap_usd:'159729128'}}]});return Response.json({data:{attributes:{ohlcv_list:[[1792000000,1,1,1,0.25,1],[1792090000,1,1,1,0.24,1]]}}});}) as unknown as typeof fetch;
+ assert.deepEqual(await refreshMemecoinMarket(db,good,new Date(t0.getTime()+3*60_000)),{saved:'full'});
+ assert.deepEqual(await refreshMemecoinMarket(db,good,new Date(t0.getTime()+6*60_000)),{skipped:'fresh'});
+ view=await memecoinMarketView(db,async()=>null,new Date(t0.getTime()+7*60_000));
+ assert.equal(view.complete,true);assert.equal(view.coins[0].liquidityUsd,6316068);assert.equal(view.coins[0].points.length,2);assert.equal(view.coins[0].livePrice,false);
+ sql.close();
+});

@@ -21,7 +21,7 @@ export async function GET(){
     const [buys,sales,observation]=await Promise.all([
       env.DB.prepare("SELECT plan_json,amount_cents,state,transaction_hash,created_at FROM execution_attempts WHERE owner_ref=? AND address=? AND transaction_hash IS NOT NULL ORDER BY created_at DESC LIMIT 25").bind(user.userId,safe.safe.toLowerCase()).all(),
       env.DB.prepare("SELECT symbol,quantity,state,transaction_hash,created_at FROM wallet_action_attempts WHERE owner_ref=? AND safe=? AND kind='sell' AND transaction_hash IS NOT NULL ORDER BY created_at DESC LIMIT 25").bind(user.userId,safe.safe.toLowerCase()).all(),
-      readChain(safe.safe,chainTransport(env.ALCHEMY_API_KEY)).then(value=>enrichObservation(value,mandate)).catch(()=>null),
+      readChain(safe.safe,chainTransport(env.ALCHEMY_API_KEY)).then(value=>enrichObservation(value,mandate,fetch,chainTransport(env.ALCHEMY_API_KEY))).catch(()=>null),
     ]);
     return Response.json({wallet:safe.safe,holdings:observation?.holdings.map(holding=>({symbol:holding.symbol,quantity:holding.quantity,valueMicroUsd:observation.prices[holding.contract]?.valueMicroUsd??null}))??null,
       observedAt:observation?.observedAt??null,activity:marketActivityRows(buys.results??[],sales.results??[])},

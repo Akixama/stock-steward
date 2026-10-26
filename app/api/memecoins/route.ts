@@ -1,17 +1,24 @@
-import {readMemecoinMarket,type MemecoinRow} from '@/lib/memecoin-market';
+import {env} from 'cloudflare:workers';
 import {MEMECOIN_MAX_ORDER_CENTS} from '@/lib/memecoin-list';
+import {memecoinMarketView,refreshMemecoinMarket} from '@/lib/memecoin-feed';
+import {memecoinQuote,rpcEthCall} from '@/lib/memecoin-price';
+import {chainTransport} from '@/lib/chain-transport';
 
-// GeckoTerminal's free API allows about 30 calls a minute, so one refresh
-// (three calls) is shared for 10 minutes and an older copy is kept for outages.
-const FRESH_MS=10*60_000,KEEP_MS=6*3600_000;
-let cache:{rows:MemecoinRow[];at:number}|null=null,loading:Promise<MemecoinRow[]>|null=null;
+// Pages read the copy saved in the database (refreshed by the background check
+// and, at most every 2 minutes, by a page view). Price APIs throttle Cloudflare's
+// shared servers, so nothing here depends on them answering right now.
+// Tradable coins also get a live price from their own pool, cached for a minute.
+const live=new Map<string,{mid:number|null;at:number}>();
+async function liveMid(symbol:string){
+ const hit=live.get(symbol);if(hit&&Date.now()-hit.at<60_000)return hit.mid;
+ const q=await memecoinQuote(symbol,rpcEthCall(chainTransport(env.ALCHEMY_API_KEY)));
+ const mid=q?Number(q.bidMicro+q.askMicro)/2/1_000_000:null;live.set(symbol,{mid,at:Date.now()});return mid;
+}
 
 export async function GET(){
- const now=Date.now();
- if(!cache||now-cache.at>FRESH_MS){
-  loading??=readMemecoinMarket().then(rows=>{cache={rows,at:Date.now()};return rows;}).finally(()=>{loading=null;});
-  try{await loading;}catch{/* Fall back to the saved copy below. */}
- }
- if(!cache||now-cache.at>KEEP_MS)return Response.json({error:'Memecoin prices are unavailable right now.'},{status:503,headers:{'Cache-Control':'no-store'}});
- return Response.json({coins:cache.rows,updatedAt:new Date(cache.at).toISOString(),maxBuyCents:MEMECOIN_MAX_ORDER_CENTS,source:'GeckoTerminal (display only)'},{headers:{'Cache-Control':'public, max-age=120'}});
+ if(!env.DB)return Response.json({error:'Memecoin prices are unavailable right now.'},{status:503,headers:{'Cache-Control':'no-store'}});
+ try{await refreshMemecoinMarket(env.DB);}catch{/* The saved copy below still serves. */}
+ const view=await memecoinMarketView(env.DB,liveMid);
+ if(view.coins.every(c=>c.priceUsd===null))return Response.json({error:'Memecoin prices are unavailable right now.'},{status:503,headers:{'Cache-Control':'no-store'}});
+ return Response.json({...view,maxBuyCents:MEMECOIN_MAX_ORDER_CENTS},{headers:{'Cache-Control':'public, max-age=60'}});
 }
