@@ -52,3 +52,53 @@ export async function askModelJson(system:string,user:string,config:AIConfig,fet
   const raw=body.result?.response;return typeof raw==='string'?JSON.parse(raw):raw;
  }finally{clearTimeout(timeout);}
 }
+
+// Steward agent model: OpenAI's open-weight gpt-oss-120b on Workers AI (inside
+// the free daily allocation for light use), falling back to the original model
+// if it fails or answers in a shape we cannot read. Output shapes differ by
+// model (response, choices[].message.content, output[].content[].text), and
+// reasoning models may wrap JSON in prose or <think> blocks, so parsing is lenient
+// here and strict in the agent's own validator.
+export const AGENT_MODELS=['@cf/openai/gpt-oss-120b',AI_MODEL] as const;
+function firstJsonObject(text:string):unknown{
+ const clean=text.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/```(?:json)?/gi,'');
+ for(let start=clean.indexOf('{');start!==-1;start=clean.indexOf('{',start+1)){
+  let depth=0,inString=false,escaped=false;
+  for(let i=start;i<clean.length;i++){const c=clean[i];
+   if(inString){if(escaped)escaped=false;else if(c==='\\')escaped=true;else if(c==='"')inString=false;continue;}
+   if(c==='"')inString=true;else if(c==='{')depth++;else if(c==='}'&&--depth===0){try{return JSON.parse(clean.slice(start,i+1));}catch{break;}}
+  }
+ }
+ throw Error('AI_JSON');
+}
+export function extractModelJson(body:unknown):unknown{
+ const b=(body as {result?:unknown})?.result&&typeof (body as {result?:unknown}).result==='object'?(body as {result:unknown}).result:body;
+ const o=b as {response?:unknown;choices?:{message?:{content?:unknown}}[];output?:{content?:{text?:unknown}[]}[]};
+ if(o?.response&&typeof o.response==='object')return o.response;
+ const text=typeof o?.response==='string'?o.response:typeof o?.choices?.[0]?.message?.content==='string'?o.choices[0].message.content as string
+  :(o?.output??[]).flatMap(x=>x.content??[]).map(c=>typeof c.text==='string'?c.text:'').join('\n');
+ if(!text)throw Error('AI_INVALID');
+ return firstJsonObject(text);
+}
+export async function askAgentModel(system:string,user:string,config:AIConfig,fetcher:typeof fetch=(...args)=>fetch(...args)):Promise<{model:string;output:unknown}>{
+ if(!aiConfigured(config))throw Error('AI_UNAVAILABLE');
+ const messages=[{role:'system',content:system},{role:'user',content:user}];
+ let last:unknown=Error('AI_UNAVAILABLE');
+ for(const model of AGENT_MODELS){
+  const input={messages,temperature:0.2,max_tokens:model===AI_MODEL?900:2000,...(model===AI_MODEL?{response_format:{type:'json_object'}}:{})};
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{
+   let body:unknown;
+   if(config.AI){body=await Promise.race([config.AI.run(model,input),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error('AI_TIMEOUT')),30000);})]);}
+   else{
+    const controller=new AbortController();timer=setTimeout(()=>controller.abort(),30000);
+    const response=await fetcher('https://api.cloudflare.com/client/v4/accounts/'+config.CLOUDFLARE_AI_ACCOUNT_ID+'/ai/run/'+model,{method:'POST',redirect:'manual',signal:controller.signal,headers:{Authorization:'Bearer '+config.CLOUDFLARE_AI_API_TOKEN,'Content-Type':'application/json'},body:JSON.stringify(input)});
+    if(!response.ok)throw Error(response.status===429?'AI_LIMIT':'AI_UNAVAILABLE');
+    body=JSON.parse(await readBoundedText(response,64000));if((body as {success?:boolean}).success!==true)throw Error('AI_INVALID');
+   }
+   const serialized=JSON.stringify(body);if(!serialized||serialized.length>64000)throw Error('AI_INVALID');
+   return {model,output:extractModelJson(JSON.parse(serialized))};
+  }catch(e){last=e;}finally{if(timer)clearTimeout(timer);}
+ }
+ throw last;
+}

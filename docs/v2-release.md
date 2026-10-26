@@ -6,6 +6,8 @@ The scheduler cron is now every minute (`* * * * *`): sell rules check each minu
 
 ## v2 scope
 
+Terms updated (`2026-10-26-agent-v2`): owners re-accept before their next trade. "Advanced tools" under Automatic mode are hidden with the v3 extras.
+
 Shown in v2: the Steward agent (two modes, report card), auto-sell (stop-loss, take-profit, trailing stop; one rule), one-signature setup, Panic guard, gas handling.
 
 Hidden for v3 behind `V3_EXTRAS` in `lib/product-flags.ts` (screens and APIs off, code and tests kept): several rules, Replay, Stress test, Steward suggests, referrals and the leaderboard. Owner checks for those are skipped in v2.
@@ -19,6 +21,7 @@ Hidden for v3 behind `V3_EXTRAS` in `lib/product-flags.ts` (screens and APIs off
 0. **An AI agent that trades for you.** The owner picks up to 6 stocks from their Limits, a style (careful, balanced, bold), how often it checks (15 min to 4 hours) and an optional note. Each check, the AI sees prices, 1-day and 7-day moves, holdings and cash (never addresses) and chooses buy, sell or hold with a one-line reason. Fixed code then checks it: listed stock, fresh price, enough USDG, a sale lot in the permission, and no chasing (careful won't buy after a 5% day, balanced after 15%). An approved decision becomes a one-shot rule and goes through the same execution path as every automatic trade: Panic guard, gas, daily caps, the on-chain permission. A hold, a bad answer or an AI outage parks it. Every decision is logged on the card with its reason. One trade = the owner's per-buy Limit. The permission adds one sale per agent stock (85% floor of the day's low price).
 
 - **Two modes, one switch.** *Agent trades for me*: trades through the one-signature permission. *Ask me first*: needs no permission at all; buy calls arrive as Ready to buy ideas (inbox + push) that the owner signs or skips, and sell calls arrive as inbox ideas to sell from Home.
+- **Model and headlines.** Decisions use OpenAI's open-weight gpt-oss-120b on Workers AI, falling back to llama-3.1-8b if it fails. When a news account is configured (`STEWARD_NEWS_*`), the agent also sees up to 3 headlines per stock from the last 24 hours, as data only.
 - **Report card.** "8 of 12 calls right so far, average +1.4% since each call", scored against current prices (calls under an hour old are skipped).
 
 **Automatic mode: the guardrail around it**
@@ -57,5 +60,5 @@ Hidden for v3 behind `V3_EXTRAS` in `lib/product-flags.ts` (screens and APIs off
 - Sale floors are fixed at signing. A stock that falls more than 10% past the stop won't sell automatically.
 - Replay ignores fees, slippage, and moves between saved prices.
 - Suggestions come from a small model (llama-3.1-8b). They are ideas, not advice, and always start paused.
-- The agent uses a small model (llama-3.1-8b). It can be wrong; the guardrail limits how wrong. Each agent check is one AI call per owner.
+- The agent's AI can be wrong; the guardrail limits how much it can trade, not whether a trade is good. Workers AI's free allocation is 10,000 neurons a day; past that, the paid Workers plan bills per use or calls fail until 00:00 UTC (the agent then holds). Each agent check is one AI call per owner.
 - After changing the agent's stocks, set up Automatic mode again so the permission can sell them.

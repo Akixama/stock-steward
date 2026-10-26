@@ -6,7 +6,8 @@ import {checkBackgroundAlerts} from '@/lib/web-push';
 import {sampleScheduledMarkets,sampleFastRuleMarkets} from '@/lib/market-chart';
 import {automaticStages} from '@/lib/automatic-stages';
 import {tickAgents,chainHoldings} from '@/lib/ai-agent-worker';
-import {aiConfigured,askModelJson} from '@/lib/strategy-ai-server';
+import {aiConfigured,askAgentModel} from '@/lib/strategy-ai-server';
+import {readLiveNews,configuredLiveNews} from '@/lib/live-news';
 import {sendAutomaticPush} from '@/lib/automatic-stage-push';
 import {sendPermissionExpiryReminders} from '@/lib/permission-expiry-reminder';
 
@@ -15,7 +16,10 @@ const headers={'Cache-Control':'no-store'};
 // rule check in this same tick. An AI or data failure only ever means "hold".
 async function runAgents(stages:ReturnType<typeof automaticStages>){
   if(!stages.autoBuy||!aiConfigured(env)||!env.DB)return {off:true};
-  try{const transport=chainTransport(env.ALCHEMY_API_KEY);return await tickAgents(env.DB,{ask:(system,user)=>askModelJson(system,user,env),holdings:account=>chainHoldings(account,transport),maxOrderCents:stages.maxOrderCents});}
+  try{const transport=chainTransport(env.ALCHEMY_API_KEY);const config=await configuredLiveNews();
+    // Headlines only when a news account is configured; otherwise prices alone.
+    const news=async(symbols:string[])=>{const r=await readLiveNews(symbols,config);if(r.state!=='ready')return {};const out:Record<string,string[]>={};for(const item of r.news.items.sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)))for(const s of item.symbols)(out[s]??=[]).push(item.headline);return out;};
+    return await tickAgents(env.DB,{ask:(system,user)=>askAgentModel(system,user,env),news,holdings:account=>chainHoldings(account,transport),maxOrderCents:stages.maxOrderCents});}
   catch{return {unavailable:true};}
 }
 

@@ -49,3 +49,7 @@ test('old saved settings default to Auto mode; unknown modes are refused',()=>{
  assert.equal(validateAgentSettings(settings,['NVDA','TSLA']).mode,'auto');
  assert.throws(()=>validateAgentSettings({...settings,mode:'yolo' as never},['NVDA','TSLA']));
 });
+test('headlines reach the agent as data, trimmed to three per stock',()=>{
+ const input=JSON.parse(agentInput(settings,market,ctx,{NVDA:['a','b','c','d'],TSLA:[]}));
+ assert.deepEqual(input.stocks[0].headlines24h,['a','b','c']);assert.equal(input.stocks[1].headlines24h,undefined);
+});

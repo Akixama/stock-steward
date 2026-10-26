@@ -13,7 +13,7 @@ import {saveInboxItem} from '../db/notification-inbox.ts';
 export const AGENT_RULE_ID='agent';
 const FRESH_MS=30*60_000;
 export type Holdings={cashCents:number;held:Record<string,{quantity:number;token:string}>};
-export type AgentDeps={ask(system:string,user:string):Promise<unknown>;holdings(account:string):Promise<Holdings>;maxOrderCents:number;now?:Date};
+export type AgentDeps={ask(system:string,user:string):Promise<unknown>;news?(symbols:string[]):Promise<Record<string,string[]>>;holdings(account:string):Promise<Holdings>;maxOrderCents:number;now?:Date};
 
 export async function chainHoldings(account:string,fetcher:typeof fetch=fetch):Promise<Holdings>{
  const o=await readChain(account,fetcher);
@@ -50,7 +50,14 @@ export async function runAgent(db:D1Database,row:AgentRow,settings:AgentSettings
  const sellable=live.symbols.filter(s=>holdings.held[s]&&(mode==='ask'||saleTokens.has(holdings.held[s].token)));
  const ctx={cashCents:holdings.cashCents,lotCents:mode==='ask'?Math.min(mandate.maxOrderCents,100000):Math.min(mandate.maxOrderCents,deps.maxOrderCents),sellable};
  let decision:AgentDecision;
- try{decision=reviewAgentDecision(await deps.ask(AGENT_PROMPT,agentInput(live,market,ctx)),live,market,ctx,now);}
+ let headlines:Record<string,string[]>={};try{headlines=deps.news?await deps.news(live.symbols):{};}catch{headlines={};}
+ try{
+  const answer=await deps.ask(AGENT_PROMPT,agentInput(live,market,ctx,headlines));
+  // askAgentModel returns {model,output}; plain test doubles return the output itself.
+  const wrapped=!!answer&&typeof answer==='object'&&'output' in answer&&'model' in answer;
+  const output=wrapped?(answer as {output:unknown}).output:answer,model=wrapped?String((answer as {model:unknown}).model):undefined;
+  decision={...reviewAgentDecision(output,live,market,ctx,now),...(model?{model}:{})};
+ }
  catch{decision={action:'hold',symbol:null,amountCents:0,reason:'The AI could not be reached, so the agent held.',at:now.toISOString(),blocked:'AI unavailable'};}
  decision={...decision,mode};
  if(decision.action==='hold')await park(db,owner,now);

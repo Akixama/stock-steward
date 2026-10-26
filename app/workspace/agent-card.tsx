@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {Bot} from 'lucide-react';
-type Decision={action:'buy'|'sell'|'hold';symbol:string|null;amountCents:number;reason:string;at:string;blocked?:string;mode?:'auto'|'ask'};
+type Decision={action:'buy'|'sell'|'hold';symbol:string|null;amountCents:number;reason:string;at:string;blocked?:string;mode?:'auto'|'ask';model?:string};
 type Settings={version:1;symbols:string[];style:'careful'|'balanced'|'bold';intervalMinutes:15|30|60|240;note:string;mode?:'auto'|'ask'};
 type Status={available:boolean;settings:Settings|null;enabled:boolean;nextRunAt:string|null;armed:boolean;allowed:string[];lotCents:number;dailyCents:number;saleCount:number;log:Decision[];score?:{calls:number;right:number;averageEdgeBps:number|null};error?:string};
 const money=(c:number)=>`$${(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -45,7 +45,7 @@ export default function AgentCard(){
    {s.enabled&&!liveAsk&&s.armed&&s.saleCount===0&&<p className="ws-agent-hint">This permission has no sales, so the agent can only buy. Set up Automatic mode again to let it sell too.</p>}
    {s.score&&s.score.calls>0&&<div className="ws-agent-score"><strong>{s.score.right} of {s.score.calls}</strong><span>calls right so far{s.score.averageEdgeBps!==null?` · average ${s.score.averageEdgeBps>=0?'+':''}${(s.score.averageEdgeBps/100).toFixed(1)}% since each call`:''}</span><small>A buy counts as right if the price is higher now, a sell if it is lower. Calls under an hour old are not scored.</small></div>}
    {s.log.length>0&&<details className="ws-agent-log" open><summary>What your agent decided</summary><ul>{s.log.map(d=><li key={d.at} data-action={d.blocked?'blocked':d.action}>
-    <strong>{d.action==='hold'?(d.blocked?`Held${d.symbol?` ${d.symbol}`:''}`:'Held'):`${d.mode==='ask'?'Asked you to ':''}${d.action==='buy'?(d.mode==='ask'?'buy':'Buy'):(d.mode==='ask'?'sell':'Sell')} ${money(d.amountCents)} of ${d.symbol}`}</strong><small>{when(d.at)}</small>
+    <strong>{d.action==='hold'?(d.blocked?`Held${d.symbol?` ${d.symbol}`:''}`:'Held'):`${d.mode==='ask'?'Asked you to ':''}${d.action==='buy'?(d.mode==='ask'?'buy':'Buy'):(d.mode==='ask'?'sell':'Sell')} ${money(d.amountCents)} of ${d.symbol}`}</strong><small>{when(d.at)}{d.model?` · ${d.model.includes('gpt-oss')?'GPT-OSS 120B':'Llama 3.1 8B (backup)'}`:''}</small>
     <p>{d.reason}</p>{d.blocked&&<p className="ws-agent-blocked">Guardrail: {d.blocked}.</p>}
    </li>)}</ul></details>}
    <small className="ws-muted">An AI makes these calls, and it can be wrong. Real money, small amounts first. Turning it off stops new decisions at once.</small>

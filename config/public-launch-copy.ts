@@ -6,7 +6,7 @@ export const EXCLUDED_REGIONS = [
   { code: 'GB', name: 'United Kingdom' },
   { code: 'CH', name: 'Switzerland' },
 ] as const;
-export const TERMS_VERSION = '2026-10-23-regions-v2';
+export const TERMS_VERSION = '2026-10-26-agent-v2';
 export const TRADE_AGREEMENT_LABEL = `I accept the terms and the risks of real-money trading. I confirm I am not a US person and am not in the ${EXCLUDED_REGIONS.map(region=>region.name).join(', ')}.`;
 export const US_RESTRICTION_TEXT = `Stock Tokens are unavailable in the ${EXCLUDED_REGIONS.map(region=>region.name).join(', ')} or to U.S. persons.`;
 export const LOCATION_NOTICE = 'Your network appears to be in the United States, so trading is unavailable here. IP location is only a secondary signal and does not prove eligibility elsewhere.';
