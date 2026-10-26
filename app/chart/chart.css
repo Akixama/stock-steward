@@ -285,12 +285,6 @@
 .market-meme-icon .market-asset-fallback{background:#2a2216;color:#f0b46a}
 .market-meme-list-change{font-weight:700}.market-meme-list-change[data-direction=up]{color:#8fd16a}.market-meme-list-change[data-direction=down]{color:#f08a7a}
 .market-ticker-row .market-meme-tag{color:#f0b46a;border:1px solid rgba(240,170,90,.45);border-radius:999px;padding:2px 8px}
-.market-meme-chart{position:absolute;inset:8px 0 0;cursor:crosshair;touch-action:pan-y}
-.market-meme-chart svg{width:100%;height:100%;display:block}
-.market-meme-axis{position:absolute;right:8px;padding:2px 6px;border-radius:4px;background:#0b0b0dcc;color:#a8aab7;font:600 .66rem var(--market-mono,ui-monospace,monospace)}
-.market-meme-axis-high{top:6px}.market-meme-axis-low{bottom:6px}
-.market-meme-tip{position:absolute;top:8px;display:flex;flex-direction:column;gap:2px;padding:7px 10px;border:1px solid #33353d;border-radius:8px;background:#121317;pointer-events:none;transform:translateX(8px)}
-.market-meme-tip strong{font-size:.9rem}.market-meme-tip small{color:#a8aab7;font-size:.68rem}
 .market-context .market-meme-risk{margin:12px 0;font-size:.74rem}
 .market-context-updated a{display:inline-flex;align-items:center;gap:4px;text-decoration:underline}
 .market-list-tabs button{white-space:nowrap}

@@ -9,7 +9,9 @@ export const MEMECOIN_REFRESH_GAP_MS=2*60_000;
 // background check. A full copy less than 10 minutes old is left alone.
 export async function refreshMemecoinMarket(db:D1Database,fetcher:typeof fetch=fetch,now=new Date(),gapMs=MEMECOIN_REFRESH_GAP_MS){
  const cached=await readMemecoinCache(db);
- if(cached.full&&now.getTime()-Date.parse(cached.full.updatedAt)<FRESH_MS)return {skipped:'fresh'};
+ // A copy saved before a coin was added to the list is not fresh for that coin.
+ const coversList=!!cached.full&&MEMECOINS.every(c=>cached.full!.rows.some(r=>r.contract===c.contract));
+ if(cached.full&&coversList&&now.getTime()-Date.parse(cached.full.updatedAt)<FRESH_MS)return {skipped:'fresh'};
  if(cached.attemptedAt&&now.getTime()-Date.parse(cached.attemptedAt)<gapMs)return {skipped:'recent'};
  if(!await claimMemecoinRefresh(db,cached.attemptedAt,now))return {skipped:'busy'};
  try{const r=await readMemecoinMarket(fetcher);await saveMemecoinCache(db,r.rows,r.complete,new Date());return {saved:r.complete?'full':'partial'};}
@@ -37,7 +39,7 @@ export async function memecoinMarketView(db:D1Database,deps:Deps,now=new Date())
   const base:MemecoinRow=saved??{symbol:coin.symbol,name:coin.name,contract:coin.contract,tradable:coin.tradable,note:coin.note,priceUsd:null,change24hPct:null,liquidityUsd:null,volume24hUsd:null,marketCapUsd:null,points:[]};
   const own=deps.history?await deps.history(coin.symbol).catch(()=>[]):[];
   const points=mergePoints(base.points,own);
-  const live=coin.tradable?await deps.liveMid(coin.symbol).catch(()=>null):null;
+  const live=await deps.liveMid(coin.symbol).catch(()=>null);
   // Without a live quote, Steward's own newest pool price wins when it is newer than the saved copy.
   const ownLast=own.at(-1),ownNewer=!!ownLast&&(!usable||ownLast.t>Date.parse(usable.updatedAt));
   return {...base,tradable:coin.tradable,note:coin.note,points,change24hPct:change24h(points)??base.change24hPct,priceUsd:live??(ownNewer?ownLast!.c:base.priceUsd??points.at(-1)?.c??null),livePrice:live!==null};

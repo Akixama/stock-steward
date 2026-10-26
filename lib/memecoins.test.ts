@@ -115,7 +115,9 @@ test('saved Markets data: one refresh per gap, full copy kept over a backup one,
 test('pool spot price: PONS against USDG and MOW against ETH, in micro-USD',async()=>{
  const {spotMicro}=await import('./memecoin-spot.ts');
  const {MEMECOINS}=await import('./memecoin-list.ts');
- const pons=MEMECOINS.find(m=>m.symbol==='PONS')!,mow=MEMECOINS.find(m=>m.symbol==='MOW')!;
+ const pons=MEMECOINS.find(m=>m.symbol==='PONS')!;
+ // A coin on the other side of an ETH pool (as MOW was).
+ const mow={...pons,symbol:'MOWX',tradable:false,spot:{kind:'v4' as const,pool:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',coinIs:1 as const,quote:'ETH' as const,quoteDecimals:18,coinDecimals:18}};
  // sqrtPriceX96 for PONS at $0.2362 and MOW at $0.0999 with ETH at $2,298.72.
  const ponsSqrt=38505213022373139396962n,mowSqrt=12017896397852335359226645331597n;
  const p=Number(spotMicro(ponsSqrt,pons.spot,1_000_000n));assert.ok(p>200_000&&p<300_000,String(p));
@@ -127,6 +129,9 @@ test('price history: one saved price per coin per 5 minutes, merged after any sa
  const {DatabaseSync}=await import('node:sqlite');const {readFileSync}=await import('node:fs');
  const {sampleMemecoins,memecoinHistory,slotOf}=await import('./memecoin-spot.ts');
  const {mergePoints}=await import('./memecoin-feed.ts');
+ const {MEMECOINS}=await import('./memecoin-list.ts');
+ const pons=MEMECOINS.find(m=>m.symbol==='PONS')!;
+ const coins=[pons,{...pons,symbol:'MOWX',tradable:false,spot:{kind:'v4' as const,pool:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',coinIs:1 as const,quote:'ETH' as const,quoteDecimals:18,coinDecimals:18}}];
  const {encodeAbiParameters}=await import('viem');
  const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../drizzle/0046_memecoin_price_samples.sql',import.meta.url),'utf8'));
  const db={prepare(query:string){let args:unknown[]=[];const stmt={bind(...v:unknown[]){args=v;return stmt;},async run(){return {meta:{changes:Number(sql.prepare(query).run(...args as never[]).changes)}};},async all<T>(){return {results:sql.prepare(query).all(...args as never[]) as T[]};}};return stmt;}} as unknown as D1Database;
@@ -134,15 +139,37 @@ test('price history: one saved price per coin per 5 minutes, merged after any sa
  const call=async(_to:string,data:string)=>{reads++;const sqrt=data.includes('5291cfd042d8a771')?12017896397852335359226645331597n:38505213022373139396962n;return encodeAbiParameters([{type:'uint160'},{type:'int24'},{type:'uint24'},{type:'uint24'}],[sqrt,0,0,3000]);};
  const web=(async()=>Response.json({price:'2298.72'})) as unknown as typeof fetch;
  const t=Date.parse('2026-10-26T12:01:00Z');
- assert.deepEqual(await sampleMemecoins(db,call,web,t),{saved:2,skipped:0});
+ assert.deepEqual(await sampleMemecoins(db,call,web,t,coins),{saved:2,skipped:0});
  // Same 5-minute slot: nothing read, nothing saved.
- const before=reads;assert.deepEqual(await sampleMemecoins(db,call,web,t+3*60_000),{saved:0,skipped:2});assert.equal(reads,before);
- await sampleMemecoins(db,call,web,t+5*60_000);
+ const before=reads;assert.deepEqual(await sampleMemecoins(db,call,web,t+3*60_000,coins),{saved:0,skipped:2});assert.equal(reads,before);
+ await sampleMemecoins(db,call,web,t+5*60_000,coins);
  const history=await memecoinHistory(db,'PONS',t+6*60_000);
  assert.equal(history.length,2);assert.equal(history[0].t,Date.parse(slotOf(t)));
- // No ETH price: MOW is skipped, PONS still saved.
- assert.deepEqual(await sampleMemecoins(db,call,(async()=>new Response('no',{status:503})) as unknown as typeof fetch,t+10*60_000),{saved:1,skipped:0});
+ // No ETH price: the ETH-priced coin is skipped, PONS still saved.
+ assert.deepEqual(await sampleMemecoins(db,call,(async()=>new Response('no',{status:503})) as unknown as typeof fetch,t+10*60_000,coins),{saved:1,skipped:0});
  const merged=mergePoints([{t:t-3600_000,c:0.2},{t:t+60_000,c:0.9}],history);
  assert.deepEqual(merged.map(p=>p.t),[t-3600_000,...history.map(p=>p.t)]);
  sql.close();
+});
+
+test('watch list: checked coins by contract, v3 pools read by slot0, tiny prices keep their digits',async()=>{
+ const {MEMECOINS}=await import('./memecoin-list.ts');
+ const {readSpotMicro,spotMicro}=await import('./memecoin-spot.ts');
+ assert.deepEqual(MEMECOINS.map(m=>m.symbol),['PONS','AI','CASHCAT','GLDSTN','CLAUDE']);
+ assert.deepEqual(MEMECOINS.filter(m=>m.tradable).map(m=>m.symbol),['PONS']);
+ assert.equal(new Set(MEMECOINS.map(m=>m.contract)).size,MEMECOINS.length);
+ assert.match(MEMECOINS.find(m=>m.symbol==='CLAUDE')!.note,/Not made by or connected to Anthropic/);
+ // CASHCAT reads its Uniswap v3 pool directly: slot0() on the pool address.
+ const cashcat=MEMECOINS.find(m=>m.symbol==='CASHCAT')!;let seen:[string,string]|null=null;
+ const word=(n:bigint)=>n.toString(16).padStart(64,'0');
+ const call=async(to:string,data:string)=>{seen=[to,data];return '0x'+word(1n<<96n)+word(0n);};
+ // sqrtPrice of exactly 1: one CASHCAT per WETH, so the coin is worth one ETH.
+ assert.equal(await readSpotMicro(cashcat,call,{USDG:1_000_000n,ETH:2_300_000_000n}),2_300_000_000);
+ assert.deepEqual(seen,[cashcat.spot.pool,'0x3850c7bd']);
+ // A $0.0001 coin keeps sub-micro digits (105.25 micro-USD, not 105).
+ const claude=MEMECOINS.find(m=>m.symbol==='CLAUDE')!;
+ // Claude sits on the USDG side's right: raw coin per raw USDG = 10^18 / 105.25.
+ const isqrt=(n:bigint)=>{let x=BigInt(Math.floor(Math.sqrt(Number(n))));for(let i=0;i<100;i++)x=(x+n/x)/2n;return x;};
+ const sqrt=isqrt((1n<<192n)*10n**20n/10525n);
+ const micro=spotMicro(sqrt,claude.spot,1_000_000n)!;assert.ok(micro>100&&micro<110&&!Number.isInteger(micro),String(micro));
 });

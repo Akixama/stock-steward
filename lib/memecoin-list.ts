@@ -12,21 +12,37 @@ export type Memecoin={
  pool?:{fee:number;tickSpacing:number};
  // GeckoTerminal pool used for the Markets chart (display only).
  chartPool:string;
- // The Uniswap v4 pool read for Steward's own saved price history (display
- // only): which side of the pool the coin is on, and what it is priced in.
- spot:{poolId:string;coinIs:0|1;quote:'USDG'|'ETH';quoteDecimals:number;coinDecimals:number};
+ // The pool read for Steward's own saved price history (display only): a
+ // Uniswap v4 pool id or a v3-style pool address, which side the coin is on,
+ // and what it is priced in.
+ spot:{kind:'v4'|'v3';pool:string;coinIs:0|1;quote:'USDG'|'ETH';quoteDecimals:number;coinDecimals:number};
  note:string;
 };
 
+// Watch-only coins need at least $250k of real liquidity (GeckoTerminal total
+// reserve), one contract per name, and to be a memecoin rather than a project,
+// stablecoin or wrapped token. Re-checked 2026-10-26; MOW was dropped below it.
 export const MEMECOINS:readonly Memecoin[]=[
  {symbol:'PONS',name:'Pons',contract:'0x39dbed3a2bd333467115de45665cc57f813c4571',tradable:true,pool:{fee:3000,tickSpacing:60},
   chartPool:'0x4be9657ec9002e528f4f17a5c43edc525a07f888f7b180c2afbf75e096c4f38a',
-  spot:{poolId:'0x4be9657ec9002e528f4f17a5c43edc525a07f888f7b180c2afbf75e096c4f38a',coinIs:0,quote:'USDG',quoteDecimals:6,coinDecimals:18},
+  spot:{kind:'v4',pool:'0x4be9657ec9002e528f4f17a5c43edc525a07f888f7b180c2afbf75e096c4f38a',coinIs:0,quote:'USDG',quoteDecimals:6,coinDecimals:18},
   note:'Direct USDG pool on Uniswap v4 (0.3%), the one Steward trades.'},
- {symbol:'MOW',name:'MowCat',contract:'0x0b7c6c138dc75622f4200d157b13fb93e6bd94fa',tradable:false,
-  chartPool:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',
-  spot:{poolId:'0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a',coinIs:1,quote:'ETH',quoteDecimals:18,coinDecimals:18},
-  note:'Trades against WETH, so Steward cannot buy it yet.'},
+ {symbol:'AI',name:'Artificial Inu',contract:'0x2e8c31162b855a2ffa90f6f8634643ad6f111e18',tradable:false,
+  chartPool:'0x592e3fb7ea947506b36481025abc15baada8e1839a50fded46ecf08b3182fa96',
+  spot:{kind:'v4',pool:'0x592e3fb7ea947506b36481025abc15baada8e1839a50fded46ecf08b3182fa96',coinIs:0,quote:'USDG',quoteDecimals:6,coinDecimals:18},
+  note:'Watch only for now. Its pools are not set up for Steward buys.'},
+ {symbol:'CASHCAT',name:'Cash Cat',contract:'0x020bfc650a365f8bb26819deaabf3e21291018b4',tradable:false,
+  chartPool:'0xd42a491087a15e5afd51feb3606066cc152d2b09',
+  spot:{kind:'v3',pool:'0xd42a491087a15e5afd51feb3606066cc152d2b09',coinIs:0,quote:'ETH',quoteDecimals:18,coinDecimals:18},
+  note:'Trades mostly against WETH, so Steward cannot buy it yet.'},
+ {symbol:'GLDSTN',name:'Goldstein',contract:'0xfce34d21a92069100e3226638140706cf03a266e',tradable:false,
+  chartPool:'0x7ffd58d9ab075007d3ff9a2fa31ed8993aa918680154d87eeed1861d1683b34e',
+  spot:{kind:'v4',pool:'0x7ffd58d9ab075007d3ff9a2fa31ed8993aa918680154d87eeed1861d1683b34e',coinIs:1,quote:'USDG',quoteDecimals:6,coinDecimals:18},
+  note:'Watch only for now. Its pools are not set up for Steward buys.'},
+ {symbol:'CLAUDE',name:'Claude (memecoin)',contract:'0xea6bd2405e4c60d18f428a50d0d16df0028c4b07',tradable:false,
+  chartPool:'0x0ec4b9ca9b1bb33c008c68727d222eddce95eac52f12b143486a1628153991e4',
+  spot:{kind:'v4',pool:'0x0ec4b9ca9b1bb33c008c68727d222eddce95eac52f12b143486a1628153991e4',coinIs:1,quote:'USDG',quoteDecimals:6,coinDecimals:18},
+  note:'Not made by or connected to Anthropic. Watch only.'},
 ];
 
 // One buy of a memecoin, at most. The wallet permission pins a single buy size
