@@ -260,3 +260,22 @@
 .market-order-shell .ws-fund-row code{overflow-wrap:anywhere}
 @media(max-width:560px){.market-order-dialog{width:100vw}.market-order-shell.ws{padding:18px}.market-order-shell .ws-check-fields.ws-order-fields,.market-order-shell .ws-live-balances{grid-template-columns:1fr}}
 .market-activity{margin:32px 20px 0;padding:28px 0;border-top:1px solid #2a2c33;color:#e9eaf0}.market-activity header{display:flex;justify-content:space-between;gap:20px;align-items:start}.market-activity header span{font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.12em;color:#a8aab7}.market-activity h2{font-size:27px;margin:8px 0}.market-activity h3{font-size:17px;margin:0 0 16px}.market-activity p,.market-activity-wallet{color:#a8aab7}.market-activity button{border:1px solid #464953;border-radius:10px;padding:10px 16px;color:inherit;background:#191a20}.market-activity-columns{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:24px}.market-activity-row{display:grid;grid-template-columns:minmax(80px,1fr) 1.4fr auto;gap:12px;align-items:center;border-top:1px solid #2a2c33;padding:16px 0;font-size:14px}.market-activity-row span{color:#a8aab7}.market-activity-row a{color:#d8d9f3}@media(max-width:767px){.market-activity{margin:24px 16px 0}.market-activity-columns{grid-template-columns:1fr;gap:28px}.market-activity-row{grid-template-columns:1fr auto}.market-activity-row span{grid-column:1}.market-activity-row b,.market-activity-row a{grid-column:2;grid-row:1/3}}
+
+/* Memecoins: a separate, clearly labelled section below the stock chart. */
+.market-meme{margin:32px 20px 0;padding:28px 0 4px;border-top:1px solid #2a2c33;color:#e9eaf0}
+.market-meme header span{font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.12em;color:#a8aab7}
+.market-meme h2{font-size:27px;margin:8px 0}.market-meme header p{margin:0;color:#a8aab7;max-width:640px;line-height:1.5}
+.market-meme-risk{display:flex;gap:10px;align-items:flex-start;margin:18px 0 0;padding:12px 14px;border:1px solid rgba(240,170,90,.35);border-radius:10px;background:rgba(240,170,90,.07);color:#ecc89c;font-size:13px;line-height:1.5;max-width:760px}
+.market-meme-risk svg{flex:none;margin-top:2px}.market-meme-risk strong{color:#f6d2a6}
+.market-meme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:20px}
+.market-meme-card{display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid #2a2c33;border-radius:14px;background:#0f1013}
+.market-meme-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.market-meme-top strong{display:block;font-size:18px}.market-meme-top small{color:#a8aab7}
+.market-meme-badge{flex:none;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid #464953;color:#c5c7d2}.market-meme-badge[data-tradable=true]{border-color:rgba(143,209,106,.45);color:#b5e39a}
+.market-meme-price{display:flex;align-items:baseline;gap:10px}.market-meme-price b{font-size:24px;font-weight:650}
+.market-meme-price span{font-size:13px;color:#a8aab7}.market-meme-price span[data-direction=up]{color:#8fd16a}.market-meme-price span[data-direction=down]{color:#f08a7a}
+.market-meme-spark{width:100%;height:56px;display:block}.market-meme-spark-empty{display:grid;place-items:center;color:#6f7280;font-size:12px;border:1px dashed #2a2c33;border-radius:8px}
+.market-meme-card dl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0}.market-meme-card dt{font-size:11px;color:#8d909c}.market-meme-card dd{margin:2px 0 0;font-size:13px}
+.market-meme-note{margin:0;color:#a8aab7;font-size:12.5px;line-height:1.5}
+.market-meme-links{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px}.market-meme-links a{display:inline-flex;align-items:center;gap:4px;color:#d8d9f3}
+.market-meme-empty,.market-meme-foot{color:#8d909c;font-size:12.5px}.market-meme-foot{margin:16px 0 0}
+@media(max-width:767px){.market-meme{margin:24px 16px 0}.market-meme-grid{grid-template-columns:1fr}}

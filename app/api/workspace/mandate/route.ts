@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { D1DecisionLedger } from "@/db/ledger";
 import { parseMandateSaveRequest } from "@/lib/mandate-save-schema";
+import { memecoinLimitError } from "@/lib/memecoin-list";
 
 export async function PUT(request: Request) {
   const user = await getChatGPTUser();
@@ -12,6 +13,8 @@ export async function PUT(request: Request) {
   const parsed = await parseMandateSaveRequest(request);
   if (!parsed) return Response.json({ error: "Invalid mandate request." }, { status: 400 });
   if (!parsed.success) return Response.json({ error: "Check your symbols and purchase limits." }, { status: 400 });
+  const memecoinError = memecoinLimitError(parsed.data.allowedSymbols, parsed.data.maxOrderCents);
+  if (memecoinError) return Response.json({ error: memecoinError }, { status: 400 });
   if (!env.DB) return Response.json({ error: "Workspace storage is unavailable." }, { status: 503 });
   try {
     const ledger = new D1DecisionLedger(env.DB);

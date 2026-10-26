@@ -1,5 +1,7 @@
 import {CHAIN,USDG,registry,type ChainHolding} from './robinhood-chain.ts';
 import {decimal18,priceEvidence} from './chain-analysis.ts';
+import {isMemecoin} from './memecoin-list.ts';
+import {memecoinPriceBound} from './memecoin-price.ts';
 import type {AccountingSources,ObservedBalance,ObservedTransfer,PriceBound} from './live-accounting.ts';
 export type ExecutionAnchor={number:string;hash:string;timestamp:string;observedAt:string};
 export type ExecutionSources=AccountingSources & {verifyCanonical():Promise<boolean>;tokenDecimals(token:string):Promise<number|null>};
@@ -59,6 +61,8 @@ export async function executionAccountingSources(anchor:ExecutionAnchor,rpc:type
     if(!Number.isFinite(at)||clock()-at<0||clock()-at>30000||bid<=0n||ask<bid)return null;
     return {upperMicroUsd:((ask*1000000n+S-1n)/S).toString(),lowerMicroUsd:(bid*1000000n/S).toString(),priceAt:quote.time,source:'Coinbase ETH-USD timestamped bid/ask (not USDT)'};
    }
+   // Memecoins: quoted at this same anchored block from their own USDG pool.
+   if(isMemecoin(symbol)){if(!assets.some(row=>row.symbol===symbol))return null;return memecoinPriceBound(symbol,(to,data)=>chain('eth_call',[{to,data},anchor.number]),clock());}
    const asset=assets.find(row=>row.symbol===symbol);if(!asset)return null;const r=await web(`https://api.robinhood.com/rhj/prices/${encodeURIComponent(symbol)}`,{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)return null;
    const holding:ChainHolding={symbol,contract:asset.contract,raw:'0',decimals:18,quantity:'0',status:asset.status,multiplier:asset.multiplier,pendingMultiplier:asset.pendingMultiplier};
    const proof=priceEvidence(holding,await r.json(),clock());const at=Date.parse(proof.generatedAt??'');if(proof.state!=='fresh'||!proof.bid||!proof.ask||!proof.multiplier||!Number.isFinite(at)||clock()-at<0||clock()-at>30000)return null;

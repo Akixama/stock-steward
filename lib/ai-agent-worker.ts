@@ -9,6 +9,7 @@ import {readChain} from './robinhood-chain.ts';
 import {AGENT_PROMPT,agentInput,agentRule,priceChanges,reviewAgentDecision,validateAgentSettings,type AgentDecision,type AgentMarket,type AgentSettings} from './ai-agent.ts';
 import type {RolesPolicy} from './roles-permission.ts';
 import {saveInboxItem} from '../db/notification-inbox.ts';
+import {isMemecoin} from './memecoin-list.ts';
 
 export const AGENT_RULE_ID='agent';
 const FRESH_MS=30*60_000;
@@ -35,7 +36,7 @@ export async function runAgent(db:D1Database,row:AgentRow,settings:AgentSettings
  const armed=!!ownership?.verifiedAt&&grant?.state==='verified'&&(await getActivation(db,owner,grant.id))?.state==='armed';
  if(!ownership?.verifiedAt||(mode==='auto'&&!armed)){await park(db,owner,now);return null;}
  const mandate=await new D1DecisionLedger(db).getMandate(owner);if(!mandate){await park(db,owner,now);return null;}
- const live=validateAgentSettings({...settings,symbols:settings.symbols.filter(s=>mandate.allowedSymbols.includes(s))},mandate.allowedSymbols);
+ const live=validateAgentSettings({...settings,symbols:settings.symbols.filter(s=>mandate.allowedSymbols.includes(s)&&!isMemecoin(s))},mandate.allowedSymbols);
  let policy:RolesPolicy|null=null;try{policy=grant?.state==='verified'?JSON.parse(grant.policy_json) as RolesPolicy:null;}catch{policy=null;}
  const holdings=await deps.holdings(policy?.account??ownership.address);
  const saleTokens=new Set((policy?.sales??[]).map(s=>s.token.toLowerCase()));

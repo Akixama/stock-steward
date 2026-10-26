@@ -20,7 +20,8 @@ test("reader verifies chain, pins reads, and records failed balances as incomple
       return {id:c.id,error:{message:"read failed"}};
     }).reverse());
   }) as typeof fetch;
-  const r=await readChain(address,mock());assert.equal(r.failures,1);assert.equal(r.holdings.length,0);
+  // Two failed balance reads: AAPL from the official list, plus the checked PONS memecoin.
+  const r=await readChain(address,mock());assert.equal(r.failures,2);assert.equal(r.scanned,2);assert.equal(r.holdings.length,0);
   await assert.rejects(readChain(address,mock(true)),/identity/);
 });
 test("empty registry and counterfeit addresses fail closed",()=>{

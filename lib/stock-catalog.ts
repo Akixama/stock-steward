@@ -1,6 +1,6 @@
 import { registry } from './robinhood-chain.ts';
 
-export type StockCatalogItem = { symbol: string; name: string };
+export type StockCatalogItem = { symbol: string; name: string; kind?: 'memecoin' };
 
 // Show only official Robinhood Chain assets that can be named and installed.
 // A live route is checked separately before a permission or order is signed.

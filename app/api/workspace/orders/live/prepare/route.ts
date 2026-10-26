@@ -7,6 +7,7 @@ import { VENUE, inspectRoute } from "@/lib/chain-route";
 import { routerCandidate } from "@/lib/router-candidate";
 import { rolesOperation } from "@/lib/roles-operation";
 import { selectStoredFloor, validateLiveAmount } from "@/lib/live-order";
+import { isMemecoin, memecoinLimitError, MEMECOIN_MAX_ORDER_CENTS } from "@/lib/memecoin-list";
 import { PERMIT2 } from "@/lib/install-flow";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { assertTradingEnabled, publicDailySpend, tradingAdmission, tradingLimits } from "@/lib/trading-controls";
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
     const spent = limits.publicMode ? await publicDailySpend(env.DB,user.userId,live.safe,buySpent) : buySpent;
     const amount = validateLiveAmount(amountCents, live.mandate, spent, limits);
     if (!amount.ok) return Response.json({ error: amount.error }, { status: 422 });
+    // Memecoins: the per-buy amount is capped while one is in the Limits (saved before this cap existed, too).
+    if (isMemecoin(symbol) && amountCents > MEMECOIN_MAX_ORDER_CENTS) return Response.json({ error: memecoinLimitError([symbol], amountCents)!.replace("Lower your per-buy amount or remove it.", "Lower your per-buy amount in Limits. Nothing was sent.") }, { status: 422 });
     // "Max in one stock": checked here, before any quote, simulation or reservation. A stale or
     // incomplete wallet value refuses the buy rather than passing it.
     const position = await checkPositionLimit(env.DB, user.userId, live.safe, symbol, amountCents, live.mandate.maxPositionBps);

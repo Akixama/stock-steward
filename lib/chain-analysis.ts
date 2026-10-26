@@ -1,5 +1,7 @@
 import { CHAIN, type ChainHolding, type ChainObservation } from "./robinhood-chain.ts";
 import type { Mandate } from "./decision.ts";
+import { isMemecoin } from "./memecoin-list.ts";
+import { memecoinQuote, memecoinTokenPrice, rpcEthCall } from "./memecoin-price.ts";
 
 const SCALE = 10n ** 18n;
 export function parseUsdCents(value: string): number | null {
@@ -57,6 +59,11 @@ export async function enrichObservation(observation: ChainObservation, mandate: 
   // Bound provider load. Beyond this limit balances remain visible, explicitly unpriced.
   for (let start = 0; start < Math.min(observation.holdings.length, 20); start += 4) {
     await Promise.all(observation.holdings.slice(start, Math.min(start + 4, 20)).map(async holding => {
+      // Memecoins have no stock quote: price them from their own USDG pool.
+      if (isMemecoin(holding.symbol)) {
+        prices[holding.contract] = memecoinTokenPrice(holding.raw, holding.decimals, await memecoinQuote(holding.symbol, rpcEthCall(fetcher)));
+        return;
+      }
       let body: unknown = null;
       try {
         const response = await fetcher(`https://api.robinhood.com/rhj/prices/${encodeURIComponent(holding.symbol)}`,
@@ -70,7 +77,7 @@ export async function enrichObservation(observation: ChainObservation, mandate: 
   const valid = Object.values(prices).filter(p => p.valueMicroUsd !== null);
   const subtotal = valid.reduce((sum, p) => sum + BigInt(p.valueMicroUsd!), 0n);
   const complete = observation.failures === 0 && valid.length === observation.holdings.length;
-  const alerts = ["Values cover supported stock tokens only; ETH, other tokens, DeFi and other chains are excluded."];
+  const alerts = ["Values cover supported stock tokens and checked memecoins only; ETH, other tokens, DeFi and other chains are excluded."];
   if (!complete) alerts.push("Coverage or prices are incomplete. Subtotal is not total portfolio value; concentration conclusions are pending.");
   if (mandate) {
     for (const holding of observation.holdings) {

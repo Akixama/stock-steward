@@ -18,7 +18,7 @@ export default function StockSelector({ selected, onChange }: {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/workspace/stocks', { cache: 'no-store' })
+    fetch('/api/workspace/stocks?memecoins=1', { cache: 'no-store' })
       .then(async (response) => {
         const payload = await response.json() as { stocks?: StockCatalogItem[]; error?: string };
         if (!response.ok || !payload.stocks) throw new Error(payload.error ?? 'The stock list is unavailable.');
@@ -47,8 +47,9 @@ export default function StockSelector({ selected, onChange }: {
     <div className="ws-stock-search"><Search size={17} aria-hidden="true" /><input id="ws-stock-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search Apple, AAPL, Microsoft…" autoComplete="off" aria-controls="ws-stock-results" /></div>
     <div className="ws-stock-list-head"><strong>Available on Robinhood Chain</strong><span>{loading ? 'Loading…' : error ? 'Unavailable' : `${results.length} ${results.length === 1 ? 'stock' : 'stocks'}`}</span></div>
     {loading ? <p className="ws-stock-message" role="status">Loading the current stock list…</p> : error ? <div className="ws-stock-message" role="alert">{error} <button type="button" onClick={() => { setLoading(true); setRetry((value) => value + 1); }}>Try again</button></div> : <div id="ws-stock-results" className="ws-stock-results" role="group" aria-label="Available stock tokens">
-      {results.length ? results.map((stock) => <button key={stock.symbol} type="button" aria-pressed={selectedSet.has(stock.symbol)} disabled={atLimit && !selectedSet.has(stock.symbol)} onClick={() => toggle(stock.symbol)}><span className="ws-stock-ticker">{stock.symbol}</span><span className="ws-stock-name">{stock.name}</span><span className="ws-stock-check">{selectedSet.has(stock.symbol) ? <Check size={16} aria-hidden="true" /> : '+'}</span></button>) : <p className="ws-stock-message">No match. Try a company name or ticker.</p>}
+      {results.length ? results.map((stock) => <button key={stock.symbol} type="button" aria-pressed={selectedSet.has(stock.symbol)} disabled={atLimit && !selectedSet.has(stock.symbol)} onClick={() => toggle(stock.symbol)}><span className="ws-stock-ticker">{stock.symbol}</span><span className="ws-stock-name">{stock.name}{stock.kind === 'memecoin' && <em className="ws-meme-tag">Memecoin · high risk</em>}</span><span className="ws-stock-check">{selectedSet.has(stock.symbol) ? <Check size={16} aria-hidden="true" /> : '+'}</span></button>) : <p className="ws-stock-message">No match. Try a company name or ticker.</p>}
     </div>}
+    {selected.some((symbol) => stocks.find((stock) => stock.symbol === symbol)?.kind === 'memecoin') && <p className="ws-stock-warning ws-meme-warning" role="note"><strong>Memecoins can lose most of their value in hours.</strong> While one is in your Limits, each buy is capped at $50. Steward buys it only when you press Buy: no automatic rules and no agent trades.</p>}
     {unavailable.length > 0 && <p className="ws-stock-warning">{unavailable.join(', ')} {unavailable.length === 1 ? 'is' : 'are'} not in the current active list. Remove {unavailable.length === 1 ? 'it' : 'them'} before activating a new permission.</p>}
     <p className="ws-stock-footnote">A real-money permission covers up to three stocks. Final token and route support is checked again before activation.</p>
   </div>;

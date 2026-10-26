@@ -1,5 +1,7 @@
 import {buildAccountingEvidence,type AccountingSources,type ObservedBalance,type ObservedTransfer} from './live-accounting.ts';
 import {fetchPracticeMarketQuote} from './practice-market.ts';
+import {isMemecoin} from './memecoin-list.ts';
+import {memecoinPriceBound,rpcEthCall} from './memecoin-price.ts';
 import {mandateDigest,type PolicyLease,type MandateSnapshot} from './policy-lease.ts';
 import {CHAIN} from './robinhood-chain.ts';
 import type {SpendEvidence} from '../db/execution-attempts.ts';
@@ -86,6 +88,7 @@ export function alchemyAccountingSources(rpc:typeof fetch,web:typeof fetch):Acco
      if(!(bid>0)||ask<bid)return null;
      return {upperMicroUsd:String(Math.ceil(ask*1e6)),lowerMicroUsd:String(Math.floor(bid*1e6)),priceAt:new Date().toISOString(),source:'Binance ETHUSDT bid/ask; USDT stands in for USD'};
     }
+    if(isMemecoin(symbol))return memecoinPriceBound(symbol,rpcEthCall(rpc));
     const quote=await fetchPracticeMarketQuote(symbol,Date.now(),web);
     if(!quote?.bidCents||!quote.askCents)return null;
     return {upperMicroUsd:String(quote.askCents*10000),lowerMicroUsd:String(quote.bidCents*10000),priceAt:new Date(quote.generatedAt).toISOString(),source:quote.source+' bid/ask bound'};

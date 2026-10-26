@@ -8,6 +8,7 @@ import { parsePendingWalletReceipt, pendingReceiptKey } from '@/lib/pending-wall
 import { ArrowRight, Clock3 } from 'lucide-react';
 import OrderStatusTimeline from './order-status-timeline';
 import {buyIdeaAmount} from '@/lib/buy-idea';
+import {isMemecoin} from '@/lib/memecoin-list';
 
 // Stage 3: one real order at a time, each prepared server-side, signed in the
 // owner's own wallet, and reconciled against exact onchain evidence. The server
@@ -199,6 +200,7 @@ export default function RealOrderPanel({ provider, address, onOpenMandate, onOpe
     {status?.permissionActive && ideaAmountCents!=null && <div className="ws-idea-amount" role="status"><strong>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).differs?'Order amount differs from the idea':'Idea amount matches'}</strong><p>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).label}</p>{buyIdeaAmount(ideaAmountCents,status.perTradeCents).differs&&!prepared&&!hash&&<label><input type="checkbox" checked={amountAcknowledged} onChange={event=>setAmountAcknowledged(event.target.checked)}/> I understand this review will use {dollars(status.perTradeCents)}.</label>}</div>}
     {status?.permissionActive && !prepared && !hash && (!preferredSymbol || status.symbols.includes(preferredSymbol)) && <div className="ws-check-fields ws-order-fields">
       <label>Stock{preferredSymbol?<input value={preferredSymbol} readOnly aria-readonly="true"/>:<select value={symbol} onChange={(event) => setSymbol(event.target.value)}>{status.symbols.map((option) => <option key={option}>{option}</option>)}</select>}</label>
+      {isMemecoin(preferredSymbol ?? symbol) && <p className="ws-meme-warning ws-field-wide" role="note"><strong>{preferredSymbol ?? symbol} is a memecoin.</strong> Its price can swing hard and may drop to zero. Buy only what you can lose.</p>}
       <label>Amount to pay · USD, set by your limits<input value={(status.perTradeCents / 100).toFixed(2)} readOnly aria-readonly="true" /></label>
       <button type="button" onClick={prepare} disabled={busy || !provider || (ideaAmountCents!=null && ideaAmountCents!==status.perTradeCents && !amountAcknowledged)}>{ideaAmountCents!=null?`Next: review ${dollars(status.perTradeCents)} buy`:'Next: review buy'}</button></div>}
     {!provider && !hash && !(status && !status.permissionActive && (status.blocked === 'limits' || status.blocked === 'unavailable')) && <p className="ws-chain-note">Connect your wallet above when you want to place an order. <button type="button" className="ws-recheck" onClick={() => document.getElementById('ws-wallet-orders')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Go to wallet setup</button></p>}

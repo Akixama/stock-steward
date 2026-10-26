@@ -18,6 +18,7 @@ import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { findActivePolicyModule, verifyPolicyReadback, type PolicyBase } from "@/lib/live-order";
 import { compileRolesPolicy } from "@/lib/roles-permission";
 import { ROLES_CONTRACTS } from "@/lib/roles-permission";
+import { permissionFloorRaw } from "@/lib/memecoin-price";
 
 export const CHAIN_RPC = "https://rpc.mainnet.chain.robinhood.com/";
 
@@ -113,7 +114,8 @@ export async function buildPolicyBase(located: Awaited<ReturnType<typeof locateS
       throw new Error(`No live pool quote for ${output.symbol}; orders stay locked until every output quotes.`);
     }
     outputs.push({ token: output.token as Address, fee: route.best.fee, tickSpacing: route.best.tickSpacing,
-      minimumOutputRaw: route.minimumOutputRaw });
+      // Memecoins get a wider floor (5%) than stocks (0.5%); see lib/memecoin-list.ts.
+      minimumOutputRaw: permissionFloorRaw(output.symbol, route)! });
   }
   const startsAt = plan.expiresAt / 1000 - PERMISSION_WINDOW_SECONDS;
   const base: PolicyBase = {

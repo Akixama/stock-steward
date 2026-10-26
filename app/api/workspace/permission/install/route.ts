@@ -18,6 +18,7 @@ import { VENUE } from "@/lib/chain-route";
 import { MULTISEND, safeFactoryAbi, SAFE_CONTRACTS } from "@/lib/safe-setup";
 import { EXECUTION_CONTRACTS } from "@/lib/autonomy";
 import { installedOutputs } from "@/lib/installed-outputs";
+import { permissionFloorRaw } from "@/lib/memecoin-price";
 import { assertTradingEnabled, tradingAdmission } from "@/lib/trading-controls";
 
 // Assembles the exact owner-signed install transactions. The server never signs: every
@@ -109,7 +110,8 @@ export async function GET(request: Request) {
         return Response.json({ error: `No live pool quote for ${output.symbol}; the policy is not installable until every output quotes.` }, { status: 422 });
       }
       outputs.push({ token: output.token as Address, fee: route.best.fee, tickSpacing: route.best.tickSpacing,
-        minimumOutputRaw: route.minimumOutputRaw });
+        // Memecoins get a wider floor (5%) than stocks (0.5%); see lib/memecoin-list.ts.
+        minimumOutputRaw: permissionFloorRaw(output.symbol, route)! });
     }
 
     const creationRaw = await rpcCall(SAFE_CONTRACTS.factory,

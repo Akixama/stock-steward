@@ -47,5 +47,5 @@ export async function POST(request:Request){
  }
  if(body.action==='delete'){if(!await deleteShadowPlan(env.DB,user.userId,ruleId,Number(body.revision)))return Response.json({error:'Rule changed. Reload first.'},{status:409,headers});return Response.json({deleted:true,executionEnabled:false},{headers});}
  const changed=body.action==='save'?await saveShadowPlan(env.DB,user.userId,Number(body.revision),body.rule as AutonomousRule,false,new Date(),ruleId):await controlShadowPlan(env.DB,user.userId,Number(body.revision),body.action==='resume',new Date(),ruleId);if(!changed)return Response.json({error:'Controls changed. Reload before trying again.'},{status:409,headers});return Response.json({saved:true,mode:'shadow',executionEnabled:false},{headers});}
- catch(e){return Response.json({error:e instanceof Error&&e.message==='RULE_LIMIT'?`You can have up to ${MAX_RULES} rules.`:'Invalid rule or unavailable storage.'},{status:422,headers});}
+ catch(e){return Response.json({error:e instanceof Error&&e.message==='RULE_LIMIT'?`You can have up to ${MAX_RULES} rules.`:e instanceof Error&&e.message==='MEMECOIN_RULE'?'Memecoins can only be bought by hand from Home, not by an automatic rule.':'Invalid rule or unavailable storage.'},{status:422,headers});}
 }

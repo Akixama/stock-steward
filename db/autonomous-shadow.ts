@@ -1,3 +1,4 @@
+import {isMemecoin} from '../lib/memecoin-list.ts';
 import {autonomousRunId,validateAutonomousRule,type AutonomousRule,type AutonomousDecision} from '../lib/autonomous-live.ts';
 import {publicRunExecution,type AutonomousRunExecution} from '../lib/autonomous-run-status.ts';
 export type ShadowPlan={owner_ref:string;rule_id:string;revision:number;rule_json:string;enabled:number;next_due_at:string;lease_token:string|null;lease_until:string|null;failures:number;updated_at:string};
@@ -10,6 +11,8 @@ export async function getShadowPlan(db:D1Database,owner:string,ruleId='main'){re
 export async function listShadowPlans(db:D1Database,owner:string){return (await db.prepare('SELECT * FROM autonomous_shadow_plans WHERE owner_ref=? ORDER BY rule_id=\'main\' DESC,updated_at ASC LIMIT 12').bind(owner).all<ShadowPlan>()).results??[];}
 export async function deleteShadowPlan(db:D1Database,owner:string,ruleId:string,expected:number){return (await db.prepare('DELETE FROM autonomous_shadow_plans WHERE owner_ref=? AND rule_id=? AND revision=?').bind(owner,ruleId,expected).run()).meta.changes===1;}
 export async function saveShadowPlan(db:D1Database,owner:string,expected:number,rule:AutonomousRule,enabled:boolean,now=new Date(),ruleId='main'){
+ // Memecoins are bought by hand only: no automatic rule, agent trade or buy idea.
+ if(isMemecoin(rule.symbol)||(rule.strategy as {targets?:{symbol:string}[]}|undefined)?.targets?.some(t=>isMemecoin(t.symbol)))throw Error('MEMECOIN_RULE');
  validateAutonomousRule(rule);if(!owner||owner.length>200||!isRuleId(ruleId)||!Number.isSafeInteger(expected)||expected<0||typeof enabled!=='boolean')throw Error('Invalid shadow controls.');
  if(expected===0&&ruleId!=='main'){const count=await db.prepare('SELECT COUNT(*) AS n FROM autonomous_shadow_plans WHERE owner_ref=?').bind(owner).first<{n:number}>();if((count?.n??0)>=MAX_RULES)throw Error('RULE_LIMIT');}
  const result=await db.prepare(`INSERT INTO autonomous_shadow_plans(owner_ref,rule_id,revision,rule_json,enabled,next_due_at,updated_at)

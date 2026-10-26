@@ -1,3 +1,4 @@
+import { tradableMemecoins } from "./memecoin-list.ts";
 export const CHAIN = { id:4663, hex:"0x1237", name:"Robinhood Chain", rpc:"https://rpc.mainnet.chain.robinhood.com/", explorer:"https://robinhoodchain.blockscout.com" };
 export type ChainHolding = {symbol:string;contract:string;raw:string;decimals:number|null;quantity:string|null;status:string;multiplier?:string;pendingMultiplier?:string};
 export const USDG = { contract: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", symbol: "USDG", decimals: 6 } as const;
@@ -6,6 +7,8 @@ export function units(raw:string, decimals:number):string { if(!/^0x[0-9a-f]+$/i
 export function registry(body:unknown) { const assets=(body as {assets?:unknown[]})?.assets;if(!Array.isArray(assets)||!assets.length||assets.length>1000) throw new Error("Official asset registry unavailable.");
  const seen=new Set<string>(); const tokens: {symbol:string;contract:string;status:string;multiplier?:string;pendingMultiplier?:string}[]=[];
  for(const entry of assets){const a=entry as {tokenSymbol?:string;status?:string;currentMultiplier?:string;pendingMultiplier?:string;deployments?:{chainId:number;contractAddress:string}[]};if(!a.tokenSymbol||!Array.isArray(a.deployments))throw new Error("Asset registry incomplete."); for(const d of a.deployments){if(d.chainId!==CHAIN.id)continue;if(!/^0x[0-9a-f]{40}$/i.test(d.contractAddress))throw new Error("Asset address invalid.");const key=d.contractAddress.toLowerCase();if(seen.has(key))continue;seen.add(key);tokens.push({symbol:a.tokenSymbol,contract:key,status:a.status??"Unknown",multiplier:a.currentMultiplier,pendingMultiplier:a.pendingMultiplier});}}
+ // Hand-checked memecoins Steward can trade, fixed by contract. A name the official list already uses is never added.
+ for(const m of tradableMemecoins()){if(seen.has(m.contract)||tokens.some(t=>t.symbol===m.symbol))continue;seen.add(m.contract);tokens.push({symbol:m.symbol,contract:m.contract,status:"ASSET_STATUS_ACTIVE",multiplier:"1"});}
  if(!tokens.length||tokens.length>500)throw new Error("Supported asset coverage unavailable or exceeds scan limit.");return tokens; }
 export async function readChain(address:string,fetcher:typeof fetch=fetch):Promise<ChainObservation>{
  if(!/^0x[0-9a-f]{40}$/i.test(address))throw new Error("Enter a valid EVM wallet address.");

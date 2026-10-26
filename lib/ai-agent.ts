@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {isMemecoin} from './memecoin-list.ts';
 import type {AutonomousRule} from './autonomous-live.ts';
 // Steward agent: the AI DECIDES what to buy or sell and when. Deterministic code
 // then DISPOSES: every decision must name a stock in the agent's list, fit the
@@ -22,6 +23,7 @@ export function validateAgentSettings(s:AgentSettings,allowed:string[]):AgentSet
  if(!s||s.version!==1||(s.mode!==undefined&&!['auto','ask'].includes(s.mode))||!['careful','balanced','bold'].includes(s.style)||!(AGENT_INTERVALS as readonly number[]).includes(s.intervalMinutes)||typeof s.note!=='string'||s.note.length>280||!Array.isArray(s.symbols)||s.symbols.length<1||s.symbols.length>MAX_AGENT_SYMBOLS)throw Error('Choose 1 to 6 stocks, a style and how often the agent checks.');
  const symbols=[...new Set(s.symbols.map(x=>String(x).toUpperCase()))];
  if(symbols.length!==s.symbols.length||symbols.some(x=>!/^[A-Z][A-Z0-9.]{0,7}$/.test(x)||!allowed.includes(x)))throw Error('The agent can only trade stocks in your Limits.');
+ if(symbols.some(isMemecoin))throw Error('The agent does not trade memecoins. Buy those by hand from Home.');
  return {version:1,symbols,style:s.style,intervalMinutes:s.intervalMinutes,note:s.note.replace(/[\u0000-\u001f]/g,' ').trim(),mode:s.mode??'auto'};
 }
 

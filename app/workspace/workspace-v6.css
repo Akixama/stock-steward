@@ -317,3 +317,8 @@ details.ws-shadow-history>summary,.ws-run>summary,.ws-past-ideas>summary{min-hei
 .ws-agent-mode{grid-template-columns:repeat(2,minmax(0,1fr))}@media (max-width:560px){.ws-agent-mode{grid-template-columns:1fr}}
 .ws-agent-score{margin:14px 0 0;padding:12px 14px;border-radius:12px;background:#0f1117;border:1px solid #2c3a30;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
 .ws-agent-score strong{color:#9fe0b4;font-size:20px}.ws-agent-score span{color:#d6d8e2;font-size:14px}.ws-agent-score small{flex-basis:100%;color:#8d93a5;font-size:12px}
+
+/* Memecoins: a plain high-risk tag in the Limits picker and a note on the buy box. */
+.ws-meme-tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;border:1px solid rgba(240,170,90,.45);color:#f0b46a;font-size:10.5px;font-style:normal;font-weight:600;letter-spacing:.02em;vertical-align:1px}
+.ws-meme-warning{margin:4px 0 2px;padding:10px 12px;border-radius:10px;border:1px solid rgba(240,170,90,.35);background:rgba(240,170,90,.08);color:#ecc89c;font-size:12px;line-height:1.5}
+.ws-meme-warning strong{color:#f6d2a6}
