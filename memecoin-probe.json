@@ -1,0 +1,1485 @@
+{
+ "observedAt": "2026-10-26T12:02:42.987Z",
+ "network": "robinhood",
+ "pools": [
+  {
+   "name": "USDG / WETH 0.01%",
+   "poolAddressOrId": "0x52e65b17fb6e5ba00ed806f37afcd2daa50271ca",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 13022323.3654,
+   "volume24hUsd": 149198915.515202,
+   "fdvUsd": 676248723.254774,
+   "createdAt": "2026-07-02T20:51:08Z"
+  },
+  {
+   "name": "PONS / USDG",
+   "poolAddressOrId": "0xaaa3f2cbfc56b62eaa6914f3a3f4f58e8c0287be181c4fae2a02504b78fcbf47",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "PONS",
+    "address": "0x621632fe422158e9ce8bc532498993e3dde526d5"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 69870431.3357,
+   "volume24hUsd": 50007331.4313958,
+   "fdvUsd": 200378823.09,
+   "createdAt": "2026-10-26T10:24:53Z"
+  },
+  {
+   "name": "WETH / USDG 0.05%",
+   "poolAddressOrId": "0x387bf619da4d3fb62bb276482693dba1b9b3520f573cabdfe033384a24125982",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 2416830.1421,
+   "volume24hUsd": 48245410.6058872,
+   "fdvUsd": 5761490856.44311,
+   "createdAt": "2026-06-24T16:56:59Z"
+  },
+  {
+   "name": "WETH / USDG 0.002%",
+   "poolAddressOrId": "0x7615926023bb149f36095645c2a81dc367d39750",
+   "dex": "aero-slipstream-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 1906962.0358,
+   "volume24hUsd": 47058373.9596837,
+   "fdvUsd": 93944861.0759983,
+   "createdAt": "2026-10-22T03:11:05Z"
+  },
+  {
+   "name": "WETH / USDG",
+   "poolAddressOrId": "0xbac3aa3b91584a53a579b3c999a56756e954e59247e497bad1d25a4334bde551",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 20295934.6705,
+   "volume24hUsd": 38502726.6948369,
+   "fdvUsd": 5761515564.88965,
+   "createdAt": "2026-08-20T07:58:27Z"
+  },
+  {
+   "name": "BTC / WETH",
+   "poolAddressOrId": "0x03bfe47801f43332c4f79608e6765ebe15d1e1d80a546833da4569b9f5b1d8f8",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "BTC",
+    "address": "0xa5b562d13486735d2a96d6b230489b1f33731440"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 450794.2161,
+   "volume24hUsd": 18096018.6201016,
+   "fdvUsd": 22080217.09,
+   "createdAt": "2026-10-25T17:14:31Z"
+  },
+  {
+   "name": "OpenAI / USDG",
+   "poolAddressOrId": "0xdc84ee35ceeed3ca78d39032ad2d7a020a065a5c1d8a2e8b46ca3453abf0c758",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "OpenAI",
+    "address": "0x07518d5a9bde63205d54093aeeb957f5b59e3b07"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 12703957.9602047,
+   "fdvUsd": 10193036.3,
+   "createdAt": "2026-10-25T14:37:27Z"
+  },
+  {
+   "name": "USDG / WETH 0.05%",
+   "poolAddressOrId": "0x69bfaf19c9f377bb306a89aed9f6b07e2c1a8d9a",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 5186822.3996,
+   "volume24hUsd": 11338617.4359096,
+   "fdvUsd": 675758242.535935,
+   "createdAt": "2026-06-29T09:34:25Z"
+  },
+  {
+   "name": "FLOP / WETH",
+   "poolAddressOrId": "0xb86a4365f4d836bbda7de6d6ce66b191b5d8b616723acaaf2fa7a0e7d4473ab9",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "FLOP",
+    "address": "0x047a84485f1a4314196bed897cd14d3de245ab4d"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 190838.5576,
+   "volume24hUsd": 6718873.48074849,
+   "fdvUsd": 3981552.204,
+   "createdAt": "2026-10-26T10:11:24Z"
+  },
+  {
+   "name": "PONS / USDG 0.3%",
+   "poolAddressOrId": "0xf2a0be59ab76b96f957bd5e5b967f2b75e8db269",
+   "dex": "ramses-v3-robinhood",
+   "base": {
+    "symbol": "PONS",
+    "address": "0x39dbed3a2bd333467115de45665cc57f813c4571"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 2214533.8412,
+   "volume24hUsd": 6706643.72690396,
+   "fdvUsd": 160268124.510621,
+   "createdAt": "2026-08-11T03:34:02Z"
+  },
+  {
+   "name": "Claude / USDG",
+   "poolAddressOrId": "0x0ec4b9ca9b1bb33c008c68727d222eddce95eac52f12b143486a1628153991e4",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "Claude",
+    "address": "0xea6bd2405e4c60d18f428a50d0d16df0028c4b07"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 10492686.0083,
+   "volume24hUsd": 6323241.73660135,
+   "fdvUsd": 10551391.25,
+   "createdAt": "2026-08-07T14:38:49Z"
+  },
+  {
+   "name": "WETH / USDG 0.01%",
+   "poolAddressOrId": "0xfae65eaa11943f45e83d5b45dc7a7c801c51bfb0",
+   "dex": "ramses-v3-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 700701.5208,
+   "volume24hUsd": 6279362.50053346,
+   "fdvUsd": 93944861.0759983,
+   "createdAt": "2026-08-19T16:09:34Z"
+  },
+  {
+   "name": "MOW / WETH",
+   "poolAddressOrId": "0x5291cfd042d8a771a510534ee31090bc4f4dc72724871e8f321aecfd12332a9a",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "MOW",
+    "address": "0x0b7c6c138dc75622f4200d157b13fb93e6bd94fa"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 10235654.8317,
+   "volume24hUsd": 6073839.39938299,
+   "fdvUsd": 102375277,
+   "createdAt": "2026-10-02T15:57:10Z"
+  },
+  {
+   "name": "WETH / USDG 0.05%",
+   "poolAddressOrId": "0x9b050cb1f265094b0977160a2bd7da8c9e529c3c",
+   "dex": "sushiswap-v3-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 3107106.8049,
+   "volume24hUsd": 5113881.33906317,
+   "fdvUsd": 93944861.0759983,
+   "createdAt": "2026-08-08T06:52:18Z"
+  },
+  {
+   "name": "MAKERS / WETH",
+   "poolAddressOrId": "0xb38135978138f1db4fc2cdce8faf278dd965d7e59561da52887e2ed8ba24ac72",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "MAKERS",
+    "address": "0xff83b2512bca8bee2f6a9d9c3e8ed4460fc6846c"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2330.3706,
+   "volume24hUsd": 4561198.33514493,
+   "fdvUsd": 2317.068127,
+   "createdAt": "2026-10-26T01:58:55Z"
+  },
+  {
+   "name": "QQQ / SPY 0.02%",
+   "poolAddressOrId": "0x8493982435e4273028008cd181c84c0d6a548f96792fdb5acddcbb6a8c82d305",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "QQQ",
+    "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68"
+   },
+   "quote": {
+    "symbol": "SPY",
+    "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+   },
+   "reserveUsd": 1428631.9225,
+   "volume24hUsd": 4436691.13644492,
+   "fdvUsd": 5473917.18628719,
+   "createdAt": "2026-09-12T20:38:09Z"
+  },
+  {
+   "name": "SPY / WETH 0.05%",
+   "poolAddressOrId": "0xddcbba3666f578e3f09516f21ff85bfee859ab5e",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "SPY",
+    "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 1953771.5601,
+   "volume24hUsd": 4069252.25733368,
+   "fdvUsd": 21030492.7201759,
+   "createdAt": "2026-08-03T13:56:47Z"
+  },
+  {
+   "name": "ETH / WETH 0.01%",
+   "poolAddressOrId": "0xf13fdddaa69a5952e678782f4746488ad80a28e079b4acea642ab7d02843dc00",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "ETH",
+    "address": "0xa6becc14d26d7fe735a4b52034828c75c2d185c2"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 3873361.17755495,
+   "fdvUsd": 1114986.207,
+   "createdAt": "2026-10-25T21:09:26Z"
+  },
+  {
+   "name": "PRESIDENT / WETH",
+   "poolAddressOrId": "0x722fb6eac3ec7bd0f27bbd7f99ccb0ed886840c749b30377863c5f75b25569ae",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "PRESIDENT",
+    "address": "0x898588e7d2b77527476bbc877fc73bc49fcec188"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2332.0001,
+   "volume24hUsd": 3565144.1178611,
+   "fdvUsd": 2329.578244,
+   "createdAt": "2026-10-25T23:06:39Z"
+  },
+  {
+   "name": "NMS / WETH 0.01%",
+   "poolAddressOrId": "0xa215cb3d31ef45bc4d3e34ea9761d1fe7031aa7a26dff918783228ae97f00cbd",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0x94cd9a7825e98744790a9ac624e3622d8595659f"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 3408130.0857477,
+   "fdvUsd": 58325.19859,
+   "createdAt": "2026-10-26T03:55:28Z"
+  },
+  {
+   "name": "SNKSM / WETH 0.3%",
+   "poolAddressOrId": "0xc59bf6fb0ebfd6e7b4b81cb00d05148ca192a8d0d43ae611acc89510a266e11d",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "SNKSM",
+    "address": "0xe530c2f492ec7b9dcb947a81c6ecb588b09befe2"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 3329420.27105532,
+   "fdvUsd": 852381.3289,
+   "createdAt": "2026-10-26T00:37:42Z"
+  },
+  {
+   "name": "CTRL / WETH",
+   "poolAddressOrId": "0x5924166cbb26424620ef33b24fbbc6de4a4677b7bf4d9ba35bf54d698069c2eb",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "CTRL",
+    "address": "0x2b3240b2aa4a8c8d05d50e8410d470e61ffa0a15"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2331.5345,
+   "volume24hUsd": 3065034.09459806,
+   "fdvUsd": 2359.888877,
+   "createdAt": "2026-10-25T17:07:40Z"
+  },
+  {
+   "name": "AMC / WETH",
+   "poolAddressOrId": "0x671bd8e6b1ce840a88260eac00261e284e7a73b5eef970564437b2ebb5abfada",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "AMC",
+    "address": "0x08acff581ae3d4947d43b84a0976a39f04333767"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2329.2067,
+   "volume24hUsd": 3032612.82298324,
+   "fdvUsd": 2345.182711,
+   "createdAt": "2026-10-25T15:28:58Z"
+  },
+  {
+   "name": "AnsemCat / WETH",
+   "poolAddressOrId": "0x77d31f9362c1c9cbe18d091dabe7568ed8316fd27d2469ea11e41cbc9d3912c0",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "AnsemCat",
+    "address": "0x67c51c928d5d8383f3a58fc591a4e6f6463949ed"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 16284738.0541,
+   "volume24hUsd": 2973058.85340187,
+   "fdvUsd": 68228141.587419,
+   "createdAt": "2026-09-12T09:36:10Z"
+  },
+  {
+   "name": "Kimchi / WETH",
+   "poolAddressOrId": "0x48a4aadf6cdea327db8fda24580888842e108cb68b05e0684c717813234a6fd0",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "Kimchi",
+    "address": "0xa10269ec5084731d64cd3de6e1e5ceac482daa8f"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2329.2067,
+   "volume24hUsd": 2893731.85619826,
+   "fdvUsd": 2331.126883,
+   "createdAt": "2026-10-25T20:55:58Z"
+  },
+  {
+   "name": "NMS / WETH 0.05%",
+   "poolAddressOrId": "0xfd637bdd5376dc4e854c6d436457d935fc9bf6a7c4c3acbebd3a98681d63ba92",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0x10d2ee4de6da2b68cb9678f399873694636940a4"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 2627927.2547809,
+   "fdvUsd": 46456.99862,
+   "createdAt": "2026-10-25T19:32:18Z"
+  },
+  {
+   "name": "WETH / USDG 0.05%",
+   "poolAddressOrId": "0x16679e2ac1a798865ecf1c1639e67693ddb1c220",
+   "dex": "up-v3",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 200692.5049,
+   "volume24hUsd": 2576350.45887544,
+   "fdvUsd": 93944861.0759983,
+   "createdAt": "2026-07-21T03:25:23Z"
+  },
+  {
+   "name": "NMS / QQQ",
+   "poolAddressOrId": "0x8e8de836acd654544e84549f4a3eb635a53db4fd3fd97f959bd4c83e17cd2800",
+   "dex": "pons-v2-dex",
+   "base": {
+    "symbol": "NMS",
+    "address": "0xfcca112411268fc28c2c5acbf633c745803040a4"
+   },
+   "quote": {
+    "symbol": "QQQ",
+    "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 2488894.96760663,
+   "fdvUsd": 24586.73577,
+   "createdAt": "2026-10-25T18:53:44Z"
+  },
+  {
+   "name": "PRESIDENT / WETH",
+   "poolAddressOrId": "0x295ff3decf5d1b422905bd847658dbe5eb6da0d1b246c26e52061a79a0c5f136",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "PRESIDENT",
+    "address": "0x651d695190fc12df2acf0caeea7062458de7ea1f"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2331.3017,
+   "volume24hUsd": 2372109.14924979,
+   "fdvUsd": 2348.23659,
+   "createdAt": "2026-10-25T21:47:22Z"
+  },
+  {
+   "name": "KIVO / WETH 0.01%",
+   "poolAddressOrId": "0xfafa5e69b343b618284f3da2d6fd45569c2fb938c8bd05f9e554da2ea8299070",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "KIVO",
+    "address": "0x1008d87c58e4d14f7033cbf3470c8f41a7e5ab25"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 2292645.51739838,
+   "fdvUsd": 207259.33,
+   "createdAt": "2026-10-26T07:53:11Z"
+  },
+  {
+   "name": "GOAT / WETH 0.05%",
+   "poolAddressOrId": "0x6ec770cae5f36eb0df4887dc24214ebcec7b468d427048c35da5d3e46bf917ad",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "GOAT",
+    "address": "0x96dc8e5ea31696cdd9a2f7b957f6d0b65a9f4d88"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 2254272.67384765,
+   "fdvUsd": 98006.94708,
+   "createdAt": "2026-10-25T17:06:25Z"
+  },
+  {
+   "name": "CTRL / WETH",
+   "poolAddressOrId": "0x35e65fcbf657f098cea9210a54134eb85d8847aadca1880af8bb57312ca5b996",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "CTRL",
+    "address": "0xab0af200fc4adbbe5673c764036f20e20b719779"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2330.8362,
+   "volume24hUsd": 2237545.79988593,
+   "fdvUsd": 2332.21839,
+   "createdAt": "2026-10-25T20:04:18Z"
+  },
+  {
+   "name": "NMS / QQQ",
+   "poolAddressOrId": "0x5ccd0a3c09c3bb2b25996edbd62604fd5b3d519c28ee9842bba80663a2ed2bcd",
+   "dex": "long-xyz",
+   "base": {
+    "symbol": "NMS",
+    "address": "0xbf6bd9aa3e6a5ddac553527dec7e671ac0f41e18"
+   },
+   "quote": {
+    "symbol": "QQQ",
+    "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68"
+   },
+   "reserveUsd": 134546.151,
+   "volume24hUsd": 2125039.82811529,
+   "fdvUsd": 279648.0763,
+   "createdAt": "2026-10-25T18:51:09Z"
+  },
+  {
+   "name": "CTRL / WETH",
+   "poolAddressOrId": "0xb881ac89d6956d390b035517d24f3c560016ac1d28b3e1b5c8ad76c4d120fa25",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "CTRL",
+    "address": "0x9d0356b2a2c28adb2f08e56ced9d234fe0ccb159"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2345.2686,
+   "volume24hUsd": 2094641.9884219,
+   "fdvUsd": 2365.988929,
+   "createdAt": "2026-10-25T19:25:06Z"
+  },
+  {
+   "name": "NVDA / WETH 0.01%",
+   "poolAddressOrId": "0x0239c82977d7350e936b6da9f35c816470399e0c",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "NVDA",
+    "address": "0xa1f524a98b824ed840466c80c98bc0193ead2161"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 36.3138,
+   "volume24hUsd": 2090999.83521918,
+   "fdvUsd": 148885.289,
+   "createdAt": "2026-10-25T22:27:51Z"
+  },
+  {
+   "name": "PUPST / WETH 0.3%",
+   "poolAddressOrId": "0x5456eec5bd514a6a3bc2bed775a5fc18415294514d41827334d5ec0b0bd27519",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "PUPST",
+    "address": "0x0c1c357e1786c58bdd80b3218da35d479b554b5b"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 236576.0286,
+   "volume24hUsd": 2070389.57695388,
+   "fdvUsd": 784727.6934,
+   "createdAt": "2026-10-26T07:16:59Z"
+  },
+  {
+   "name": "NMS / WETH 0.01%",
+   "poolAddressOrId": "0x241e7eaccb94ee6a26cd0bb40da9f6d951d19794fa05483470b1b78010fdeab8",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0xf0d416a5fc245b22924066ffe8d08fcb1bc97ac5"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 2041238.31539542,
+   "fdvUsd": 458275.896,
+   "createdAt": "2026-10-26T00:14:12Z"
+  },
+  {
+   "name": "WETH / USDG 0.01%",
+   "poolAddressOrId": "0x24107d152f14a76d292123265ae3f3c71f863fc2f4ef7ba49d64e78d28ea379e",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 235991.6593,
+   "volume24hUsd": 1990962.12571917,
+   "fdvUsd": 5761490856.44311,
+   "createdAt": "2026-07-02T08:58:08Z"
+  },
+  {
+   "name": "HRS / WETH 0.05%",
+   "poolAddressOrId": "0xa7bf0587fc9149465004647bd003934baae2aab376811424a5319e40745f3481",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "HRS",
+    "address": "0x98ee4f0317edfc195d55b98f481a3c3c7be35272"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1974909.76151159,
+   "fdvUsd": 133339.9302,
+   "createdAt": "2026-10-25T15:36:11Z"
+  },
+  {
+   "name": "BTC / WETH",
+   "poolAddressOrId": "0xec65e08660ce3500d938e8e065e6d5ae4e97603d3dbf30b8291fa649a854745c",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "BTC",
+    "address": "0x1f2984be178e6d2d1e30318dcdbbe29965970972"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2329.6722,
+   "volume24hUsd": 1971124.36638563,
+   "fdvUsd": 2345.324681,
+   "createdAt": "2026-10-25T14:37:01Z"
+  },
+  {
+   "name": "SPY / WETH 0.027%",
+   "poolAddressOrId": "0x05afb8e895e77ce70f79056137ea606b05bf5abd",
+   "dex": "aero-slipstream-robinhood",
+   "base": {
+    "symbol": "SPY",
+    "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 490533.2992,
+   "volume24hUsd": 1926551.93098932,
+   "fdvUsd": 21055889.1407349,
+   "createdAt": "2026-10-22T03:12:02Z"
+  },
+  {
+   "name": "CONDUCTOR / WETH 0.01%",
+   "poolAddressOrId": "0xe8f20d1053390454a6192f8494d1be4e25a574f3b1918de3633f79e82d693ffd",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "CONDUCTOR",
+    "address": "0xe6c244230376ece3649a6aca773301ae361f09e0"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1920365.32973059,
+   "fdvUsd": 23560.77277,
+   "createdAt": "2026-10-25T15:54:03Z"
+  },
+  {
+   "name": "swordcat / WETH 0.01%",
+   "poolAddressOrId": "0x42dd3a6167bc788696c1cb6d653f3b8b264f01fb2795a3e917e20ec5734abaaf",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "swordcat",
+    "address": "0xf5133e31d36e9e876df83584ae7b415aa416b14c"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1835273.65183111,
+   "fdvUsd": 4220151.923,
+   "createdAt": "2026-10-25T11:36:03Z"
+  },
+  {
+   "name": "META / SPY 0.035%",
+   "poolAddressOrId": "0x8dc0387af606d84be8e4c2fc1da7bdc6d467337e9f3e075113f968922a190847",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "META",
+    "address": "0xc0d6457c16cc70d6790dd43521c899c87ce02f35"
+   },
+   "quote": {
+    "symbol": "SPY",
+    "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+   },
+   "reserveUsd": 468731.9954,
+   "volume24hUsd": 1791104.2017172,
+   "fdvUsd": 7137553.23867881,
+   "createdAt": "2026-09-28T01:54:35Z"
+  },
+  {
+   "name": "ZGAP / WETH 0.05%",
+   "poolAddressOrId": "0xc066906240519cc8b3d5eb78a777394c0d0de2c3acb4243fe0be55a5ab6f7322",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "ZGAP",
+    "address": "0x14907845d00cec0c6b7ff385d7bf4c7c288996ea"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1786888.74928106,
+   "fdvUsd": 7048.263108,
+   "createdAt": "2026-10-25T16:01:10Z"
+  },
+  {
+   "name": "Bow / WETH 0.01%",
+   "poolAddressOrId": "0x364d86649e84cb94eb0a6b8e12f5522d7ab45641",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "Bow",
+    "address": "0xe13974dd85068e705882b5f145f36242bdb1018b"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 26.7698,
+   "volume24hUsd": 1758961.58905472,
+   "fdvUsd": 46735.11732,
+   "createdAt": "2026-10-26T02:00:47Z"
+  },
+  {
+   "name": "Bow / WETH",
+   "poolAddressOrId": "0x596773a4b582b88fa682d7677cfce34d1e85635a51b415ff9186444394e6fe57",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "Bow",
+    "address": "0xbfad6175d9d0c24a7091b6e01cba7ac332e47d10"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2330.6034,
+   "volume24hUsd": 1758000.55683244,
+   "fdvUsd": 2317.142262,
+   "createdAt": "2026-10-26T01:23:37Z"
+  },
+  {
+   "name": "MINKO / WETH 0.01%",
+   "poolAddressOrId": "0xb2476054a6a57e323f43e8f1decf6ae42c1b27e3b8e65d395e1906794defc225",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "MINKO",
+    "address": "0x56816e364272bfd251fde5404efc2a80daa2b0d9"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1720368.88014715,
+   "fdvUsd": 657265.8006,
+   "createdAt": "2026-10-26T09:45:31Z"
+  },
+  {
+   "name": "ZGAP / WETH 0.01%",
+   "poolAddressOrId": "0xd295d29cfcca9193c21e4cc775cf13b37da661fcbcdafb27863e3df0560af876",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "ZGAP",
+    "address": "0x81fb39ccaf092bcde9a80a7bd34a63e95052c385"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1706144.34870989,
+   "fdvUsd": 159133.2523,
+   "createdAt": "2026-10-25T21:36:29Z"
+  },
+  {
+   "name": "NIHAO / WETH 0.01%",
+   "poolAddressOrId": "0xf8ea3398b046d376358922a3038f352013900938723cfae89c9563d19f690614",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NIHAO",
+    "address": "0xc616229084c56030678b80f811755d78699182ed"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1497678.36269487,
+   "fdvUsd": 24613.8634,
+   "createdAt": "2026-10-25T09:57:24Z"
+  },
+  {
+   "name": "GME / WETH",
+   "poolAddressOrId": "0xcde75bf3a1cc30809dab8148c0061916b03a1ce735b8e127adc8cbe937d1c135",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "GME",
+    "address": "0x592b15ba10031fa5eff8d0eab913103f65c3a920"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2361.796,
+   "volume24hUsd": 1674136.17908214,
+   "fdvUsd": 2380.529643,
+   "createdAt": "2026-10-25T16:38:32Z"
+  },
+  {
+   "name": "NMS / WETH 0.05%",
+   "poolAddressOrId": "0x1a48e9b0cd94187355672d0ecc05d157435868d82da6dcaf68ac20574bb10c14",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0x7e1bf26fc376eb4fbdcbeb98ae7dc86b51b840a4"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1657897.10417599,
+   "fdvUsd": 315522.4155,
+   "createdAt": "2026-10-26T03:31:49Z"
+  },
+  {
+   "name": "NMS / WETH 0.05%",
+   "poolAddressOrId": "0xbba7f894afa1bf4103f3dd42262acb94e2ebae2536eaaaa9c2d5d316319b8b00",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0xa26c434b8cf736822ea7a7c1a6cb92cc8cc740a4"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1610129.70451528,
+   "fdvUsd": 14663.62835,
+   "createdAt": "2026-10-25T19:15:55Z"
+  },
+  {
+   "name": "NVDA / USDG 0.05%",
+   "poolAddressOrId": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "NVDA",
+    "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 3085648.3798,
+   "volume24hUsd": 1597695.99241648,
+   "fdvUsd": 18766751.1412985,
+   "createdAt": "2026-07-21T11:02:06Z"
+  },
+  {
+   "name": "U / WETH 0.008%",
+   "poolAddressOrId": "0xa5d2fa75a050327b6a0e3a6020994fea5a9df413e0e031045399411e1616b2e3",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "U",
+    "address": "0xce24439f2d9c6a2289f741120fe202248b666666"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 455003.3486,
+   "volume24hUsd": 1582180.45317409,
+   "fdvUsd": 30020979.6025298,
+   "createdAt": "2026-09-18T06:40:21Z"
+  },
+  {
+   "name": "NMS / WETH 0.01%",
+   "poolAddressOrId": "0x24fc8eabf991befe5fa8c7bbd6c8f6e1b6dbb2e42b3e41a734cd73994741e640",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "NMS",
+    "address": "0xfabe4ac5f0e49a41906f85810d3a9c33d4e540aa"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1551170.07874682,
+   "fdvUsd": 668042.8786,
+   "createdAt": "2026-10-25T18:57:22Z"
+  },
+  {
+   "name": "SPY / USDG 0.05%",
+   "poolAddressOrId": "0xe5923c8a8be481ec89a2ca784a2bbfa4235de6d88f92260fd66b660c4babf907",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "SPY",
+    "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c"
+   },
+   "quote": {
+    "symbol": "USDG",
+    "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168"
+   },
+   "reserveUsd": 1171424.6068,
+   "volume24hUsd": 1542555.5568308,
+   "fdvUsd": 21011061.5217446,
+   "createdAt": "2026-08-03T19:59:51Z"
+  },
+  {
+   "name": "INU / WETH 0.01%",
+   "poolAddressOrId": "0xf4e8aefcae9c9c9cc8a0016e31062ee001cf4ee0b7c0992dbf5a64102fc93a9e",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "INU",
+    "address": "0x5daa0b24de1b3f42f801d05ab527a0d7b9212a5d"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 0,
+   "volume24hUsd": 1529126.89145212,
+   "fdvUsd": 481064.0742,
+   "createdAt": "2026-10-25T17:42:39Z"
+  },
+  {
+   "name": "SPCX / WETH 0.05%",
+   "poolAddressOrId": "0xc3c9f0171490ef0f4536fe493f3b0ebb5ee0cb5e",
+   "dex": "uniswap-v3-robinhood",
+   "base": {
+    "symbol": "SPCX",
+    "address": "0x4a0e65a3eccec6dbe60ae065f2e7bb85fae35eea"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73"
+   },
+   "reserveUsd": 795392.4565,
+   "volume24hUsd": 1529961.64534711,
+   "fdvUsd": 12918506.8812957,
+   "createdAt": "2026-07-20T10:15:53Z"
+  },
+  {
+   "name": "GME / WETH",
+   "poolAddressOrId": "0x6e2b51647b6ea181a3ce7291c8b5885e0487a3905576564a765a6348f154350b",
+   "dex": "uniswap-v4-robinhood",
+   "base": {
+    "symbol": "GME",
+    "address": "0x66e0220e344be5e6b1661457a3a3a4067e497507"
+   },
+   "quote": {
+    "symbol": "WETH",
+    "address": "0x0000000000000000000000000000000000000000"
+   },
+   "reserveUsd": 2330.1378,
+   "volume24hUsd": 1524925.85875358,
+   "fdvUsd": 2342.225744,
+   "createdAt": "2026-10-25T15:04:07Z"
+  }
+ ],
+ "tokens": [
+  {
+   "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+   "symbol": "USDG",
+   "code": "170 bytes",
+   "decimals": 6,
+   "totalSupply": "674934158038176",
+   "owner": "0xcFA0388f5ddf905FdC08c45c716C15Dc10A14C6F",
+   "proxyImplementation": "0x00000000000000000000000068184c449e1a8f34fa18d289737129fd27b66f8f",
+   "v4Pools": [
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    },
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "3081825925844349"
+    },
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "1675467537975725"
+    },
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0x621632fe422158e9ce8bc532498993e3dde526d5",
+   "symbol": "PONS",
+   "code": "2551 bytes",
+   "decimals": 18,
+   "totalSupply": "860000000000000000000000000",
+   "owner": "0xa307B4C7AD1eb1CC8656Ba15Ab7C07C3Fe88fEFf",
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x0000000000000000000000000000000000000000",
+   "symbol": "WETH",
+   "code": "none",
+   "decimals": null,
+   "totalSupply": "",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "37962703163119089"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "392874279738346566"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "15244155514089428"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "542221652203593"
+    }
+   ]
+  },
+  {
+   "address": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+   "symbol": "WETH",
+   "code": "2202 bytes",
+   "decimals": 18,
+   "totalSupply": "40226260393402561343752",
+   "owner": null,
+   "proxyImplementation": "0x000000000000000000000000c6b81b429797e0f555440b70cd99e032d7ae947e",
+   "v4Pools": [
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "3081825925844349"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "1675467537975725"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0xa5b562d13486735d2a96d6b230489b1f33731440",
+   "symbol": "BTC",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x07518d5a9bde63205d54093aeeb957f5b59e3b07",
+   "symbol": "OpenAI",
+   "code": "12024 bytes",
+   "decimals": 18,
+   "totalSupply": "100000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x047a84485f1a4314196bed897cd14d3de245ab4d",
+   "symbol": "FLOP",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+   "symbol": "PONS",
+   "code": "5274 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "0"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "4684264835494676726"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0xea6bd2405e4c60d18f428a50d0d16df0028c4b07",
+   "symbol": "Claude",
+   "code": "12024 bytes",
+   "decimals": 18,
+   "totalSupply": "100000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x0b7c6c138dc75622f4200d157b13fb93e6bd94fa",
+   "symbol": "MOW",
+   "code": "3649 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0xff83b2512bca8bee2f6a9d9c3e8ed4460fc6846c",
+   "symbol": "MAKERS",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0xd5f3879160bc7c32ebb4dc785f8a4f505888de68",
+   "symbol": "QQQ",
+   "code": "283 bytes",
+   "decimals": 18,
+   "totalSupply": "7599923100480000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "0"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "10142601034135047"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "13603839916033"
+    },
+    {
+     "pair": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+   "symbol": "SPY",
+   "code": "283 bytes",
+   "decimals": 18,
+   "totalSupply": "27537018285360000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "531429857286278085"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 500,
+     "tickSpacing": 10,
+     "hooks": "none",
+     "liquidity": "45977028599"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "3523432132794677344"
+    },
+    {
+     "pair": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+     "fee": 10000,
+     "tickSpacing": 200,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0xa6becc14d26d7fe735a4b52034828c75c2d185c2",
+   "symbol": "ETH",
+   "code": "3854 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x0000000000000000000000000000000000000000",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0x898588e7d2b77527476bbc877fc73bc49fcec188",
+   "symbol": "PRESIDENT",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x94cd9a7825e98744790a9ac624e3622d8595659f",
+   "symbol": "NMS",
+   "code": "4844 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  },
+  {
+   "address": "0xe530c2f492ec7b9dcb947a81c6ecb588b09befe2",
+   "symbol": "SNKSM",
+   "code": "1764 bytes",
+   "decimals": 18,
+   "totalSupply": "100000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+     "fee": 3000,
+     "tickSpacing": 60,
+     "hooks": "none",
+     "liquidity": "1005515983939682523"
+    }
+   ]
+  },
+  {
+   "address": "0x2b3240b2aa4a8c8d05d50e8410d470e61ffa0a15",
+   "symbol": "CTRL",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x08acff581ae3d4947d43b84a0976a39f04333767",
+   "symbol": "AMC",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x67c51c928d5d8383f3a58fc591a4e6f6463949ed",
+   "symbol": "AnsemCat",
+   "code": "3649 bytes",
+   "decimals": 18,
+   "totalSupply": "420690000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0xa10269ec5084731d64cd3de6e1e5ceac482daa8f",
+   "symbol": "Kimchi",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x10d2ee4de6da2b68cb9678f399873694636940a4",
+   "symbol": "NMS",
+   "code": "4655 bytes",
+   "decimals": 18,
+   "totalSupply": "100000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0xfcca112411268fc28c2c5acbf633c745803040a4",
+   "symbol": "NMS",
+   "code": "3248 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x651d695190fc12df2acf0caeea7062458de7ea1f",
+   "symbol": "PRESIDENT",
+   "code": "1923 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": []
+  },
+  {
+   "address": "0x1008d87c58e4d14f7033cbf3470c8f41a7e5ab25",
+   "symbol": "KIVO",
+   "code": "3854 bytes",
+   "decimals": 18,
+   "totalSupply": "1000000000000000000000000000",
+   "owner": null,
+   "proxyImplementation": null,
+   "v4Pools": [
+    {
+     "pair": "0x0000000000000000000000000000000000000000",
+     "fee": 100,
+     "tickSpacing": 1,
+     "hooks": "none",
+     "liquidity": "0"
+    }
+   ]
+  }
+ ],
+ "errors": []
+}
